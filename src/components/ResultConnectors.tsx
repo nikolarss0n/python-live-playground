@@ -196,8 +196,17 @@ export function ResultConnectors({
       rowRect.right - ws.left + 4,
       (resultsPaneRect?.right ?? rowRect.right) - ws.left - 10,
     )
-    const resultTop = rowRect.top - ws.top
-    const resultH = Math.max(18, rowRect.height)
+    // Prefer the raw error line so tall explain panels don't inflate the band.
+    const anchorEl = row.querySelector(
+      '[data-error-anchor], .error-card-raw',
+    ) as HTMLElement | null
+    const anchorRect = anchorEl?.getBoundingClientRect()
+    const resultTop = anchorRect
+      ? anchorRect.top - ws.top - 2
+      : rowRect.top - ws.top
+    const resultH = anchorRect
+      ? Math.max(20, Math.min(anchorRect.height + 6, 36))
+      : Math.max(18, Math.min(rowRect.height, 28))
 
     if (resultLeft <= sourceRight + 8) {
       setRibbon(null)

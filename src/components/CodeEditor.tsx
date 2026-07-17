@@ -4,6 +4,10 @@ import { EditorView } from '@codemirror/view'
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
 import { tags as t } from '@lezer/highlight'
 import { useEffect, useMemo, useRef } from 'react'
+import {
+  setVariablePathNames,
+  variablePathColors,
+} from '../editor/variableColors'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -14,6 +18,8 @@ type CodeEditorProps = {
   ariaLabel?: string
   onViewReady?: (view: EditorView | null) => void
   onGeometryChange?: () => void
+  /** Variable names to chip (from hovering a result on the right). */
+  pathNames?: readonly string[]
 }
 
 const lightHighlight = HighlightStyle.define([
@@ -37,6 +43,7 @@ const darkHighlight = HighlightStyle.define([
   { tag: t.number, color: '#FBBF24' },
   { tag: t.keyword, color: '#C4B5FD' },
   { tag: t.operator, color: '#A8A29E' },
+  // Keep variable glyphs light; path identity is the chip background only.
   { tag: t.definition(t.variableName), color: '#F5F2EB' },
   { tag: t.variableName, color: '#F5F2EB' },
   { tag: t.function(t.variableName), color: '#7DD3FC' },
@@ -107,6 +114,7 @@ export function CodeEditor({
   ariaLabel = 'Python editor',
   onViewReady,
   onGeometryChange,
+  pathNames = [],
 }: CodeEditorProps) {
   const ref = useRef<ReactCodeMirrorRef>(null)
   const onGeometryChangeRef = useRef(onGeometryChange)
@@ -117,6 +125,7 @@ export function CodeEditor({
       python(),
       buildTheme(theme),
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
+      ...variablePathColors(theme === 'dark'),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (
@@ -134,6 +143,13 @@ export function CodeEditor({
   useEffect(() => {
     return () => onViewReady?.(null)
   }, [onViewReady])
+
+  // Result-panel hover drives path chips.
+  useEffect(() => {
+    const view = ref.current?.view
+    if (!view) return
+    setVariablePathNames(view, pathNames)
+  }, [pathNames, value, theme])
 
   return (
     <div className="code-editor" role="region" aria-label={ariaLabel}>
@@ -156,6 +172,7 @@ export function CodeEditor({
         onChange={onChange}
         onCreateEditor={(view) => {
           onViewReady?.(view)
+          if (pathNames.length) setVariablePathNames(view, pathNames)
         }}
       />
     </div>

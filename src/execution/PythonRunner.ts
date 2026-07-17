@@ -5,7 +5,27 @@ import type {
   WorkerOutboundMessage,
 } from './protocol'
 import { DEFAULT_TIMEOUT_MS } from './protocol'
-import { friendlyErrorMessage } from './instrument'
+import { enrichErrorEvent, explainError } from './errorExplain'
+
+function makeErrorEvent(
+  message: string,
+  traceback: string,
+  line?: number,
+): ResultEvent {
+  const explanation = explainError(message)
+  return enrichErrorEvent({
+    kind: 'error',
+    message,
+    friendly: `${explanation.name}: ${explanation.detail}\n\n${explanation.summary}\n\n${explanation.tip}`,
+    traceback,
+    line,
+    explanation,
+  })
+}
+
+function enrichEvents(events: ResultEvent[]): ResultEvent[] {
+  return events.map((e) => (e.kind === 'error' ? enrichErrorEvent(e) : e))
+}
 
 export type RunnerSnapshot = {
   status: ExecutionStatus
@@ -154,14 +174,7 @@ export class PythonRunner {
       } else {
         this.setSnapshot({
           status: 'error',
-          events: [
-            {
-              kind: 'error',
-              message,
-              friendly: friendlyErrorMessage('Error', message),
-              traceback: message,
-            },
-          ],
+          events: [makeErrorEvent(message, message)],
           durationMs: null,
           runId: null,
           error: message,
@@ -214,14 +227,15 @@ export class PythonRunner {
       if (msg.id !== this.activeId) return
       this.clearTimeout()
       this.activeId = null
-      const hasError = msg.events.some((e) => e.kind === 'error')
+      const events = enrichEvents(msg.events)
+      const hasError = events.some((e) => e.kind === 'error')
       this.setSnapshot({
         status: hasError ? 'error' : 'success',
-        events: msg.events,
+        events,
         durationMs: msg.durationMs,
         runId: msg.id,
         error: hasError
-          ? msg.events.find((e) => e.kind === 'error')?.message ?? null
+          ? events.find((e) => e.kind === 'error')?.message ?? null
           : null,
       })
       return
@@ -232,13 +246,10 @@ export class PythonRunner {
         this.setSnapshot({
           status: 'error',
           events: [
-            {
-              kind: 'error',
-              message: msg.error,
-              friendly:
-                'Python failed to load in this browser. Check your network connection and reload.',
-              traceback: msg.error,
-            },
+            makeErrorEvent(
+              'ImportError: Python failed to load',
+              msg.error,
+            ),
           ],
           durationMs: null,
           runId: null,
@@ -256,14 +267,7 @@ export class PythonRunner {
     this.activeId = null
     this.setSnapshot({
       status: 'error',
-      events: [
-        {
-          kind: 'error',
-          message: error,
-          friendly: friendlyErrorMessage('Error', error),
-          traceback: error,
-        },
-      ],
+      events: [makeErrorEvent(error, error)],
       durationMs: null,
       runId: id,
       error,
@@ -278,16 +282,10 @@ export class PythonRunner {
     this.setSnapshot({
       status: 'timeout',
       events: [
-        {
-          kind: 'error',
-          message: 'TimeoutError: execution exceeded the time limit',
-          friendly: friendlyErrorMessage(
-            'TimeoutError',
-            'execution exceeded the time limit',
-          ),
-          traceback:
-            'TimeoutError: This program ran longer than 5 seconds and was stopped.\nThe Python runner has been reset so you can try again.',
-        },
+        makeErrorEvent(
+          'TimeoutError: execution exceeded the time limit',
+          'TimeoutError: This program ran longer than 5 seconds and was stopped.\nThe Python runner has been reset so you can try again.',
+        ),
       ],
       durationMs: this.timeoutMs,
       runId: id,

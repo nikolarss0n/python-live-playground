@@ -182,29 +182,31 @@
   overflow: visible;
 }
 
+/*
+ * Path paint: same soft intensity for every kind, hue matches the result.
+ * print → accent · expr (numbers/strings) → orange · error → danger
+ */
 .connector-ribbon {
-  fill: color-mix(in srgb, var(--accent) 14%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
+  fill: color-mix(in srgb, var(--path-hue, var(--accent)) 16%, transparent);
+  stroke: color-mix(in srgb, var(--path-hue, var(--accent)) 22%, transparent);
   stroke-width: 1;
   opacity: 0;
   animation: ribbon-in 160ms ease forwards;
 }
 
+.connector-ribbon-print,
+.connector-ribbon-warning {
+  --path-hue: var(--accent);
+}
+
 .connector-ribbon-expr {
-  fill: color-mix(in srgb, var(--expr) 16%, transparent);
-  stroke: color-mix(in srgb, var(--expr) 24%, transparent);
+  --path-hue: var(--expr);
 }
 
 .connector-ribbon-error {
-  fill: color-mix(in srgb, var(--danger) 14%, transparent);
-  stroke: color-mix(in srgb, var(--danger) 22%, transparent);
+  --path-hue: var(--danger);
 }
 
-.connector-ribbon-print,
-.connector-ribbon-warning {
-  fill: color-mix(in srgb, var(--accent) 14%, transparent);
-  stroke: color-mix(in srgb, var(--accent) 22%, transparent);
-}
 
 @keyframes ribbon-in {
   from {
@@ -377,6 +379,42 @@
   color: var(--warn);
 }
 
+/*
+ * Path chips — same hue + intensity as the ribbon for the active result kind
+ * (set via .workspace[data-path-kind]). Height matches the line/ribbon band.
+ */
+.workspace {
+  --path-hue: var(--accent);
+}
+
+.workspace[data-path-kind='print'],
+.workspace[data-path-kind='warning'] {
+  --path-hue: var(--accent);
+}
+
+.workspace[data-path-kind='expr'] {
+  --path-hue: var(--expr);
+}
+
+.workspace[data-path-kind='error'] {
+  --path-hue: var(--danger);
+}
+
+.cm-editor .cm-var-chip {
+  border-radius: 4px;
+  background-color: color-mix(
+    in srgb,
+    var(--path-hue, var(--accent)) 16%,
+    transparent
+  );
+  box-shadow: inset 0 0 0 1px
+    color-mix(in srgb, var(--path-hue, var(--accent)) 22%, transparent);
+  padding: 0.2em 0.16em;
+  margin: -0.2em -0.1em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
 .result-error .result-text {
   color: var(--danger);
 }
@@ -385,14 +423,143 @@
   min-width: 0;
 }
 
-.result-friendly {
+.result-error-card {
+  padding-top: 0.2rem;
+  padding-bottom: 0.3rem;
+}
+
+.error-card {
   font-family: var(--font-ui);
-  font-size: 0.9rem;
+  max-width: 28rem;
+  padding: 0.55rem 0.7rem 0.65rem;
+  border-radius: 0.5rem;
+  background: color-mix(in srgb, var(--danger) 5%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--danger) 16%, var(--border));
+}
+
+.error-card-raw {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--danger);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.error-card-meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.error-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.btn-explain {
+  font: inherit;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border));
+  border-radius: 0.4rem;
+  padding: 0.28rem 0.65rem;
+  cursor: pointer;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
+}
+
+.btn-explain:hover {
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface));
+}
+
+.btn-explain:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.error-card-explain {
+  margin-top: 0.7rem;
+  padding-top: 0.65rem;
+  border-top: 1px solid color-mix(in srgb, var(--danger) 12%, var(--border));
+}
+
+.error-card-plain-title {
+  margin: 0 0 0.45rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+}
+
+.error-card-section-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.2rem;
+}
+
+.error-card-summary {
+  margin: 0 0 0.65rem;
+  font-size: 0.88rem;
   line-height: 1.5;
+  color: var(--text);
+}
+
+.error-card-tip {
+  padding: 0.5rem 0.6rem;
+  border-radius: 0.4rem;
+  background: color-mix(in srgb, var(--accent) 8%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 16%, var(--border));
+}
+
+.error-card-tip-label {
+  display: block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  margin-bottom: 0.2rem;
+}
+
+.error-card-tip-text {
+  margin: 0;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.error-card-example-wrap {
+  margin-top: 0.55rem;
+}
+
+.error-card-example {
+  margin: 0.4rem 0 0;
+  padding: 0.55rem 0.65rem;
+  border-radius: 0.4rem;
+  background: var(--bg);
+  border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--text);
+  white-space: pre-wrap;
 }
 
 .result-traceback {
-  margin-top: 0.5rem;
+  margin-top: 0.55rem;
   padding: 0.65rem 0.75rem;
   background: var(--danger-soft);
   border-radius: 0.45rem;
@@ -402,8 +569,10 @@
   overflow: auto;
 }
 
-.result-trace-wrap {
-  margin-top: 0.4rem;
+@media (prefers-reduced-motion: reduce) {
+  .btn-explain {
+    transition: none;
+  }
 }
 
 .linkish {

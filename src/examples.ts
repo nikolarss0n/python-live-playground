@@ -13,7 +13,7 @@ export const EXAMPLES: Example[] = [
     title: 'Hello',
     description: 'Print and expression values',
     code: `# Welcome to the Python playground
-# Edit this code — results appear as you type.
+# Hover a result on the right to see its line and related names.
 
 name = "world"
 print(f"Hello, {name}!")
@@ -51,7 +51,8 @@ sum(range(1, 11))
     id: 'errors',
     title: 'Errors',
     description: 'How mistakes look (and teach)',
-    code: `# Change the numbers and watch the friendly error.
+    code: `# Mistakes teach. Hover the error to see which line failed.
+# Try fixing b, or change this to a NameError (print(oops)).
 
 a = 10
 b = 0

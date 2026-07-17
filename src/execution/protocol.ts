@@ -10,6 +10,10 @@ export type ExecutionStatus =
   | 'stopped'
   | 'idle'
 
+import type { ErrorExplanation } from './errorExplain'
+
+export type { ErrorExplanation }
+
 export type ResultEvent =
   | {
       kind: 'print'
@@ -27,6 +31,8 @@ export type ResultEvent =
       friendly: string
       traceback: string
       line?: number
+      /** Structured teaching copy for the results panel */
+      explanation?: ErrorExplanation
     }
   | {
       kind: 'warning'

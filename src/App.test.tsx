@@ -26,8 +26,8 @@ vi.mock('./execution/usePythonExecution', () => ({
     snapshot: {
       status: 'ready' as const,
       events: [
-        { kind: 'print' as const, text: 'Hello, world!' },
-        { kind: 'expr' as const, value: '4', line: 5 },
+        { kind: 'print' as const, text: 'Hello, world!', line: 5 },
+        { kind: 'expr' as const, value: '4', line: 7 },
       ],
       durationMs: 12,
       runId: 'run-1',

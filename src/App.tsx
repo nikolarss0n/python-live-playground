@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { CodeEditor } from './components/CodeEditor'
 import { ResultsPanel } from './components/ResultsPanel'
@@ -6,6 +6,7 @@ import { ResultConnectors } from './components/ResultConnectors'
 import { Toolbar } from './components/Toolbar'
 import { EXAMPLES, getExample, DEFAULT_EXAMPLE_ID } from './examples'
 import { usePythonExecution } from './execution/usePythonExecution'
+import { namesOnSourceLine } from './editor/variableColors'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
@@ -51,6 +52,15 @@ export default function App() {
     window.localStorage.setItem('plp-theme', theme)
   }, [theme])
 
+  // When a run ends in error, gently link the failing line (ribbon) without hover.
+  useEffect(() => {
+    if (snapshot.status !== 'error' && snapshot.status !== 'timeout') return
+    const idx = snapshot.events.findIndex(
+      (e) => e.kind === 'error' && e.line != null,
+    )
+    if (idx >= 0) setActiveResult(idx)
+  }, [snapshot.status, snapshot.runId, snapshot.events])
+
   const onSelectExample = useCallback((id: string) => {
     setExampleId(id)
     setCode(getExample(id).code)
@@ -64,6 +74,23 @@ export default function App() {
   const onGeometryChange = useCallback(() => {
     setGeometryKey((k) => k + 1)
   }, [])
+
+  // Hovering a result → chip variables used on that source line (the “path”).
+  const pathNames = useMemo(() => {
+    if (activeResult == null || !editorView) return [] as string[]
+    const event = snapshot.events[activeResult]
+    if (!event || event.line == null) return []
+    try {
+      return namesOnSourceLine(editorView.state, event.line)
+    } catch {
+      return []
+    }
+  }, [activeResult, snapshot.events, editorView, code])
+
+  const pathKind =
+    activeResult != null
+      ? (snapshot.events[activeResult]?.kind ?? null)
+      : null
 
   return (
     <div className="app-shell">
@@ -79,7 +106,11 @@ export default function App() {
         onToggleTheme={toggleTheme}
       />
 
-      <main className="workspace" ref={workspaceRef}>
+      <main
+        className="workspace"
+        ref={workspaceRef}
+        data-path-kind={pathKind ?? undefined}
+      >
         <div className="pane pane-editor">
           <div className="pane-label">Python</div>
           <CodeEditor
@@ -88,6 +119,7 @@ export default function App() {
             theme={theme}
             onViewReady={setEditorView}
             onGeometryChange={onGeometryChange}
+            pathNames={pathNames}
           />
         </div>
 
