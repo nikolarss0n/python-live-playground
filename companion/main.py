@@ -107,11 +107,34 @@ def create_user(body: UserIn) -> dict[str, Any]:
     return {"id": 1, "name": body.name}
 
 
+@app.get("/me")
+def me(request: Request) -> dict[str, Any]:
+    """Shows whether the playground sent a key (for the auth lesson mental model)."""
+    key = request.headers.get("x-api-key", "").strip()
+    auth = request.headers.get("authorization", "").strip()
+    has_key = bool(key or auth.lower().startswith("bearer "))
+    return {
+        "authenticated": has_key and (
+            not REQUIRED_API_KEY
+            or key == REQUIRED_API_KEY
+            or auth == f"Bearer {REQUIRED_API_KEY}"
+        ),
+        "auth_required": bool(REQUIRED_API_KEY),
+    }
+
+
 @app.get("/")
 def root() -> dict[str, Any]:
     return {
         "service": "python-live-companion",
         "docs": "/docs",
         "auth_required": bool(REQUIRED_API_KEY),
-        "routes": ["/health", "/hello", "/greet", "/items/{id}", "/users"],
+        "routes": [
+            "/health",
+            "/hello",
+            "/greet",
+            "/items/{id}",
+            "/users",
+            "/me",
+        ],
     }

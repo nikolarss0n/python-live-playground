@@ -44,5 +44,6 @@ Put the same value in playground **Settings → API key**.
 | GET | `/greet?name=` | Query param |
 | GET | `/items/{id}` | Path param (`a1` exists) |
 | POST | `/users` | JSON body `{"name":"Ada"}` |
+| GET | `/me` | Whether a key was sent (`authenticated`) |
 
 CORS allows Vite dev origins only.

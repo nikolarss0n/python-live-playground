@@ -79,12 +79,14 @@ Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 
 Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (tokenize → count → decide, etc.). Still no chat sidebar or cloud models.
 
-### Web APIs (8) — FastAPI-shaped thinking, still in-browser
+### Web APIs (9) — FastAPI-shaped thinking, still in-browser
 
 1. Request dict · 2. Response dict · 3. Status codes · 4. Routing  
-5. Query params · 6. JSON body · 7. Middleware · 8. Mini app
+5. Query params · 6. JSON body · 7. Middleware · 8. Mini app · 9. Auth header
 
 No real HTTP server required: you model requests/responses as Python dicts. Results shaped like `{"status": 200, "body": ...}` render as quiet **HTTP cards** (status + body).
+
+On **AI · Prompt templates**, after `print(prompt)` succeeds, **Run with model** can call your Settings LLM (one-shot; no chat sidebar).
 
 **Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip probes the companion. Use toolbar **Settings** for companion URL, API key, and optional OpenAI-compatible LLM test (keys stay in `localStorage` only).
 

@@ -548,6 +548,63 @@
   border-top: 1px solid var(--border-subtle);
 }
 
+/* Optional one-shot model run (AI prompt lesson) */
+.model-run-bar {
+  padding: 0.5rem 1.25rem 0.55rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--expr) 6%, var(--surface));
+  font-size: 0.8rem;
+}
+
+.model-run-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.75rem;
+  margin-bottom: 0.35rem;
+}
+
+.model-run-title {
+  font-weight: 700;
+  color: var(--expr);
+}
+
+.model-run-hint {
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.model-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.45rem 0.75rem;
+}
+
+.model-run-ready {
+  font-size: 0.72rem;
+  color: var(--text);
+}
+
+.model-run-ready.is-muted {
+  color: var(--muted);
+}
+
+.model-run-note {
+  margin: 0.45rem 0 0;
+  padding: 0.45rem 0.55rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg);
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 8rem;
+  overflow: auto;
+}
+
 .loop-trace-num {
   font-weight: 600;
   font-variant-numeric: tabular-nums;

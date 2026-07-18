@@ -132,6 +132,22 @@ describe('App beginner flow', () => {
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
   })
 
+  it('shows Run with model on the prompt-template lesson', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    await user.selectOptions(screen.getByLabelText(/choose difficulty/i), 'ai')
+    await user.selectOptions(
+      screen.getByLabelText(/choose a lesson/i),
+      'ai-prompt-template',
+    )
+    expect(
+      screen.getByRole('region', { name: /run with model/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /run with model/i }),
+    ).toBeInTheDocument()
+  })
+
   it('switches to Web APIs and loads the request lesson', async () => {
     const user = userEvent.setup()
     render(<App />)

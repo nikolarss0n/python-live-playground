@@ -4,37 +4,24 @@ Quiet, RunJS-like visual and interaction upgrades.
 
 ## Done
 
-### Python learning
-- [x] Lessons (beginner 16 + intermediate 14), goals, tasks, blanks, hints
-- [x] Visual collections, type chips, run pulse, path ribbons
-- [x] Error mini lesson, connectors, first-run coaching
-- [x] Task progress, keyboard shortcuts, predict, loop scrub, lesson map
-- [x] Line-aligned results, Previous ghost, diff underlines, share URL
-- [x] Chapters, stretch, wrong-vs-fix
-
-### AI foundations (8) — browser-local
-- [x] Tokens / bag-of-words / vocab / vectors / cosine / prompts / JSON / pipeline
-- [x] Token chips + pipeline strip
-
-### Web APIs (8) — browser-local FastAPI mental model
-- [x] Request/response, status, routing, query, body, middleware, mini app
-- [x] HTTP response cards
-- [x] Optional FastAPI companion (`companion/`) + Local API strip
-
-### Settings
-- [x] Toolbar **Settings** — API key, companion URL, optional LLM base/model
-- [x] Companion optional `PLP_API_KEY` auth
-- [x] Quiet LLM test (OpenAI-compatible, no chat sidebar)
+### Core playground + curriculum
+- [x] Beginner (16) · Intermediate (14) · AI foundations (8) · Web APIs (9)
+- [x] Goals, tasks, blanks, hints, chapters, stretch, wrong-vs-fix, share URL
+- [x] Collections, type chips, alignment, previous ghost, path ribbons, pulse
+- [x] Settings (API key, companion URL, optional LLM test)
+- [x] FastAPI companion + Local API strip + optional `PLP_API_KEY`
+- [x] **Run with model** on AI prompt-template lesson (one-shot, no chat UI)
+- [x] **Auth header** Web API lesson + companion `GET /me`
+- [x] Extra predict prompts (variables, API request, auth)
 
 ## Left to do
 
 | Priority | Item | Notes |
 |----------|------|--------|
-| Optional | **Richer LLM in lessons** | e.g. “Run with model” on prompt template lesson using Settings key |
 | Optional | **OpenAPI import** | Snippets from companion `/openapi.json` |
-| Optional | **Auth lesson** | JWT/header soft goal (dict and/or companion) |
-| Polish | **More compare pairs** | Only some repair labs |
-| Polish | **More predict prompts** | Only printing has one |
+| Optional | **More lessons with runWithModel** | Flag is generic; only prompt-template uses it |
+| Polish | **More compare pairs** | Still sparse outside repair labs |
+| Polish | **More predict prompts** | A few lessons only |
 | Polish | **Narrow-width alignment** | Wide-only by design |
 | Product | **Deploy companion** | Not needed for static SPA |
 

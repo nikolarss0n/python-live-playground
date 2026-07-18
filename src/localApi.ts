@@ -66,6 +66,12 @@ export const LOCAL_API_SAMPLES: LocalApiSample[] = [
     path: '/users',
     body: { name: 'Ada' },
   },
+  {
+    id: 'me',
+    label: 'GET /me',
+    method: 'GET',
+    path: '/me',
+  },
 ]
 
 function buildHeaders(

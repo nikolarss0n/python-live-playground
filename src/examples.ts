@@ -57,6 +57,11 @@ export type Lesson = {
   compare?: LessonCompare
   /** Soft pipeline stages for AI / multi-step labs */
   pipeline?: string[]
+  /**
+   * Show “Run with model” using Settings API key + last printed prompt.
+   * No chat sidebar — one-shot completion only.
+   */
+  runWithModel?: boolean
 }
 
 type LessonDraft = Omit<Lesson, 'chapter' | 'stretch'> & {
@@ -195,6 +200,11 @@ print(f"Hello, {name}!")
       minNonEmptyPrints: 1,
       codePatterns: ['name\\s*=\\s*["\'][^"\']+["\']'],
       printPatterns: ['Hello'],
+    },
+    predict: {
+      prompt: 'If name = "Ada", what does f"Hello, {name}!" print?',
+      choices: ['Hello, {name}!', 'Hello, Ada!', 'Ada'],
+      correctIndex: 1,
     },
   },
   {
@@ -1318,6 +1328,7 @@ print(prompt)
       wrong: 'prompt = f"Student: {???}"',
       fixed: 'student = "Ada"\nprompt = f"Student: {student}"',
     },
+    runWithModel: true,
   },
   {
     id: 'ai-json-contract',
@@ -1445,6 +1456,11 @@ print(request["path"])
     },
     pipeline: ['receive', 'parse', 'handle'],
     hints: ['Use the string "GET" for a read request.'],
+    predict: {
+      prompt: 'In our request dict, which field is usually "/hello"?',
+      choices: ['method', 'path', 'body'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'api-response',
@@ -1719,6 +1735,59 @@ print(app({"method": "GET", "path": "/items/nope"}))
       note: 'Unknown routes should not pretend to succeed.',
       wrong: 'return {"status": 200, "body": {}}',
       fixed: 'return {"status": 404, "body": {"error": "no route"}}',
+    },
+  },
+  {
+    id: 'api-auth',
+    difficulty: 'api',
+    number: 9,
+    topic: 'Auth header',
+    goal: 'Check Authorization Bearer and return 200 or 401.',
+    tasks: [
+      'Read headers["authorization"]',
+      'Return 200 only for Bearer secret, else 401',
+    ],
+    code: `# API 9 — Auth header
+# Goal: Check Authorization Bearer and return 200 or 401.
+# Real APIs often expect: Authorization: Bearer <token>
+
+SECRET = "Bearer secret"
+
+def authorize(request):
+    headers = request.get("headers") or {}
+    token = headers.get(???, "")
+    if token == SECRET:
+        return {"status": 200, "body": {"ok": True, "user": "ada"}}
+    return {"status": 401, "body": {"error": "unauthorized"}}
+
+print(authorize({"method": "GET", "path": "/me", "headers": {}}))
+print(authorize({
+    "method": "GET",
+    "path": "/me",
+    "headers": {"authorization": "Bearer secret"},
+}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['headers.get', 'Bearer secret'],
+      printPatterns: ['401', '200', 'ada'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['read-header', 'check', 'respond'],
+    hints: ['The header name is the string "authorization" (lowercase key in our dict).'],
+    compare: {
+      note: 'Missing or wrong tokens should not look like success.',
+      wrong: 'return {"status": 200, "body": {"ok": True}}',
+      fixed: 'return {"status": 401, "body": {"error": "unauthorized"}}',
+    },
+    stretch: 'Stretch: also accept a query token= as a second path (less secure, for comparison).',
+    predict: {
+      prompt: 'What status should a request without Authorization get?',
+      choices: ['200', '401', '404'],
+      correctIndex: 1,
     },
   },
 ]

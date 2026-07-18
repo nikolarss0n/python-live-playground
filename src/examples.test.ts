@@ -22,7 +22,7 @@ describe('lessons', () => {
     expect(beginner.length).toBeGreaterThanOrEqual(14)
     expect(intermediate.length).toBeGreaterThanOrEqual(10)
     expect(ai.length).toBeGreaterThanOrEqual(6)
-    expect(api.length).toBeGreaterThanOrEqual(6)
+    expect(api.length).toBeGreaterThanOrEqual(8)
 
     for (const track of [beginner, intermediate, ai, api]) {
       track.forEach((lesson, index) => {
@@ -41,6 +41,8 @@ describe('lessons', () => {
     expect(ai.every((l) => l.pipeline && l.pipeline.length > 0)).toBe(true)
     expect(api.every((l) => l.pipeline && l.pipeline.length > 0)).toBe(true)
     expect(api[0]?.id).toBe('api-request')
+    expect(api.some((l) => l.id === 'api-auth')).toBe(true)
+    expect(getLesson('ai-prompt-template').runWithModel).toBe(true)
   })
 
   it('gives learners something to edit (blanks or a clear fix)', () => {

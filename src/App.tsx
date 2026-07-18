@@ -30,6 +30,7 @@ import {
 } from './shareSnapshot'
 import { LocalApiStrip } from './components/LocalApiStrip'
 import { SettingsModal } from './components/SettingsModal'
+import { ModelRunBar } from './components/ModelRunBar'
 import { loadSettings, type AppSettings } from './settings'
 import './App.css'
 
@@ -401,6 +402,14 @@ export default function App() {
       ) : null}
 
       <LocalApiStrip enabled={difficulty === 'api'} settings={appSettings} />
+
+      {activeLesson.runWithModel ? (
+        <ModelRunBar
+          events={snapshot.events}
+          settings={appSettings}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      ) : null}
 
       <main
         className="workspace"
