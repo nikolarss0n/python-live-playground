@@ -1936,6 +1936,10 @@
     white-space: nowrap;
   }
 
+  .brand-lesson {
+    display: none;
+  }
+
   .toolbar-actions {
     gap: 0.35rem;
   }
