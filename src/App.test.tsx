@@ -71,18 +71,22 @@ describe('App beginner flow', () => {
     const user = userEvent.setup()
     render(<App />)
     const goal = screen.getByRole('region', { name: /lesson goal/i })
-    expect(goal).toHaveTextContent(/Goal/)
     expect(goal).toHaveTextContent(/Make Python show two messages/i)
-    expect(goal).toHaveTextContent(/Beginner/)
-    expect(goal).toHaveTextContent(/Lesson 1/)
     expect(goal.querySelector('.lesson-tasks')).toBeTruthy()
     expect(goal.querySelector('.lesson-goal-statement')).toBeTruthy()
+    expect(goal.querySelector('.lesson-goal-grid')).toBeTruthy()
     expect(screen.getByRole('navigation', { name: /lesson path/i })).toBeTruthy()
+    // Chapter + full heading live in the toolbar brand cluster
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Lesson 1 · Printing/i,
+    )
     const select = screen.getByLabelText(/choose a lesson/i)
     await user.selectOptions(select, 'errors')
     expect(select).toHaveValue('errors')
-    expect(goal).toHaveTextContent(/Lesson 13/)
     expect(goal).toHaveTextContent(/What does this mean/i)
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Lesson 13/i,
+    )
   })
 
   it('shows a predict prompt on the first lesson', () => {
@@ -99,8 +103,8 @@ describe('App beginner flow', () => {
     expect(
       screen.getByRole('button', { name: /open settings/i }),
     ).toBeInTheDocument()
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(/Basics/i)
     const goal = screen.getByRole('region', { name: /lesson goal/i })
-    expect(goal).toHaveTextContent(/Basics/i)
     expect(goal).toHaveTextContent(/Stretch/i)
 
     await user.click(screen.getByRole('button', { name: /open settings/i }))
@@ -114,9 +118,10 @@ describe('App beginner flow', () => {
     const difficulty = screen.getByLabelText(/choose difficulty/i)
     await user.selectOptions(difficulty, 'intermediate')
     expect(difficulty).toHaveValue('intermediate')
-    const goal = screen.getByRole('region', { name: /lesson goal/i })
-    expect(goal).toHaveTextContent(/Intermediate/)
-    expect(goal).toHaveTextContent(/Lesson 1/)
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Intermediate · Lesson 1/i,
+    )
+    expect(screen.getByRole('region', { name: /lesson goal/i })).toBeTruthy()
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue(
       'mid-enumerate-zip',
     )
@@ -128,9 +133,9 @@ describe('App beginner flow', () => {
     const difficulty = screen.getByLabelText(/choose difficulty/i)
     await user.selectOptions(difficulty, 'ai')
     expect(difficulty).toHaveValue('ai')
-    const goal = screen.getByRole('region', { name: /lesson goal/i })
-    expect(goal).toHaveTextContent(/AI foundations/i)
-    expect(goal).toHaveTextContent(/Tokens/i)
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /AI foundations · Lesson 1 · Tokens/i,
+    )
     expect(screen.getByRole('list', { name: /pipeline stages/i })).toBeTruthy()
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
   })
@@ -164,9 +169,12 @@ describe('App beginner flow', () => {
     const difficulty = screen.getByLabelText(/choose difficulty/i)
     await user.selectOptions(difficulty, 'api')
     expect(difficulty).toHaveValue('api')
-    const goal = screen.getByRole('region', { name: /lesson goal/i })
-    expect(goal).toHaveTextContent(/Web APIs/i)
-    expect(goal).toHaveTextContent(/Request/i)
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Web APIs · Lesson 1 · Request dict/i,
+    )
+    expect(screen.getByRole('region', { name: /lesson goal/i })).toHaveTextContent(
+      /request dict/i,
+    )
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('api-request')
     expect(screen.getByRole('region', { name: /local api/i })).toBeInTheDocument()
     expect(
