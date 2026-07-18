@@ -84,17 +84,29 @@ Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (toke
 1. Request dict · 2. Response dict · 3. Status codes · 4. Routing  
 5. Query params · 6. JSON body · 7. Middleware · 8. Mini app
 
-No real HTTP server: you model requests/responses as Python dicts. Results shaped like `{"status": 200, "body": ...}` render as quiet **HTTP cards** (status + body).
+No real HTTP server required: you model requests/responses as Python dicts. Results shaped like `{"status": 200, "body": ...}` render as quiet **HTTP cards** (status + body).
+
+**Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip can probe `http://127.0.0.1:8000` when uvicorn is running.
+
+```bash
+# terminal A
+npm run dev
+
+# terminal B (optional)
+cd companion && python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+npm run companion   # or: uvicorn main:app --reload --host 127.0.0.1 --port 8000
+```
 
 Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
 
 ## Outside this MVP
 
 - Accounts, cloud save, or multi-file projects
-- Installing third-party packages (`pip` / micropip UI)
-- AI assistant, telemetry, or collaboration
+- Installing third-party packages (`pip` / micropip UI) in the browser app
+- AI chat assistant, telemetry, or collaboration
 - Native desktop app shell
-- FastAPI / multi-file server tracks (see improvements roadmap)
+- Cloud LLM keys / multi-file IDE
 
 Product direction lives in [PROJECT_BRIEF.md](./PROJECT_BRIEF.md).
 

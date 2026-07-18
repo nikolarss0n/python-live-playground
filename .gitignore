@@ -15,6 +15,11 @@ refs/verify
 playwright-report
 test-results
 
+# Optional FastAPI companion
+companion/.venv/
+companion/**/__pycache__/
+companion/**/*.pyc
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

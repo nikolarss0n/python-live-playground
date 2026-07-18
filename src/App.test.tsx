@@ -134,6 +134,7 @@ describe('App beginner flow', () => {
     expect(goal).toHaveTextContent(/Web APIs/i)
     expect(goal).toHaveTextContent(/Request/i)
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('api-request')
+    expect(screen.getByRole('region', { name: /local api/i })).toBeInTheDocument()
   })
 
   it('toggles theme', async () => {

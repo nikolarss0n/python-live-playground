@@ -10,7 +10,8 @@
     "lint": "oxlint",
     "test": "vitest run",
     "test:watch": "vitest",
-    "verify:browser": "node scripts/verify-execution.mjs"
+    "verify:browser": "node scripts/verify-execution.mjs",
+    "companion": "cd companion && uvicorn main:app --reload --host 127.0.0.1 --port 8000"
   },
   "dependencies": {
     "@codemirror/commands": "^6.10.4",

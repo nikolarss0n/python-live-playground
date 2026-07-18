@@ -2,54 +2,35 @@
 
 Quiet, RunJS-like visual and interaction upgrades.
 
-## Done (Python learning)
+## Done
 
-- [x] **16. Visual collections** — expandable list/dict/set/tuple tree
-- [x] **1. Line↔result reading surface** — stronger hover fill + path chips + ribbons
-- [x] **2. What just ran pulse** — soft source-line highlight after each run
-- [x] **3. Value type chips** — quiet `int` / `str` / `list` labels on results
-- [x] **5. Error mini lesson** — always-visible tip + expand for full explanation
-- [x] **6. Connectors with tall cards** — remeasure on expand/resize (error anchor)
-- [x] **7. First-run coaching** — one-line Results hint until first success
-- [x] **8. Quiet task progress** — soft ✓ on lesson tasks
-- [x] **10. Keyboard loop** — ⌘/Ctrl+Enter Run, Esc Stop, `?` shortcuts
-- [x] **11. Interactive blanks** — `???` underline, click-to-select
-- [x] **12. Micro-hints ladder** — Next + “Stuck?” second hint after incomplete runs
-- [x] **13. Predict then run** — optional quiet quiz (Lesson 1)
-- [x] **15. Loop step scrubber** — when 3+ prints, focus one step at a time
-- [x] **18. Lesson map** — path dots in the goal strip
+### Python learning
+- [x] Lessons (beginner 16 + intermediate 14), goals, tasks, blanks, hints
+- [x] Visual collections, type chips, run pulse, path ribbons
+- [x] Error mini lesson, connectors, first-run coaching
+- [x] Task progress, keyboard shortcuts, predict, loop scrub, lesson map
+- [x] Line-aligned results, Previous ghost, diff underlines, share URL
+- [x] Chapters, stretch, wrong-vs-fix
 
-## Visual polish (in progress / next)
+### AI foundations (8) — browser-local
+- [x] Tokens / bag-of-words / vocab / vectors / cosine / prompts / JSON / pipeline
+- [x] Token chips + pipeline strip
 
-- [x] **Line-aligned results** — rows stack beside source lines (wide layout)
-- [x] **Single Results header** — one row for label + status + time + Previous
-- [x] **Thin scrollbars / density** — quieter chrome
-- [x] **Diff-aware re-run** — soft underline on changed outputs
-- [x] **Previous-run ghost** — toggle faint prior results
-- [x] **Active-line only when focused**
-- [x] **Wrong vs fix in-code** (#14) — collapsible wrong/fixed pairs on repair labs
-- [x] **Stretch challenge strip** (#17) — quiet stretch under every goal
-- [x] **Book-style chapters** (#19) — optgroup menu + chapter label
-- [x] **Share snapshot** (#20) — copy URL hash with lesson + code
-- [x] **Richer loop scrub** (#15+) — step buttons show print previews
+### Web APIs (8) — browser-local FastAPI mental model
+- [x] Request/response, status, routing, query, body, middleware, mini app
+- [x] HTTP response cards
+- [x] **Optional FastAPI companion** (`companion/`) + in-app Local API strip
 
-## AI foundations track (browser-local)
+## Left to do
 
-- [x] **21** Token chips — list-of-strings results render as chips
-- [x] **23** Embedding-style labs — bag of words, vocab ids, dot product, cosine
-- [x] **24** JSON contract lesson — required keys validation
-- [x] **25** Pipeline strip — soft stages on AI lessons
-- [x] **22** Prompt templates — string composition (no external model API)
+| Priority | Item | Notes |
+|----------|------|--------|
+| Optional | **Live LLM sandbox** | User-supplied API key; stay no-chat-sidebar if ever built |
+| Optional | **Richer OpenAPI import** | Generate lesson snippets from companion `/openapi.json` |
+| Optional | **Auth lesson** (JWT header soft goal) | Could be pure dict or companion route |
+| Polish | **More compare pairs** on remaining lessons | Only repair labs have wrong-vs-fix today |
+| Polish | **Predict prompts** on more lessons | Only printing has one |
+| Polish | **Narrow-width alignment** | Line-align is wide-only by design |
+| Product | **Deploy companion** | Not needed for static hosting of the SPA |
 
-## Web APIs track (browser-local FastAPI mental model)
-
-- [x] **26** Request/response dicts & status codes
-- [x] **27** Routing, query, JSON body lessons
-- [x] **28** HTTP response cards in Results (status + body)
-- [x] **29** Middleware wrapper + mini app
-- [ ] Real FastAPI companion process (optional later — needs local server)
-
-## Deferred (separate product decisions)
-
-- [ ] Live LLM API sandbox (user-supplied key) — out of quiet MVP
-- [ ] Real network FastAPI/uvicorn runner
+The playground remains useful **without** the companion or any server.

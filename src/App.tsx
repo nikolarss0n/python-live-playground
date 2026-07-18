@@ -28,6 +28,7 @@ import {
   copyShareUrl,
   readSnapshotFromLocation,
 } from './shareSnapshot'
+import { LocalApiStrip } from './components/LocalApiStrip'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
@@ -385,6 +386,8 @@ export default function App() {
           onResolved={() => setPredictDone(true)}
         />
       ) : null}
+
+      <LocalApiStrip enabled={difficulty === 'api'} />
 
       <main
         className="workspace"
