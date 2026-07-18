@@ -1,8 +1,18 @@
 import { useEffect, useState } from 'react'
 import type { AppSettings } from '../settings'
-import { DEFAULT_SETTINGS, loadSettings, saveSettings } from '../settings'
+import {
+  companionModeLabel,
+  defaultSettings,
+  loadSettings,
+  saveSettings,
+} from '../settings'
 import { testLlmCompletion } from '../llmClient'
-import { checkLocalApiHealth } from '../localApi'
+import {
+  LOCAL_COMPANION_BASE,
+  checkLocalApiHealth,
+  defaultCompanionBaseUrl,
+  isPublicCompanionUrl,
+} from '../localApi'
 
 type SettingsModalProps = {
   open: boolean
@@ -15,7 +25,7 @@ type SettingsModalProps = {
  * Keys stay in localStorage on this device only.
  */
 export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
-  const [draft, setDraft] = useState<AppSettings>(DEFAULT_SETTINGS)
+  const [draft, setDraft] = useState<AppSettings>(() => defaultSettings())
   const [showKey, setShowKey] = useState(false)
   const [companionNote, setCompanionNote] = useState<string | null>(null)
   const [llmNote, setLlmNote] = useState<string | null>(null)
@@ -140,19 +150,48 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
           </section>
 
           <section className="settings-section">
-            <h3 className="settings-section-title">Local FastAPI companion</h3>
+            <h3 className="settings-section-title">Live API companion</h3>
+            <p className="settings-help settings-help-tight">
+              Mode:{' '}
+              <strong>
+                {companionModeLabel(draft.companionBaseUrl) === 'demo'
+                  ? 'Public HTTPS demo'
+                  : companionModeLabel(draft.companionBaseUrl) === 'local'
+                    ? 'Local uvicorn'
+                    : 'Custom URL'}
+              </strong>
+              {isPublicCompanionUrl(draft.companionBaseUrl)
+                ? ' — zero install'
+                : ''}
+            </p>
             <label className="settings-field">
               <span className="settings-label">Base URL</span>
               <input
                 type="url"
                 className="settings-input"
-                placeholder="http://127.0.0.1:8000"
+                placeholder="https://….fly.dev or http://127.0.0.1:8000"
                 value={draft.companionBaseUrl}
                 onChange={(e) => update('companionBaseUrl', e.target.value)}
                 aria-label="Companion base URL"
               />
             </label>
             <div className="settings-actions">
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() =>
+                  update('companionBaseUrl', defaultCompanionBaseUrl())
+                }
+              >
+                Use demo default
+              </button>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => update('companionBaseUrl', LOCAL_COMPANION_BASE)}
+              >
+                Use local
+              </button>
               <button
                 type="button"
                 className="btn btn-ghost"
@@ -168,9 +207,9 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
               </p>
             ) : null}
             <p className="settings-help">
-              Run <code>npm run companion</code> after installing deps in{' '}
-              <code>companion/</code>. Optional auth: set env{' '}
-              <code>PLP_API_KEY</code> to match this key.
+              Public HTTPS demo needs no install. Local:{' '}
+              <code>npm run companion</code>. Optional{' '}
+              <code>PLP_API_KEY</code> only if the server requires it.
             </p>
           </section>
 

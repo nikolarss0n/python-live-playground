@@ -88,18 +88,26 @@ No real HTTP server required: you model requests/responses as Python dicts. Resu
 
 On **AI foundations** lessons, **Run with model** can call your Settings LLM (one-shot; no chat sidebar). It prefers your longest printed result, or a lesson default prompt if you have not printed yet.
 
-**Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip probes the companion, can **Import OpenAPI** from `/openapi.json`, and insert Python request-dict snippets into the editor. Use toolbar **Settings** for companion URL, API key, and optional OpenAI-compatible LLM test (keys stay in `localStorage` only).
+**Live HTTPS demos (zero install):** deploy `companion/` once (Fly/Render/Docker — see [companion/README.md](./companion/README.md)), then build the playground with:
 
 ```bash
-# terminal A
+# .env or CI
+VITE_COMPANION_URL=https://your-companion.example.com
+npm run build
+```
+
+On **Web APIs**, the **Live API** strip talks to that HTTPS host (rate-limited demo API). **Settings → Use demo default** restores the build-time URL; **Use local** points at `http://127.0.0.1:8000`.
+
+```bash
+# local playground
 npm run dev
 
-# terminal B (optional)
+# optional local companion (if not using the public demo URL)
 cd companion && python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-# optional: export PLP_API_KEY=dev-secret   # match Settings → API key
-npm run companion
+pip install -r requirements.txt && npm run companion
 ```
+
+Also: **Import OpenAPI**, optional API key / LLM in **Settings** (localStorage only).
 
 Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
 

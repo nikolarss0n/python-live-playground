@@ -548,6 +548,10 @@
   line-height: 1.4;
 }
 
+.settings-help-tight {
+  margin: 0 0 0.45rem;
+}
+
 .settings-help code {
   font-family: var(--font-mono);
   font-size: 0.9em;

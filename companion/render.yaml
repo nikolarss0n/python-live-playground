@@ -1,0 +1,21 @@
+# One-click style deploy on Render: New → Blueprint → this file
+# https://dashboard.render.com/
+
+services:
+  - type: web
+    name: python-live-companion
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: PLP_DEMO_MODE
+        value: "1"
+      - key: RATE_LIMIT_PER_MINUTE
+        value: "90"
+      # Set to your playground origin(s), comma-separated
+      - key: CORS_ORIGINS
+        sync: false
+      - key: CORS_ORIGIN_REGEX
+        value: "https://([a-z0-9-]+\\.)*(github\\.io|pages\\.dev|vercel\\.app|netlify\\.app)"

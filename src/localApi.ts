@@ -1,9 +1,39 @@
 /**
- * Optional probe of the local FastAPI companion.
+ * Optional probe of the FastAPI companion (local or public HTTPS demo).
  * Pure helpers — UI decides when to call.
  */
 
-export const DEFAULT_LOCAL_API_BASE = 'http://127.0.0.1:8000'
+/** Built-in local default when no public demo URL is configured. */
+export const LOCAL_COMPANION_BASE = 'http://127.0.0.1:8000'
+
+/**
+ * Prefer Vite public demo URL (HTTPS) for zero-install demos;
+ * fall back to localhost for local companion development.
+ */
+export function defaultCompanionBaseUrl(): string {
+  try {
+    const fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> })
+      .env?.VITE_COMPANION_URL
+    if (typeof fromEnv === 'string' && fromEnv.trim()) {
+      return fromEnv.trim().replace(/\/$/, '')
+    }
+  } catch {
+    // non-vite
+  }
+  return LOCAL_COMPANION_BASE
+}
+
+/** @deprecated use defaultCompanionBaseUrl() */
+export const DEFAULT_LOCAL_API_BASE = LOCAL_COMPANION_BASE
+
+export function isPublicCompanionUrl(url: string): boolean {
+  try {
+    const u = new URL(url)
+    return u.protocol === 'https:'
+  } catch {
+    return false
+  }
+}
 
 export type LocalApiProbeResult =
   | {
@@ -98,7 +128,7 @@ export async function probeLocalApi(
   // backward-compat: old signature (sample, baseUrl, fetch)
   fetchLegacy?: typeof fetch,
 ): Promise<LocalApiProbeResult> {
-  let baseUrl = DEFAULT_LOCAL_API_BASE
+  let baseUrl = defaultCompanionBaseUrl()
   let apiKey = ''
   let fetchImpl: typeof fetch = fetch
 
@@ -106,7 +136,7 @@ export async function probeLocalApi(
     baseUrl = options
     fetchImpl = fetchLegacy ?? fetch
   } else {
-    baseUrl = options.baseUrl ?? DEFAULT_LOCAL_API_BASE
+    baseUrl = options.baseUrl ?? defaultCompanionBaseUrl()
     apiKey = options.apiKey ?? ''
     fetchImpl = options.fetchImpl ?? fetch
   }
@@ -141,7 +171,9 @@ export async function probeLocalApi(
       method: sample.method,
       error:
         /Failed to fetch|NetworkError|Load failed/i.test(message)
-          ? 'Offline — start companion (see companion/README.md) or check Settings URL'
+          ? isPublicCompanionUrl(baseUrl)
+            ? 'Demo API unreachable — check Settings URL or try again later'
+            : 'Offline — start local companion (companion/README.md) or switch to the public demo URL in Settings'
           : message,
       durationMs: Math.round(performance.now() - started),
     }

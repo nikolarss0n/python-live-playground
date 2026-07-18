@@ -8,7 +8,7 @@ import {
 } from '../localApi'
 import { HttpResponseCard } from './HttpResponseCard'
 import type { HttpResponseView } from '../httpResponse'
-import type { AppSettings } from '../settings'
+import { companionModeLabel, type AppSettings } from '../settings'
 import {
   fetchOpenApiDocument,
   operationToSample,
@@ -151,24 +151,29 @@ export function LocalApiStrip({
 
   const httpView = last ? toHttpView(last) : null
   const hostLabel = settings.companionBaseUrl.replace(/^https?:\/\//, '')
+  const mode = companionModeLabel(settings.companionBaseUrl)
 
   return (
     <div className="local-api-strip" role="region" aria-label="Local API">
       <div className="local-api-head">
-        <span className="local-api-title">Local API</span>
+        <span className="local-api-title">Live API</span>
         <span
           className={`local-api-badge${
             online === true ? ' is-on' : online === false ? ' is-off' : ''
           }`}
         >
           {online === true
-            ? `online · ${hostLabel}`
+            ? `online · ${mode} · ${hostLabel}`
             : online === false
-              ? 'offline'
+              ? mode === 'demo'
+                ? 'demo offline'
+                : 'offline'
               : 'checking…'}
         </span>
         <span className="local-api-hint">
-          Real HTTP via companion · OpenAPI import · key in Settings if required
+          {mode === 'demo'
+            ? 'Zero-install HTTPS demo · OpenAPI import · Settings for URL'
+            : 'Local or custom companion · OpenAPI import · key if required'}
         </span>
         <button
           type="button"

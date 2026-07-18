@@ -1,6 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest'
 import {
-  DEFAULT_SETTINGS,
+  companionModeLabel,
+  defaultSettings,
   loadSettings,
   maskApiKey,
   saveSettings,
@@ -13,7 +14,12 @@ describe('settings', () => {
   })
 
   it('loads defaults when empty', () => {
-    expect(loadSettings()).toEqual(DEFAULT_SETTINGS)
+    expect(loadSettings()).toEqual(defaultSettings())
+  })
+
+  it('labels companion URLs', () => {
+    expect(companionModeLabel('https://api.example.com')).toBe('demo')
+    expect(companionModeLabel('http://127.0.0.1:8000')).toBe('local')
   })
 
   it('round-trips save/load', () => {

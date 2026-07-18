@@ -5,17 +5,19 @@ Quiet, RunJS-like visual and interaction upgrades.
 ## Done
 
 ### Core playground + curriculum
-- [x] Beginner (16) · Intermediate (14) · AI foundations (8) · Web APIs (9)
-- [x] Goals, tasks, blanks, hints, chapters, stretch, share URL
-- [x] Collections, type chips, alignment (full + soft), previous ghost, connectors
-- [x] Settings, companion, OpenAPI import, Run with model on AI track
-- [x] **Predict + wrong-vs-fix on every lesson** (all four tracks)
+- [x] Four tracks with predict + compare on every lesson
+- [x] Live results UX, Settings, Run with model, share URL
+- [x] FastAPI companion (local + **public HTTPS demo** ready)
+- [x] `VITE_COMPANION_URL` for zero-install demos
+- [x] Deploy configs: `companion/Dockerfile`, `fly.toml`, `render.yaml`
 
-## Left to do
+## Left to do (ops — you deploy once)
 
-| Priority | Item | Notes |
-|----------|------|--------|
-| Product | **Deploy companion** | Optional ops concern — static SPA does not need it |
-| Optional | **Hosted LLM proxy** | Avoid browser CORS; not required for local keys |
+| Step | Action |
+|------|--------|
+| 1 | `cd companion && fly launch` / Render Blueprint / any Docker host |
+| 2 | Set `CORS_ORIGINS` or `CORS_ORIGIN_REGEX` for your playground origin |
+| 3 | Build SPA with `VITE_COMPANION_URL=https://…` |
+| 4 | Host SPA (GitHub Pages / Netlify / Vercel) |
 
-The playground remains useful **without** companion, key, or LLM.
+Optional: hosted LLM proxy (CORS for browsers); not required if providers allow browser keys.
