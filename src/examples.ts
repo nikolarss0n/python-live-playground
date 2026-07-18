@@ -208,6 +208,11 @@ print(f"Hello, {name}!")
       choices: ['Hello, {name}!', 'Hello, Ada!', 'Ada'],
       correctIndex: 1,
     },
+    compare: {
+      note: 'Put text in quotes when you store a name.',
+      wrong: 'name = Ada',
+      fixed: 'name = "Ada"',
+    },
   },
   {
     id: 'types',
@@ -244,6 +249,16 @@ number
       minExprs: 1,
       codePatterns: ['int\\s*\\('],
     },
+    predict: {
+      prompt: 'int("42") produces which type of value?',
+      choices: ['str', 'int', 'float'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Convert text that looks like a number with int().',
+      wrong: 'number = "42" + 1',
+      fixed: 'number = int("42")',
+    },
   },
   {
     id: 'expressions',
@@ -271,6 +286,16 @@ number
       mustEditStarter: true,
       noBlanks: true,
       minExprs: 2,
+    },
+    predict: {
+      prompt: 'In this playground, a bare line like 2 + 2…',
+      choices: ['does nothing', 'shows a value on the right', 'crashes'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Top-level expressions show their value without print.',
+      wrong: 'print = 2 + 2',
+      fixed: '2 + 2',
     },
   },
   {
@@ -304,6 +329,16 @@ print(f"{name} loves {word}")
       minNonEmptyPrints: 1,
       codeIncludes: ['print(f"'],
     },
+    predict: {
+      prompt: '"Python"[0:3] is…',
+      choices: ['"Pyt"', '"Pyth"', '"hon"'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'f-strings put expressions inside braces.',
+      wrong: 'print("name loves word")',
+      fixed: 'print(f"{name} loves {word}")',
+    },
   },
   {
     id: 'booleans',
@@ -332,6 +367,16 @@ score == 100
       mustEditStarter: true,
       noBlanks: true,
       minExprs: 2,
+    },
+    predict: {
+      prompt: 'If score = 40, is score >= 60 …',
+      choices: ['True', 'False'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Comparisons use == for equality, not =.',
+      wrong: 'score = 100',
+      fixed: 'score == 100',
     },
   },
   {
@@ -365,6 +410,16 @@ else:
       printsInclude: ['Passed'],
       codePatterns: ['score\\s*='],
     },
+    predict: {
+      prompt: 'score = 75 prints which message?',
+      choices: ['Excellent', 'Passed', 'Try again'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'elif runs only when earlier ifs were false.',
+      wrong: 'if score >= 60:\n    print("Passed")\nif score >= 90:\n    print("Excellent")',
+      fixed: 'if score >= 90:\n    print("Excellent")\nelif score >= 60:\n    print("Passed")',
+    },
   },
   {
     id: 'lists',
@@ -395,6 +450,16 @@ print(f"Average score: {average}")
       codeIncludes: ['average ='],
       minExprs: 1,
     },
+    predict: {
+      prompt: 'For scores = [10, 20, 30, 40], len(scores) is…',
+      choices: ['3', '4', '100'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Average is total divided by count.',
+      wrong: 'average = sum(scores)',
+      fixed: 'average = sum(scores) / len(scores)',
+    },
   },
   {
     id: 'for-loops',
@@ -420,6 +485,16 @@ for n in range(???):
       noBlanks: true,
       minNonEmptyPrints: 5,
       printsInclude: ['1', '5'],
+    },
+    predict: {
+      prompt: 'range(1, 6) yields…',
+      choices: ['1..5', '1..6', '0..5'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'range(stop) starts at 0; range(1, 6) is 1 through 5.',
+      wrong: 'for n in range(5):\n    print(n)  # 0..4',
+      fixed: 'for n in range(1, 6):\n    print(n)',
     },
   },
   {
@@ -449,6 +524,16 @@ while n < ???:
       minNonEmptyPrints: 3,
       printsInclude: ['0', '1', '2'],
       codePatterns: ['n\\s*=\\s*n\\s*\\+\\s*1|n\\s*\\+=\\s*1'],
+    },
+    predict: {
+      prompt: 'A while loop must eventually…',
+      choices: ['print forever', 'make the condition false', 'use range'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Increase the counter or the loop never ends.',
+      wrong: 'while n < 3:\n    print(n)',
+      fixed: 'while n < 3:\n    print(n)\n    n = n + 1',
     },
   },
   {
@@ -480,6 +565,16 @@ print(person.get(???))
       noBlanks: true,
       codeIncludes: ['.get('],
       minNonEmptyPrints: 1,
+    },
+    predict: {
+      prompt: 'person.get("city") after setting city to London…',
+      choices: ['crashes', 'prints London', 'prints None always'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: '.get avoids KeyError for missing keys.',
+      wrong: 'print(person["country"])',
+      fixed: 'print(person.get("country", "unknown"))',
     },
   },
   {
@@ -514,6 +609,16 @@ square(???)
       codePatterns: ['def\\s+square\\s*\\(', 'return\\s+n\\s*\\*\\s*n'],
       minExprs: 1,
     },
+    predict: {
+      prompt: 'square(4) should return…',
+      choices: ['8', '16', '4'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'return gives a value back to the caller.',
+      wrong: 'def square(n):\n    print(n * n)',
+      fixed: 'def square(n):\n    return n * n',
+    },
   },
   {
     id: 'errors',
@@ -547,6 +652,11 @@ a / b
       fixed: 'a = 10\nb = 2\na / b',
     },
     stretch: 'Stretch: also print a clear message when the math works.',
+    predict: {
+      prompt: 'What happens with a / b when b is 0?',
+      choices: ['prints 0', 'raises an error', 'prints infinity'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'python-for',
@@ -579,6 +689,11 @@ for(i = 0; i < 10; i++):
       wrong: 'for(i = 0; i < 10; i++):\n    print(i)',
       fixed: 'for i in range(10):\n    print(i)',
     },
+    predict: {
+      prompt: 'Python for-loops over numbers usually use…',
+      choices: ['for(i=0; i<n; i++)', 'for i in range(n):', 'loop i to n'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'infinite',
@@ -610,6 +725,11 @@ while True:
       note: 'A loop needs a condition that eventually becomes false.',
       wrong: 'while True:\n    pass',
       fixed: 'n = 0\nwhile n < 3:\n    print(n)\n    n = n + 1',
+    },
+    predict: {
+      prompt: 'while True: with no break will…',
+      choices: ['run once', 'run forever until stopped', 'never start'],
+      correctIndex: 1,
     },
   },
   {
@@ -645,6 +765,16 @@ print(f"Average: {average}")
       noBlanks: true,
       printsInclude: ['pass', 'retry', 'Average'],
       minNonEmptyPrints: 5,
+    },
+    predict: {
+      prompt: 'With passing = 60, score 55 should print…',
+      choices: ['pass', 'retry', 'Average'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Compare each score to the passing mark.',
+      wrong: 'if score:\n    print("pass")',
+      fixed: 'if score >= passing:\n    print(f"{score}: pass")',
     },
   },
 

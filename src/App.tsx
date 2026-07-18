@@ -464,7 +464,9 @@ export default function App() {
           editorView={editorView}
           events={snapshot.events}
           activeIndex={activeResult}
-          enabled={isWide}
+          // Draw whenever geometry allows (side-by-side). Stacked layouts
+          // naturally yield null from measure — no forced wide-only gate.
+          enabled
           geometryKey={geometryKey}
         />
       </main>
