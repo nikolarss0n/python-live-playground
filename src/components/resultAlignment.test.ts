@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeStackedTops } from './resultAlignment'
+import { computeStackedTops, stackOptionsForMode } from './resultAlignment'
 
 describe('computeStackedTops', () => {
   it('places rows at their targets when there is room', () => {
@@ -19,5 +19,10 @@ describe('computeStackedTops', () => {
 
   it('never goes negative', () => {
     expect(computeStackedTops([-20, 5], [8, 8], 2)).toEqual([0, 10])
+  })
+
+  it('soft mode caps huge first-row offsets', () => {
+    const soft = stackOptionsForMode('soft')!
+    expect(computeStackedTops([200], [12], 2, soft)[0]).toBe(56)
   })
 })

@@ -451,7 +451,7 @@ export default function App() {
             showCoaching={!seenSuccess}
             editorView={editorView}
             geometryKey={geometryKey}
-            align={isWide}
+            alignMode={isWide ? 'full' : 'soft'}
             previousEvents={previousEvents}
             updatedIndices={updatedIndices}
             showPrevious={showPrevious}

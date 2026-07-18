@@ -50,6 +50,9 @@ describe('lessons', () => {
         (l) => (l.modelPromptFallback?.length ?? 0) > 10 || l.id === 'ai-prompt-template',
       ),
     ).toBe(true)
+
+    const mid = lessonsForDifficulty('intermediate')
+    expect(mid.every((l) => l.predict && l.compare)).toBe(true)
   })
 
   it('gives learners something to edit (blanks or a clear fix)', () => {

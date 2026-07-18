@@ -680,6 +680,16 @@ for name, year in zip(???, ???):
       codeIncludes: ['enumerate', 'zip'],
       minNonEmptyPrints: 3,
     },
+    predict: {
+      prompt: 'enumerate(fruits, start=1) numbers the first fruit as…',
+      choices: ['0', '1', '2'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'zip pairs items from two lists by position.',
+      wrong: 'for name, year in names, years:',
+      fixed: 'for name, year in zip(names, years):',
+    },
   },
   {
     id: 'mid-nested-loops',
@@ -707,6 +717,16 @@ for row in range(1, ???):
       mustEditStarter: true,
       noBlanks: true,
       minNonEmptyPrints: 4,
+    },
+    predict: {
+      prompt: 'range(1, 5) yields which numbers?',
+      choices: ['1..5', '1..4', '0..4'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'range(stop) stops before stop — use range(1, 5) for 1..4.',
+      wrong: 'for row in range(4):  # 0..3',
+      fixed: 'for row in range(1, 5):',
     },
   },
   {
@@ -739,6 +759,16 @@ nums
       codePatterns: ['\\bin\\b'],
       minExprs: 1,
     },
+    predict: {
+      prompt: 'After appending n*10 for n in 1..5, is 30 in nums?',
+      choices: ['Yes', 'No'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'append grows a list in place.',
+      wrong: 'nums = n * 10',
+      fixed: 'nums.append(n * 10)',
+    },
   },
   {
     id: 'mid-comprehensions',
@@ -767,6 +797,16 @@ evens
       noBlanks: true,
       codePatterns: ['for n in', '%'],
       minExprs: 2,
+    },
+    predict: {
+      prompt: '[n*n for n in range(3)] equals…',
+      choices: ['[0, 1, 4]', '[1, 4, 9]', '[0, 1, 2]'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'A filter goes after the for clause.',
+      wrong: '[n for if n % 2 == 0 in range(10)]',
+      fixed: '[n for n in range(10) if n % 2 == 0]',
     },
   },
   {
@@ -800,6 +840,16 @@ boosted
       minNonEmptyPrints: 1,
       minExprs: 1,
     },
+    predict: {
+      prompt: 'scores.items() yields…',
+      choices: ['only keys', 'only values', 'key–value pairs'],
+      correctIndex: 2,
+    },
+    compare: {
+      note: 'Dict comprehensions map name → new value.',
+      wrong: 'boosted = score + 5',
+      fixed: 'boosted = {name: score + 5 for name, score in scores.items()}',
+    },
   },
   {
     id: 'mid-sets',
@@ -829,6 +879,16 @@ skills_a & skills_b
       noBlanks: true,
       codePatterns: ['\\|', '&'],
       minExprs: 1,
+    },
+    predict: {
+      prompt: '{1, 2} | {2, 3} is…',
+      choices: ['{2}', '{1, 2, 3}', '{1, 3}'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: '| is union; & is intersection.',
+      wrong: 'skills_a + skills_b',
+      fixed: 'skills_a | skills_b',
     },
   },
   {
@@ -861,6 +921,16 @@ a, b = ???
       noBlanks: true,
       minExprs: 2,
     },
+    predict: {
+      prompt: 'After x, y = (3, 4), what is y?',
+      choices: ['3', '4', '(3, 4)'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Swap with parallel assignment.',
+      wrong: 'a = b\nb = a',
+      fixed: 'a, b = b, a',
+    },
   },
   {
     id: 'mid-fn-defaults',
@@ -889,6 +959,16 @@ greet("Ada", "Hi")
       noBlanks: true,
       codePatterns: ['def\\s+greet\\s*\\(', 'greeting\\s*='],
       minExprs: 1,
+    },
+    predict: {
+      prompt: 'greet("Ada") with greeting="Hello" by default prints…',
+      choices: ['Ada', 'Hello, Ada!', 'greeting, Ada!'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Defaults go in the parameter list.',
+      wrong: 'def greet(name, greeting):\n    greeting = "Hello"',
+      fixed: 'def greet(name, greeting="Hello"):',
     },
   },
   {
@@ -923,6 +1003,16 @@ for person in by_year:
       codeIncludes: ['sorted(', 'key='],
       minNonEmptyPrints: 3,
     },
+    predict: {
+      prompt: 'sorted(people, key=lambda p: p["year"]) orders by…',
+      choices: ['name', 'year', 'dict size'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'key= tells sorted which value to compare.',
+      wrong: 'sorted(people)',
+      fixed: 'sorted(people, key=lambda p: p["year"])',
+    },
   },
   {
     id: 'mid-try-except',
@@ -955,6 +1045,16 @@ for raw in raw_values:
       codeIncludes: ['try:', 'except'],
       printsInclude: ['not a number'],
       minNonEmptyPrints: 2,
+    },
+    predict: {
+      prompt: 'int("oops") raises which exception type?',
+      choices: ['TypeError', 'ValueError', 'NameError'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Catch the specific error you expect.',
+      wrong: 'except:\n    pass',
+      fixed: 'except ValueError:\n    print("not a number")',
     },
   },
   {
@@ -992,6 +1092,16 @@ c.value
       codeIncludes: ['class Counter', 'self.value'],
       minExprs: 1,
     },
+    predict: {
+      prompt: 'After Counter().bump() then bump(4), value is…',
+      choices: ['0', '1', '5'],
+      correctIndex: 2,
+    },
+    compare: {
+      note: 'Methods update state on self.',
+      wrong: 'value = value + step',
+      fixed: 'self.value = self.value + step',
+    },
   },
   {
     id: 'mid-stdlib',
@@ -1020,6 +1130,16 @@ random.randint(1, 6)
       noBlanks: true,
       codeIncludes: ['import math', 'import random', 'math.sqrt', 'random.randint'],
       minExprs: 1,
+    },
+    predict: {
+      prompt: 'math.sqrt(9) is…',
+      choices: ['3', '81', '4.5'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Import the module, then call module.function.',
+      wrong: 'sqrt(9)',
+      fixed: 'import math\nmath.sqrt(9)',
     },
   },
   {
@@ -1052,6 +1172,16 @@ parsed["name"]
       noBlanks: true,
       codeIncludes: ['json.dumps', 'json.loads'],
       minExprs: 1,
+    },
+    predict: {
+      prompt: 'json.loads turns a JSON string into…',
+      choices: ['a file', 'Python objects', 'HTML'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'dumps → string; loads → Python value.',
+      wrong: 'json.loads(data)  # data is already a dict',
+      fixed: 'text = json.dumps(data)\nparsed = json.loads(text)',
     },
   },
   {
@@ -1092,6 +1222,16 @@ top_students(students, limit=2)
       minExprs: 1,
     },
     stretch: 'Stretch: also return the scores next to each name as tuples.',
+    predict: {
+      prompt: 'With reverse=True and key=score, who is first?',
+      choices: ['Ada (92)', 'Alan (95)', 'Grace (88)'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Sort by score field, highest first.',
+      wrong: 'sorted(rows)',
+      fixed: 'sorted(rows, key=lambda r: r["score"], reverse=True)',
+    },
   },
 
   // ── AI foundations (browser-local, no API keys) ───────

@@ -4,7 +4,11 @@ import type { ExecutionStatus, ResultEvent } from '../execution/protocol'
 import { explainError } from '../execution/errorExplain'
 import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
-import { computeStackedTops } from './resultAlignment'
+import {
+  computeStackedTops,
+  stackOptionsForMode,
+  type AlignMode,
+} from './resultAlignment'
 import { CollectionTree } from './CollectionTree'
 import { looksLikeTokenList, TokenChips } from './TokenChips'
 import { HttpResponseCard } from './HttpResponseCard'
@@ -23,10 +27,11 @@ type ResultsPanelProps = {
   onGeometryChange?: () => void
   /** First-run coaching until the learner has seen success once. */
   showCoaching?: boolean
-  /** Align rows beside source lines (wide layout). */
+  /** Align rows beside source lines. */
   editorView?: EditorView | null
   geometryKey?: number
-  align?: boolean
+  /** full = desktop side-by-side; soft = narrow stacked caps; off = natural flow */
+  alignMode?: AlignMode
   /** Previous run — faded ghost + baseline for “updated” marks. */
   previousEvents?: ResultEvent[] | null
   /** Indices that differ from the previous run. */
@@ -326,7 +331,7 @@ export function ResultsPanel({
   showCoaching = false,
   editorView = null,
   geometryKey = 0,
-  align = false,
+  alignMode = 'off',
   previousEvents = null,
   updatedIndices,
   showPrevious = false,
@@ -358,7 +363,7 @@ export function ResultsPanel({
     return () => ro.disconnect()
   }, [onGeometryChange])
 
-  // Align each result row with the source line that produced it (wide only).
+  // Align each result row with the source line that produced it.
   useLayoutEffect(() => {
     const body = bodyRef.current
     if (!body) return
@@ -366,7 +371,8 @@ export function ResultsPanel({
     const rows = () =>
       Array.from(body.querySelectorAll<HTMLElement>('[data-result-index]'))
 
-    if (!align || !editorView) {
+    const stackOpts = stackOptionsForMode(alignMode)
+    if (!stackOpts || !editorView) {
       for (const row of rows()) row.style.marginTop = ''
       return
     }
@@ -393,7 +399,7 @@ export function ResultsPanel({
           row.getBoundingClientRect().top - bodyRect.top + body.scrollTop,
       )
       const heights = measured.map((row) => row.getBoundingClientRect().height)
-      const stacked = computeStackedTops(targets, heights, 2)
+      const stacked = computeStackedTops(targets, heights, 2, stackOpts)
       measured.forEach((row, i) => {
         const naturalGap =
           i === 0 ? naturalTops[0] : naturalTops[i] - naturalTops[i - 1]
@@ -416,7 +422,7 @@ export function ResultsPanel({
       cancelAnimationFrame(raf)
       ro?.disconnect()
     }
-  }, [align, editorView, events, geometryKey])
+  }, [alignMode, editorView, events, geometryKey])
 
   const focusIndex =
     step === 'all' || !loopTrace ? null : (loopTrace[step]?.index ?? null)
@@ -489,7 +495,9 @@ export function ResultsPanel({
       )}
 
       <div
-        className={`results-body${align && editorView ? ' is-aligned' : ''}`}
+        className={`results-body${
+          alignMode !== 'off' && editorView ? ' is-aligned' : ''
+        }${alignMode === 'soft' ? ' is-align-soft' : ''}`}
         ref={bodyRef}
       >
         {empty && (
