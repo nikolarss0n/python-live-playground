@@ -1408,6 +1408,11 @@ len(tokens)
       wrong: 'return text  # still one string',
       fixed: 'return text.split()',
     },
+    predict: {
+      prompt: '"hello world".split() becomes…',
+      choices: ['"hello world"', '["hello", "world"]', 'hello+world'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-bag-of-words',
@@ -1499,6 +1504,11 @@ print(ids)
       wrong: 'vocab[t] = 0  # every token becomes 0',
       fixed: 'vocab[t] = next_id',
     },
+    predict: {
+      prompt: 'Unique tokens in ["the","cat","the"] get how many vocab entries?',
+      choices: ['1', '2', '3'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-dot-product',
@@ -1542,6 +1552,11 @@ print(dot(v1, v2))
       prompt: 'dot([1,2,3], [0,1,1]) equals…',
       choices: ['3', '5', '6'],
       correctIndex: 1,
+    },
+    compare: {
+      note: 'Multiply matching positions, then sum.',
+      wrong: 'total += a[i] + b[i]',
+      fixed: 'total += a[i] * b[i]',
     },
   },
   {
@@ -1597,6 +1612,11 @@ print(round(cosine(a, b), 3))
       wrong: 'return dot(a, b)  # not normalized',
       fixed: 'return dot(a, b) / (magnitude(a) * magnitude(b))',
     },
+    predict: {
+      prompt: 'Cosine of two identical non-zero vectors is…',
+      choices: ['0', '1', '-1'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-prompt-template',
@@ -1643,6 +1663,11 @@ print(prompt)
     runWithModel: true,
     modelPromptFallback:
       'You are a Python tutor. In two short sentences, explain lists to a beginner named Ada.',
+    predict: {
+      prompt: 'In an f-string, {student} is replaced by…',
+      choices: ['the word student', 'the value of student', 'nothing'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-json-contract',
@@ -1694,6 +1719,11 @@ print(instruction)
       note: 'Check membership with `key not in payload`.',
       wrong: 'if key == payload:',
       fixed: 'if key not in payload:',
+    },
+    predict: {
+      prompt: 'If required keys are present, missing list length is…',
+      choices: ['0', '1', '2'],
+      correctIndex: 0,
     },
   },
   {
@@ -1754,6 +1784,11 @@ print(winner)
       wrong: 'counts = count_tokens(text)',
       fixed: 'counts = count_tokens(tokens)',
     },
+    predict: {
+      prompt: 'In "to be or not to be", which token wins a simple count?',
+      choices: ['or', 'to', 'be'],
+      correctIndex: 1,
+    },
   },
 
   // ── Web APIs (browser-local FastAPI mental model, no real server) ──
@@ -1798,6 +1833,11 @@ print(request["path"])
       choices: ['method', 'path', 'body'],
       correctIndex: 1,
     },
+    compare: {
+      note: 'HTTP methods are short uppercase strings.',
+      wrong: 'method = get',
+      fixed: 'method = "GET"',
+    },
   },
   {
     id: 'api-response',
@@ -1833,6 +1873,16 @@ print(ok("hello from the browser"))
     },
     pipeline: ['handle', 'status', 'body'],
     stretch: 'Stretch: add a 404 helper that returns status 404.',
+    predict: {
+      prompt: 'A successful JSON response often uses status…',
+      choices: ['200', '404', '500'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Keep status and body as separate fields.',
+      wrong: 'return "ok"',
+      fixed: 'return {"status": 200, "body": {"message": "ok"}}',
+    },
   },
   {
     id: 'api-status',
@@ -1872,6 +1922,11 @@ print(get_item("99"))
       wrong: 'return {"status": 200, "body": None}',
       fixed: 'return {"status": 404, "body": {"error": "not found"}}',
     },
+    predict: {
+      prompt: 'When an id is missing from the store, clients expect…',
+      choices: ['200', '201', '404'],
+      correctIndex: 2,
+    },
   },
   {
     id: 'api-routing',
@@ -1909,6 +1964,16 @@ print(handle({"method": "GET", "path": "/missing"}))
       minNonEmptyPrints: 3,
     },
     pipeline: ['match', 'handler', 'respond'],
+    predict: {
+      prompt: 'Unknown paths should typically return…',
+      choices: ['200', '404', '201'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Match the path string exactly (or with clear rules).',
+      wrong: 'if path:\n    return hello()',
+      fixed: 'if path == "/hello":\n    return {"status": 200, "body": {"message": "hi"}}',
+    },
   },
   {
     id: 'api-query',
@@ -1945,6 +2010,16 @@ print(greet({"method": "GET", "path": "/greet", "query": {}}))
     },
     pipeline: ['parse', 'query', 'respond'],
     hints: ['Use "name" as the query key.'],
+    predict: {
+      prompt: 'query.get("name", "world") with empty query yields…',
+      choices: ['name', 'world', 'error'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: '.get supplies a default when the key is missing.',
+      wrong: 'name = request["query"]["name"]',
+      fixed: 'name = request["query"].get("name", "world")',
+    },
   },
   {
     id: 'api-json-body',
@@ -1982,6 +2057,16 @@ print(create_user({"method": "POST", "path": "/users", "body": {"name": "Ada"}})
     },
     pipeline: ['method', 'validate', 'create'],
     stretch: 'Stretch: also reject names shorter than 2 characters with 400.',
+    predict: {
+      prompt: 'Successful create often returns status…',
+      choices: ['200', '201', '404'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Wrong methods should not create resources.',
+      wrong: 'return {"status": 200, "body": body}',
+      fixed: 'return {"status": 405, "body": {"error": "method not allowed"}}',
+    },
   },
   {
     id: 'api-middleware',
@@ -2023,6 +2108,16 @@ print(app({"method": "GET", "path": "/"}))
     },
     pipeline: ['before', 'handler', 'after'],
     hints: ['Call handler(request) to get the inner response.'],
+    predict: {
+      prompt: 'Middleware usually runs…',
+      choices: ['instead of the handler', 'around the handler', 'only on errors'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'Call the inner handler, then decorate the response.',
+      wrong: 'response = {"status": 200}',
+      fixed: 'response = handler(request)',
+    },
   },
   {
     id: 'api-mini-app',
@@ -2072,6 +2167,11 @@ print(app({"method": "GET", "path": "/items/nope"}))
       note: 'Unknown routes should not pretend to succeed.',
       wrong: 'return {"status": 200, "body": {}}',
       fixed: 'return {"status": 404, "body": {"error": "no route"}}',
+    },
+    predict: {
+      prompt: 'GET /items/a1 when a1 exists should return…',
+      choices: ['404', '200 with the item', '405'],
+      correctIndex: 1,
     },
   },
   {
