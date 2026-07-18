@@ -46,14 +46,33 @@ npm run preview
 
 ## What this MVP includes
 
-- Two-pane layout: Python editor + live results
+- Two-pane layout: Python editor + live results (hover path ribbons + var chips)
 - Automatic execution after a short typing pause, plus **Run** and **Stop**
-- Captured `print()` output and top-level expression values
-- Friendly error messages with optional full traceback
-- Timeout (5s) and Stop that terminate and recreate the worker
-- Small example menu (hello, variables, loops, errors, infinite loop)
-- Light and dark themes, keyboard-focus styles, reduced-motion support
+- Captured `print()` output, top-level expression values, and expandable collections
+- Quiet type chips (`int`, `str`, `list`, …) and soft goal / task progress
+- Friendly error cards with always-visible “what to fix” + optional full explanation
+- Soft loop timeout + hard Stop that terminates and recreates the worker
+- Beginner + intermediate **lessons** (goals, `???` blanks, Next / stuck hints)
+- Light and dark themes, keyboard shortcuts (`⌘/Ctrl+Enter`, `Esc`, `?`)
 - Responsive layout for desktop and narrow widths
+
+Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
+
+## Lessons (topics)
+
+### Beginner (16)
+
+1. Printing · 2. Variables · 3. Types · 4. Expressions · 5. Strings · 6. Booleans  
+7. If decisions · 8. Lists · 9. For loops · 10. While loops · 11. Dictionaries  
+12. Functions · 13. Reading errors · 14. Python for-loops · 15. Infinite loops · 16. Capstone
+
+### Intermediate (14)
+
+1. Enumerate & zip · 2. Nested loops · 3. List methods · 4. Comprehensions  
+5. Dict loops · 6. Sets · 7. Tuples · 8. Function defaults · 9. Sorting  
+10. Try / except · 11. Classes · 12. Math & random · 13. JSON · 14. Capstone
+
+Switch difficulty and lesson from the toolbar. Each lesson has a goal strip, soft tasks, and starter code with something left to finish.
 
 ## Outside this MVP
 
@@ -61,6 +80,7 @@ npm run preview
 - Installing third-party packages (`pip` / micropip UI)
 - AI assistant, telemetry, or collaboration
 - Native desktop app shell
+- FastAPI / multi-file server tracks (see improvements roadmap)
 
 Product direction lives in [PROJECT_BRIEF.md](./PROJECT_BRIEF.md).
 
@@ -71,6 +91,7 @@ Product direction lives in [PROJECT_BRIEF.md](./PROJECT_BRIEF.md).
 | `src/execution/python.worker.ts` | Loads Pyodide, instruments AST, runs code off the UI thread |
 | `src/execution/PythonRunner.ts` | Main-thread worker lifecycle, debounce/timeout/Stop |
 | `src/execution/protocol.ts` | Typed messages between UI and worker |
-| `src/components/*` | Editor, results, toolbar |
+| `src/examples.ts` | Beginner + intermediate lessons, goals, checks |
+| `src/components/*` | Editor, results, lesson goal, toolbar |
 
 Stop and timeout always `terminate()` the worker and spawn a fresh one so infinite loops cannot freeze the page.

@@ -32,6 +32,7 @@ vi.mock('./execution/usePythonExecution', () => ({
       durationMs: 12,
       runId: 'run-1',
       error: null,
+      executedCode: null,
     },
     runNow: vi.fn(),
     stop: vi.fn(),
@@ -56,21 +57,50 @@ describe('App beginner flow', () => {
     ).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /python editor/i })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /results/i })).toBeInTheDocument()
-    expect(screen.getByText('Hello, world!')).toBeInTheDocument()
     const results = screen.getByRole('region', { name: /results/i })
+    expect(results).toHaveTextContent('Hello, world!')
     expect(results).toHaveTextContent('4')
     expect(screen.getByRole('button', { name: /run/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument()
   })
 
-  it('loads another example from the menu', async () => {
+  it('loads another lesson from the menu and shows its goal and tasks', async () => {
     const user = userEvent.setup()
     render(<App />)
-    const select = screen.getByLabelText(/load an example/i)
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+    expect(goal).toHaveTextContent(/Goal/)
+    expect(goal).toHaveTextContent(/Make Python show two messages/i)
+    expect(goal).toHaveTextContent(/Beginner/)
+    expect(goal).toHaveTextContent(/Lesson 1/)
+    expect(goal.querySelector('.lesson-tasks')).toBeTruthy()
+    expect(goal.querySelector('.lesson-goal-statement')).toBeTruthy()
+    expect(screen.getByRole('navigation', { name: /lesson path/i })).toBeTruthy()
+    const select = screen.getByLabelText(/choose a lesson/i)
     await user.selectOptions(select, 'errors')
     expect(select).toHaveValue('errors')
-    // Errors example includes a / b division
-    expect(screen.getByRole('region', { name: /python editor/i })).toBeInTheDocument()
+    expect(goal).toHaveTextContent(/Lesson 13/)
+    expect(goal).toHaveTextContent(/What does this mean/i)
+  })
+
+  it('shows a predict prompt on the first lesson', () => {
+    render(<App />)
+    expect(
+      screen.getByRole('region', { name: /predict the output/i }),
+    ).toBeInTheDocument()
+  })
+
+  it('switches difficulty to intermediate and loads its first lesson', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const difficulty = screen.getByLabelText(/choose difficulty/i)
+    await user.selectOptions(difficulty, 'intermediate')
+    expect(difficulty).toHaveValue('intermediate')
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+    expect(goal).toHaveTextContent(/Intermediate/)
+    expect(goal).toHaveTextContent(/Lesson 1/)
+    expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue(
+      'mid-enumerate-zip',
+    )
   })
 
   it('toggles theme', async () => {
@@ -81,3 +111,4 @@ describe('App beginner flow', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 })
+

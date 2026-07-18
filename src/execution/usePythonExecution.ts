@@ -14,6 +14,7 @@ const INITIAL: RunnerSnapshot = {
   durationMs: null,
   runId: null,
   error: null,
+  executedCode: null,
 }
 
 export function usePythonExecution(

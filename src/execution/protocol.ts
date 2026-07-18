@@ -11,19 +11,24 @@ export type ExecutionStatus =
   | 'idle'
 
 import type { ErrorExplanation } from './errorExplain'
+import type { CollectionNode } from './collectionStructure'
 
 export type { ErrorExplanation }
+export type { CollectionNode }
 
 export type ResultEvent =
   | {
       kind: 'print'
       text: string
       line?: number
+      /** Structured tree for list/dict/set/tuple when capture is available. */
+      structure?: CollectionNode
     }
   | {
       kind: 'expr'
       value: string
       line: number
+      structure?: CollectionNode
     }
   | {
       kind: 'error'
@@ -52,4 +57,6 @@ export type WorkerOutboundMessage =
   | { type: 'failed'; id: string; error: string }
 
 export const DEFAULT_DEBOUNCE_MS = 450
-export const DEFAULT_TIMEOUT_MS = 5_000
+/** Hard wall-clock kill if the worker is still busy (stuck without loop ticks). */
+export const DEFAULT_TIMEOUT_MS = 3_000
+/** Soft limit is enforced inside Python loop instrumentation (~2s). */

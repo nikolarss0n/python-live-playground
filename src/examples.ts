@@ -1,77 +1,1010 @@
-export type Example = {
-  id: string
-  title: string
-  description: string
-  code: string
+/**
+ * Lessons by difficulty. Each lesson leaves something to finish —
+ * small, guided edits, not full demos or hard puzzles.
+ */
+
+import type { GoalCheck } from './goalCheck'
+export type { GoalCheck, GoalProgress } from './goalCheck'
+export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
+
+export type Difficulty = 'beginner' | 'intermediate'
+
+/** Optional “predict then run” micro-quiz before the first run. */
+export type LessonPredict = {
+  prompt: string
+  choices: string[]
+  /** Index into choices */
+  correctIndex: number
 }
 
-export const DEFAULT_EXAMPLE_ID = 'hello'
+export type Lesson = {
+  id: string
+  difficulty: Difficulty
+  number: number
+  topic: string
+  goal: string
+  /** Short interactive steps shown under the goal */
+  tasks: string[]
+  code: string
+  goalCheck?: GoalCheck
+  /** Extra stuck hints beyond goal-check missing steps */
+  hints?: string[]
+  /** Quiet predict-then-run prompt (shown once per lesson visit) */
+  predict?: LessonPredict
+}
 
-export const EXAMPLES: Example[] = [
+/** @deprecated use Lesson */
+export type Example = Lesson
+
+export const DEFAULT_DIFFICULTY: Difficulty = 'beginner'
+export const DEFAULT_LESSON_ID = 'printing'
+/** @deprecated use DEFAULT_LESSON_ID */
+export const DEFAULT_EXAMPLE_ID = DEFAULT_LESSON_ID
+
+export const DIFFICULTY_OPTIONS: { id: Difficulty; label: string }[] = [
+  { id: 'beginner', label: 'Beginner' },
+  { id: 'intermediate', label: 'Intermediate' },
+]
+
+export function difficultyLabel(d: Difficulty): string {
+  return DIFFICULTY_OPTIONS.find((o) => o.id === d)?.label ?? d
+}
+
+export function lessonLabel(lesson: Lesson): string {
+  return `Lesson ${lesson.number} · ${lesson.topic}`
+}
+
+export function lessonHeading(lesson: Lesson): string {
+  return `${difficultyLabel(lesson.difficulty)} · ${lessonLabel(lesson)}`
+}
+
+export const LESSONS: Lesson[] = [
+  // ── Beginner ──────────────────────────────────────────
   {
-    id: 'hello',
-    title: 'Hello',
-    description: 'Print and expression values',
-    code: `# Welcome to the Python playground
-# Hover a result on the right to see its line and related names.
+    id: 'printing',
+    difficulty: 'beginner',
+    number: 1,
+    topic: 'Printing',
+    goal: 'Make Python show two messages that you chose yourself.',
+    tasks: [
+      'Change the first print so it greets you by name',
+      'Fill in the second print (replace ???)',
+    ],
+    code: `# Lesson 1 — Printing
+# Goal: Make Python show two messages that you chose yourself.
+# Your turn: edit the prints below.
 
-name = "world"
-print(f"Hello, {name}!")
-
-2 + 2
-"Python" * 3
+print("Hello, world!")
+print(???)
 `,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 2,
+    },
+    hints: [
+      'Replace ??? with a string in quotes, like "I am learning Python".',
+    ],
+    predict: {
+      prompt: 'What will the first line print before you change it?',
+      choices: ['Hello, world!', '???', 'Nothing'],
+      correctIndex: 0,
+    },
   },
   {
     id: 'variables',
-    title: 'Variables',
-    description: 'Names, lists, and simple math',
-    code: `temperature = 22
-unit = "°C"
+    difficulty: 'beginner',
+    number: 2,
+    topic: 'Variables',
+    goal: 'Store your name and print a greeting that uses it.',
+    tasks: [
+      'Set name to your name (replace ???)',
+      'Run and check the greeting on the right',
+    ],
+    code: `# Lesson 2 — Variables
+# Goal: Store your name and print a greeting that uses it.
+# Your turn: put your name in the variable.
 
-print(f"It is {temperature}{unit} outside.")
-
-scores = [8, 9, 7, 10]
-average = sum(scores) / len(scores)
-average
+name = ???
+print(f"Hello, {name}!")
 `,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 1,
+      codePatterns: ['name\\s*=\\s*["\'][^"\']+["\']'],
+      printPatterns: ['Hello'],
+    },
   },
   {
-    id: 'loops',
-    title: 'Loops',
-    description: 'Repeat work with for and range',
-    code: `for n in range(1, 6):
-    square = n * n
-    print(f"{n} squared is {square}")
+    id: 'types',
+    difficulty: 'beginner',
+    number: 3,
+    topic: 'Types',
+    goal: 'Create one value of each type and convert a string to an int.',
+    tasks: [
+      'Fill age (int), price (float), label (str), ready (bool)',
+      'Make number = int("42") work (fix ???)',
+    ],
+    code: `# Lesson 3 — Types
+# Goal: Create one value of each type and convert a string to an int.
+# Your turn: finish each assignment.
 
-sum(range(1, 11))
+age = ???          # a whole number
+price = ???        # a number with a decimal
+label = ???        # text in quotes
+ready = ???        # True or False
+
+type(age)
+type(price)
+type(label)
+type(ready)
+
+number = int(???)  # try "42"
+number
 `,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minExprs: 1,
+      codePatterns: ['int\\s*\\('],
+    },
+  },
+  {
+    id: 'expressions',
+    difficulty: 'beginner',
+    number: 4,
+    topic: 'Expressions',
+    goal: 'Write two expressions that show values without using print.',
+    tasks: [
+      'Change 2 + 2 into a different calculation',
+      'Add one more expression on its own line (no print)',
+    ],
+    code: `# Lesson 4 — Expressions
+# Goal: Write two expressions that show values without using print.
+# Your turn: edit these lines and watch the orange values on the right.
+
+2 + 2
+"Python" * 3
+
+# Add your own expression below (example: 10 - 3)
+???
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minExprs: 2,
+    },
+  },
+  {
+    id: 'strings',
+    difficulty: 'beginner',
+    number: 5,
+    topic: 'Strings',
+    goal: 'Slice a word and print an f-string with your own name.',
+    tasks: [
+      'Set word to any word of 4+ letters',
+      'Change the slice and the f-string name',
+    ],
+    code: `# Lesson 5 — Strings
+# Goal: Slice a word and print an f-string with your own name.
+# Your turn: explore one word of text.
+
+word = "Python"
+len(word)
+word[0]
+word[0:3]       # try a different slice
+word.upper()
+
+name = ???
+print(f"{name} loves {word}")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 1,
+      codeIncludes: ['print(f"'],
+    },
+  },
+  {
+    id: 'booleans',
+    difficulty: 'beginner',
+    number: 6,
+    topic: 'Booleans',
+    goal: 'Get both True and False to appear by changing score and comparisons.',
+    tasks: [
+      'Change score so score >= 60 is True',
+      'Add one more comparison line that is False',
+    ],
+    code: `# Lesson 6 — Booleans
+# Goal: Get both True and False to appear by changing score and comparisons.
+# Your turn: tweak score and the comparisons.
+
+score = 40
+score >= 60
+score == 100
+
+# Write one more comparison that is False for your score:
+???
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minExprs: 2,
+    },
+  },
+  {
+    id: 'conditionals',
+    difficulty: 'beginner',
+    number: 7,
+    topic: 'If decisions',
+    goal: 'Make the program print "Passed" for your score.',
+    tasks: [
+      'Set score so the Passed branch runs (60–89)',
+      'Then try a score that prints Excellent',
+    ],
+    code: `# Lesson 7 — If decisions
+# Goal: Make the program print "Passed" for your score.
+# Your turn: choose a score that prints "Passed".
+
+score = ???
+
+if score >= 90:
+    print("Excellent")
+elif score >= 60:
+    print("Passed")
+else:
+    print("Try again")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      printsInclude: ['Passed'],
+      codePatterns: ['score\\s*='],
+    },
+  },
+  {
+    id: 'lists',
+    difficulty: 'beginner',
+    number: 8,
+    topic: 'Lists',
+    goal: 'Put four numbers in a list and show their average.',
+    tasks: [
+      'Fill scores with four numbers of your choice',
+      'Run and check the average on the right',
+    ],
+    code: `# Lesson 8 — Lists
+# Goal: Put four numbers in a list and show their average.
+# Your turn: use your own four scores.
+
+scores = [???, ???, ???, ???]
+scores[0]
+len(scores)
+average = sum(scores) / len(scores)
+average
+print(f"Average score: {average}")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['average ='],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'for-loops',
+    difficulty: 'beginner',
+    number: 9,
+    topic: 'For loops',
+    goal: 'Loop with range and print each number from 1 through 5.',
+    tasks: [
+      'Fix range so n goes 1, 2, 3, 4, 5',
+      'Print each n (the print line is ready)',
+    ],
+    code: `# Lesson 9 — For loops
+# Goal: Loop with range and print each number from 1 through 5.
+# Your turn: finish the range so you see 1 through 5.
+
+for n in range(???):
+    print(n)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 5,
+      printsInclude: ['1', '5'],
+    },
+  },
+  {
+    id: 'while-loops',
+    difficulty: 'beginner',
+    number: 10,
+    topic: 'While loops',
+    goal: 'Count with while and stop at the right time (print 0, 1, 2).',
+    tasks: [
+      'Complete the condition so the loop stops',
+      'Increase n each time (replace ???)',
+    ],
+    code: `# Lesson 10 — While loops
+# Goal: Count with while and stop at the right time (print 0, 1, 2).
+# Your turn: print 0, 1, 2 then stop.
+
+n = 0
+while n < ???:
+    print(n)
+    n = ???
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 3,
+      printsInclude: ['0', '1', '2'],
+      codePatterns: ['n\\s*=\\s*n\\s*\\+\\s*1|n\\s*\\+=\\s*1'],
+    },
+  },
+  {
+    id: 'dicts',
+    difficulty: 'beginner',
+    number: 11,
+    topic: 'Dictionaries',
+    goal: 'Build a person dict and print their city with .get().',
+    tasks: [
+      'Fill name and year in the dict',
+      'Print the city using .get("city", "unknown")',
+    ],
+    code: `# Lesson 11 — Dictionaries
+# Goal: Build a person dict and print their city with .get().
+# Your turn: finish the dict and the print.
+
+person = {
+    "name": ???,
+    "year": ???,
+}
+
+person["city"] = "London"
+print(person.get(???))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['.get('],
+      minNonEmptyPrints: 1,
+    },
+  },
+  {
+    id: 'functions',
+    difficulty: 'beginner',
+    number: 12,
+    topic: 'Functions',
+    goal: 'Write square(n) that returns n * n and call it.',
+    tasks: [
+      'Complete the return line inside square',
+      'Call square with a number you choose',
+    ],
+    code: `# Lesson 12 — Functions
+# Goal: Write square(n) that returns n * n and call it.
+# Your turn: finish square and call it.
+
+def greet(name):
+    return f"Hello, {name}!"
+
+print(greet("Ada"))
+
+def square(n):
+    return ???
+
+square(???)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codePatterns: ['def\\s+square\\s*\\(', 'return\\s+n\\s*\\*\\s*n'],
+      minExprs: 1,
+    },
   },
   {
     id: 'errors',
-    title: 'Errors',
-    description: 'How mistakes look (and teach)',
-    code: `# Mistakes teach. Hover the error to see which line failed.
-# Try fixing b, or change this to a NameError (print(oops)).
+    difficulty: 'beginner',
+    number: 13,
+    topic: 'Reading errors',
+    goal: 'Read the error, open “What does this mean?”, then make the code run.',
+    tasks: [
+      'Open “What does this mean?” on the error',
+      'Change b so a / b works, then run cleanly',
+    ],
+    code: `# Lesson 13 — Reading errors
+# Goal: Read the error, open “What does this mean?”, then make the code run.
+# Your turn: fix the bug after reading the explanation.
 
 a = 10
 b = 0
 a / b
 `,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: false,
+      codePatterns: ['b\\s*=\\s*(?!0\\b)\\d+'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'python-for',
+    difficulty: 'beginner',
+    number: 14,
+    topic: 'Python for-loops',
+    goal: 'Rewrite the C-style loop as for i in range(10): and print i.',
+    tasks: [
+      'Open “What does this mean?” if you are stuck',
+      'Replace the header with Python’s for + range',
+    ],
+    code: `# Lesson 14 — Python for-loops (repair lab)
+# Goal: Rewrite the C-style loop as for i in range(10): and print i.
+# Your turn: rewrite this in real Python.
+
+for(i = 0; i < 10; i++):
+    print(i)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: false,
+      codeIncludes: ['for i in range', 'print(i)'],
+      codeForbiddenPatterns: ['for\\s*\\(', 'i\\+\\+'],
+      minNonEmptyPrints: 5,
+    },
   },
   {
     id: 'infinite',
-    title: 'Infinite loop',
-    description: 'Use Stop when code runs too long',
-    code: `# This never finishes on its own.
-# Press Stop, or wait for the timeout.
+    difficulty: 'beginner',
+    number: 15,
+    topic: 'Infinite loops',
+    goal: 'Stop the infinite loop by giving while a real end condition.',
+    tasks: [
+      'Run once and see the safety timeout',
+      'Change it so it prints 0, 1, 2 and finishes',
+    ],
+    code: `# Lesson 15 — Infinite loops (safety lab)
+# Goal: Stop the infinite loop by giving while a real end condition.
+# Your turn: after you see the stop, fix the loop.
 
 while True:
     pass
 `,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: false,
+      codeForbiddenPatterns: ['while\\s+True'],
+      codeIncludes: ['while'],
+      minNonEmptyPrints: 1,
+    },
+  },
+  {
+    id: 'capstone',
+    difficulty: 'beginner',
+    number: 16,
+    topic: 'Capstone',
+    goal: 'For each score, print pass or retry; then print the average.',
+    tasks: [
+      'Complete the if condition (pass if score >= passing)',
+      'Keep the average print at the end',
+    ],
+    code: `# Lesson 16 — Capstone
+# Goal: For each score, print pass or retry; then print the average.
+# Your turn: finish the decision inside the loop.
+
+scores = [92, 55, 78, 61, 40]
+passing = 60
+
+for score in scores:
+    if ???:
+        print(f"{score}: pass")
+    else:
+        print(f"{score}: retry")
+
+average = sum(scores) / len(scores)
+print(f"Average: {average}")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      printsInclude: ['pass', 'retry', 'Average'],
+      minNonEmptyPrints: 5,
+    },
+  },
+
+  // ── Intermediate ──────────────────────────────────────
+  {
+    id: 'mid-enumerate-zip',
+    difficulty: 'intermediate',
+    number: 1,
+    topic: 'Enumerate & zip',
+    goal: 'Number a list with enumerate and pair two lists with zip.',
+    tasks: [
+      'Finish enumerate so numbering starts at 1',
+      'Zip names with years in the second loop',
+    ],
+    code: `# Intermediate 1 — Enumerate & zip
+# Goal: Number a list with enumerate and pair two lists with zip.
+# Your turn: complete enumerate and zip.
+
+fruits = ["apple", "banana", "cherry"]
+for i, fruit in enumerate(fruits, start=???):
+    print(f"{i}. {fruit}")
+
+names = ["Ada", "Grace"]
+years = [1815, 1906]
+for name, year in zip(???, ???):
+    print(f"{name} ({year})")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['enumerate', 'zip'],
+      minNonEmptyPrints: 3,
+    },
+  },
+  {
+    id: 'mid-nested-loops',
+    difficulty: 'intermediate',
+    number: 2,
+    topic: 'Nested loops',
+    goal: 'Print a 1..4 multiplication table using nested loops.',
+    tasks: [
+      'Fix both range(...) bounds to cover 1..4',
+      'Append row * col into line',
+    ],
+    code: `# Intermediate 2 — Nested loops
+# Goal: Print a 1..4 multiplication table using nested loops.
+# Your turn: finish the ranges and the product.
+
+for row in range(1, ???):
+    line = []
+    for col in range(1, ???):
+        line.append(str(???))
+    print(" ".join(line))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minNonEmptyPrints: 4,
+    },
+  },
+  {
+    id: 'mid-list-methods',
+    difficulty: 'intermediate',
+    number: 3,
+    topic: 'List methods',
+    goal: 'Build a list with append and check membership with in.',
+    tasks: [
+      'Append n * 10 inside the loop',
+      'Write an expression that checks if 30 is in nums',
+    ],
+    code: `# Intermediate 3 — List methods
+# Goal: Build a list with append and check membership with in.
+# Your turn: grow nums, then test membership.
+
+nums = []
+for n in range(1, 6):
+    nums.append(???)
+
+nums
+??? in nums
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['.append('],
+      codePatterns: ['\\bin\\b'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-comprehensions',
+    difficulty: 'intermediate',
+    number: 4,
+    topic: 'Comprehensions',
+    goal: 'Build squares with a list comprehension, then only the evens.',
+    tasks: [
+      'Complete squares = [n * n for n in ...]',
+      'Complete evens with an if n % 2 == 0 filter',
+    ],
+    code: `# Intermediate 4 — Comprehensions
+# Goal: Build squares with a list comprehension, then only the evens.
+# Your turn: finish both comprehensions.
+
+squares = [n * n for n in ???]
+squares
+
+evens = [n for n in range(10) if ???]
+evens
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codePatterns: ['for n in', '%'],
+      minExprs: 2,
+    },
+  },
+  {
+    id: 'mid-dict-loops',
+    difficulty: 'intermediate',
+    number: 5,
+    topic: 'Dict loops',
+    goal: 'Loop .items() and build a new dict that adds 5 to each score.',
+    tasks: [
+      'Print each name and score from .items()',
+      'Finish the comprehension for boosted scores',
+    ],
+    code: `# Intermediate 5 — Dict loops
+# Goal: Loop .items() and build a new dict that adds 5 to each score.
+# Your turn: iterate and transform.
+
+scores = {"Ada": 92, "Grace": 88, "Alan": 75}
+
+for name, score in scores.items():
+    print(f"{name}: {score}")
+
+boosted = {name: ??? for name, score in scores.items()}
+boosted
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['.items()'],
+      minNonEmptyPrints: 1,
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-sets',
+    difficulty: 'intermediate',
+    number: 6,
+    topic: 'Sets',
+    goal: 'Create two sets and show their union and intersection.',
+    tasks: [
+      'Fill skills_b with a few skill strings',
+      'Compute union | and intersection &',
+    ],
+    code: `# Intermediate 6 — Sets
+# Goal: Create two sets and show their union and intersection.
+# Your turn: finish skills_b and the set operations.
+
+skills_a = {"python", "git", "sql"}
+skills_b = {???}
+
+skills_a | skills_b
+skills_a & skills_b
+"python" in skills_a
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codePatterns: ['\\|', '&'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-tuples',
+    difficulty: 'intermediate',
+    number: 7,
+    topic: 'Tuples',
+    goal: 'Unpack a point tuple into x and y, then swap two variables.',
+    tasks: [
+      'Unpack point into x, y',
+      'Swap a and b in one line',
+    ],
+    code: `# Intermediate 7 — Tuples
+# Goal: Unpack a point tuple into x and y, then swap two variables.
+# Your turn: unpack and swap.
+
+point = (3, 4)
+x, y = ???
+x
+y
+
+a, b = 1, 2
+a, b = ???
+(a, b)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      minExprs: 2,
+    },
+  },
+  {
+    id: 'mid-fn-defaults',
+    difficulty: 'intermediate',
+    number: 8,
+    topic: 'Function defaults',
+    goal: 'Add a default greeting and call the function two ways.',
+    tasks: [
+      'Give greeting a default value in the def line',
+      'Call greet once with only a name',
+    ],
+    code: `# Intermediate 8 — Function defaults
+# Goal: Add a default greeting and call the function two ways.
+# Your turn: add a default for greeting.
+
+def greet(name, greeting=???):
+    return f"{greeting}, {name}!"
+
+greet("Ada")
+greet("Ada", "Hi")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codePatterns: ['def\\s+greet\\s*\\(', 'greeting\\s*='],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-sorting',
+    difficulty: 'intermediate',
+    number: 9,
+    topic: 'Sorting',
+    goal: 'Sort people by year using sorted(..., key=...).',
+    tasks: [
+      'Pass key= so sorting uses the year field',
+      'Print each person after sorting',
+    ],
+    code: `# Intermediate 9 — Sorting
+# Goal: Sort people by year using sorted(..., key=...).
+# Your turn: sort by year (oldest first).
+
+people = [
+    {"name": "Ada", "year": 1815},
+    {"name": "Grace", "year": 1906},
+    {"name": "Alan", "year": 1912},
+]
+
+by_year = sorted(people, key=???)
+for person in by_year:
+    print(f"{person['name']} ({person['year']})")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['sorted(', 'key='],
+      minNonEmptyPrints: 3,
+    },
+  },
+  {
+    id: 'mid-try-except',
+    difficulty: 'intermediate',
+    number: 10,
+    topic: 'Try / except',
+    goal: 'Catch ValueError when int() fails and print a friendly message.',
+    tasks: [
+      'Wrap int(raw) in try',
+      'In except ValueError, print that raw is not a number',
+    ],
+    code: `# Intermediate 10 — Try / except
+# Goal: Catch ValueError when int() fails and print a friendly message.
+# Your turn: handle bad values without crashing.
+
+raw_values = ["10", "oops", "3"]
+
+for raw in raw_values:
+    try:
+        n = int(raw)
+        print(f"{raw} -> {n}")
+    except ???:
+        print(f"{raw} is not a number")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['try:', 'except'],
+      printsInclude: ['not a number'],
+      minNonEmptyPrints: 2,
+    },
+  },
+  {
+    id: 'mid-classes',
+    difficulty: 'intermediate',
+    number: 11,
+    topic: 'Classes',
+    goal: 'Finish Counter so bump increases value and returns it.',
+    tasks: [
+      'Store start on self.value in __init__',
+      'Increase self.value inside bump',
+    ],
+    code: `# Intermediate 11 — Classes
+# Goal: Finish Counter so bump increases value and returns it.
+# Your turn: complete __init__ and bump.
+
+class Counter:
+    def __init__(self, start=0):
+        self.value = ???
+
+    def bump(self, step=1):
+        self.value = ???
+        return self.value
+
+c = Counter()
+c.bump()
+c.bump(4)
+c.value
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['class Counter', 'self.value'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-stdlib',
+    difficulty: 'intermediate',
+    number: 12,
+    topic: 'Math & random',
+    goal: 'Use math.sqrt and random.randint in working calls.',
+    tasks: [
+      'Import math and random',
+      'Call math.sqrt on a perfect square and random.randint(1, 6)',
+    ],
+    code: `# Intermediate 12 — Math & random
+# Goal: Use math.sqrt and random.randint in working calls.
+# Your turn: import modules and call them.
+
+import ???
+import ???
+
+math.sqrt(???)
+random.randint(1, 6)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['import math', 'import random', 'math.sqrt', 'random.randint'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-json',
+    difficulty: 'intermediate',
+    number: 13,
+    topic: 'JSON',
+    goal: 'json.dumps a dict and json.loads it back.',
+    tasks: [
+      'Create text with json.dumps(data)',
+      'Parse with json.loads(text) and read a field',
+    ],
+    code: `# Intermediate 13 — JSON
+# Goal: json.dumps a dict and json.loads it back.
+# Your turn: dumps then loads.
+
+import json
+
+data = {"name": "Ada", "score": 92}
+text = json.dumps(???)
+text
+
+parsed = json.loads(???)
+parsed["name"]
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['json.dumps', 'json.loads'],
+      minExprs: 1,
+    },
+  },
+  {
+    id: 'mid-capstone',
+    difficulty: 'intermediate',
+    number: 14,
+    topic: 'Capstone',
+    goal: 'Return the top student names sorted by score (highest first).',
+    tasks: [
+      'Sort rows by score descending inside top_students',
+      'Return only the name strings, limited by limit',
+    ],
+    code: `# Intermediate 14 — Capstone
+# Goal: Return the top student names sorted by score (highest first).
+# Your turn: finish top_students.
+
+students = [
+    {"name": "Ada", "score": 92},
+    {"name": "Grace", "score": 88},
+    {"name": "Alan", "score": 95},
+    {"name": "Katherine", "score": 91},
+]
+
+def top_students(rows, limit=3):
+    ranked = sorted(rows, key=???, reverse=True)
+    return [r["name"] for r in ranked[:???]]
+
+top_students(students)
+top_students(students, limit=2)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def top_students', 'sorted('],
+      codePatterns: ['reverse\\s*=\\s*True'],
+      minExprs: 1,
+    },
   },
 ]
 
-export function getExample(id: string): Example {
-  return EXAMPLES.find((e) => e.id === id) ?? EXAMPLES[0]
+/** @deprecated use LESSONS */
+export const EXAMPLES = LESSONS
+
+export function lessonsForDifficulty(difficulty: Difficulty): Lesson[] {
+  return LESSONS.filter((l) => l.difficulty === difficulty)
+}
+
+export function getLesson(id: string): Lesson {
+  return LESSONS.find((l) => l.id === id) ?? LESSONS[0]
+}
+
+export function firstLessonId(difficulty: Difficulty): string {
+  return lessonsForDifficulty(difficulty)[0]?.id ?? DEFAULT_LESSON_ID
+}
+
+/** @deprecated use getLesson */
+export function getExample(id: string): Lesson {
+  return getLesson(id)
 }

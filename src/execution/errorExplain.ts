@@ -54,12 +54,62 @@ function attrFromAttributeError(detail: string): {
   return {}
 }
 
+export type ExplainContext = {
+  /** Text of the failing source line (1-based line content), when known */
+  sourceLine?: string
+  /** Nearby source lines for multi-line mistakes */
+  sourceSnippet?: string
+}
+
+/**
+ * Detect C/Java/JS-style for headers that Python rejects.
+ * Examples: for(i = 0; i < 10; i++):  ·  for (i=0; i<10; i++)
+ */
+export function looksLikeCStyleFor(source: string | undefined): boolean {
+  if (!source) return false
+  const s = source.replace(/\s+/g, ' ')
+  if (!/\bfor\s*\(/.test(s)) return false
+  // Classic three-part header, or ++ / -- increments
+  if (/for\s*\([^)]*;[^)]*;[^)]*\)/.test(s)) return true
+  if (/\+\+|--/.test(s) && /\bfor\s*\(/.test(s)) return true
+  return false
+}
+
+/**
+ * Suggest a Python range-based rewrite from a C-style for header when possible.
+ */
+export function suggestPythonForFromCStyle(sourceLine: string): string {
+  // for (i = 0; i < 10; i++)  or  for(i=0; i<10; i++):
+  const normalized = sourceLine.replace(/\s+/g, ' ').trim()
+  const less =
+    /for\s*\(\s*([A-Za-z_]\w*)\s*=\s*(\d+)\s*;\s*\1\s*<\s*(\d+)\s*;\s*\1\s*\+\+\s*\)/.exec(
+      normalized,
+    )
+  const lessEq =
+    /for\s*\(\s*([A-Za-z_]\w*)\s*=\s*(\d+)\s*;\s*\1\s*<=\s*(\d+)\s*;\s*\1\s*\+\+\s*\)/.exec(
+      normalized,
+    )
+  const m = less ?? lessEq
+
+  if (m) {
+    const [, name, start, endRaw] = m
+    const end = lessEq ? String(Number(endRaw) + 1) : endRaw
+    if (start === '0') {
+      return `for ${name} in range(${end}):\n    print(${name})`
+    }
+    return `for ${name} in range(${start}, ${end}):\n    print(${name})`
+  }
+
+  return `for i in range(10):\n    print(i)`
+}
+
 /**
  * Build a structured, teachable explanation from an exception name + message.
  */
 export function explainError(
   nameOrMessage: string,
   message?: string,
+  context?: ExplainContext,
 ): ErrorExplanation {
   let name: string
   let detail: string
@@ -78,6 +128,27 @@ export function explainError(
     const parsed = extractNameMessage(name)
     name = parsed.name
     if (!message) detail = parsed.detail
+  }
+
+  const sourceHint = [context?.sourceLine, context?.sourceSnippet]
+    .filter(Boolean)
+    .join('\n')
+
+  // Pattern-specific coaching before the generic SyntaxError copy.
+  if (
+    (name === 'SyntaxError' || name === 'IndentationError') &&
+    looksLikeCStyleFor(sourceHint || detail)
+  ) {
+    const line = context?.sourceLine?.trim() || 'for(i = 0; i < 10; i++):'
+    return {
+      title: 'That for-loop is not Python',
+      name,
+      detail,
+      summary:
+        'Python does not use C/JavaScript-style for loops with parentheses, semicolons, and `++`. A for-loop walks a sequence (often from `range`).',
+      tip: 'Write `for name in range(...):` and indent the body. There is no `i++` — range already advances the counter.',
+      example: suggestPythonForFromCStyle(line),
+    }
   }
 
   switch (name) {
@@ -116,9 +187,9 @@ export function explainError(
         name,
         detail,
         summary:
-          'Python could not parse this program. Something is missing or in the wrong place (brackets, quotes, colons, or commas).',
+          'Python could not parse this program. Something is missing or in the wrong place (brackets, quotes, colons, or commas). If you meant a loop from another language, Python uses `for x in range(n):` instead of `for (i = 0; i < n; i++)`.',
         tip: 'Look at the marked line: match every (, [, {, and quote, and put a colon after if/for/def/while.',
-        example: 'if True:\n    print("ok")',
+        example: 'for i in range(10):\n    print(i)',
       }
 
     case 'IndentationError':
@@ -221,16 +292,20 @@ export function explainError(
           'def countdown(n):\n    if n <= 0:\n        return\n    print(n)\n    countdown(n - 1)',
       }
 
-    case 'TimeoutError':
+    case 'TimeoutError': {
+      const infinite =
+        /infinite loop/i.test(detail) || /time limit/i.test(detail)
       return {
-        title: 'Took too long',
+        title: infinite ? 'Possible infinite loop' : 'Took too long',
         name,
         detail,
-        summary:
-          'This program ran longer than the time limit. Often that means an infinite loop or a very heavy calculation.',
-        tip: 'Press Stop if it is still running, then check loop conditions (for example, while True needs a break).',
+        summary: infinite
+          ? 'This program looked stuck in a loop that never finished. It was stopped so it could not freeze or overload the browser.'
+          : 'This program ran longer than the playground allows and was stopped to protect the browser.',
+        tip: 'Add a clear end condition (for example, change while True to while n < 10 and increase n each time). Use range(...) for counted loops.',
         example: 'n = 0\nwhile n < 3:\n    print(n)\n    n += 1',
       }
+    }
 
     default:
       return {
@@ -244,8 +319,12 @@ export function explainError(
 }
 
 /** Single string form for places that still need a flat message. */
-export function friendlyErrorMessage(name: string, message: string): string {
-  const e = explainError(name, message)
+export function friendlyErrorMessage(
+  name: string,
+  message: string,
+  context?: ExplainContext,
+): string {
+  const e = explainError(name, message, context)
   return `${e.name}: ${e.detail}\n\n${e.summary}\n\n${e.tip}`
 }
 
@@ -253,15 +332,25 @@ export function parseErrorName(message: string): string {
   return extractNameMessage(message).name
 }
 
+/** 1-based line text from full source (empty if out of range). */
+export function lineFromSource(source: string, lineNumber?: number): string {
+  if (lineNumber == null || lineNumber < 1) return ''
+  const lines = source.split(/\r?\n/)
+  return lines[lineNumber - 1] ?? ''
+}
+
 /** Attach a structured explanation to a raw error event. */
-export function enrichErrorEvent(event: {
-  kind: 'error'
-  message: string
-  friendly: string
-  traceback: string
-  line?: number
-  explanation?: ErrorExplanation
-}): {
+export function enrichErrorEvent(
+  event: {
+    kind: 'error'
+    message: string
+    friendly: string
+    traceback: string
+    line?: number
+    explanation?: ErrorExplanation
+  },
+  context?: ExplainContext,
+): {
   kind: 'error'
   message: string
   friendly: string
@@ -269,10 +358,11 @@ export function enrichErrorEvent(event: {
   line?: number
   explanation: ErrorExplanation
 } {
-  const explanation = event.explanation ?? explainError(event.message)
+  const explanation =
+    event.explanation ?? explainError(event.message, undefined, context)
   return {
     ...event,
     explanation,
-    friendly: friendlyErrorMessage(explanation.name, explanation.detail),
+    friendly: `${explanation.name}: ${explanation.detail}\n\n${explanation.summary}\n\n${explanation.tip}`,
   }
 }

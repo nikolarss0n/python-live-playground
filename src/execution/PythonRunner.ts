@@ -5,26 +5,44 @@ import type {
   WorkerOutboundMessage,
 } from './protocol'
 import { DEFAULT_TIMEOUT_MS } from './protocol'
-import { enrichErrorEvent, explainError } from './errorExplain'
+import {
+  enrichErrorEvent,
+  explainError,
+  lineFromSource,
+} from './errorExplain'
 
 function makeErrorEvent(
   message: string,
   traceback: string,
   line?: number,
+  sourceCode?: string,
 ): ResultEvent {
-  const explanation = explainError(message)
-  return enrichErrorEvent({
-    kind: 'error',
-    message,
-    friendly: `${explanation.name}: ${explanation.detail}\n\n${explanation.summary}\n\n${explanation.tip}`,
-    traceback,
-    line,
-    explanation,
-  })
+  const sourceLine = sourceCode
+    ? lineFromSource(sourceCode, line)
+    : undefined
+  const explanation = explainError(message, undefined, { sourceLine })
+  return enrichErrorEvent(
+    {
+      kind: 'error',
+      message,
+      friendly: `${explanation.name}: ${explanation.detail}\n\n${explanation.summary}\n\n${explanation.tip}`,
+      traceback,
+      line,
+      explanation,
+    },
+    { sourceLine },
+  )
 }
 
-function enrichEvents(events: ResultEvent[]): ResultEvent[] {
-  return events.map((e) => (e.kind === 'error' ? enrichErrorEvent(e) : e))
+function enrichEvents(
+  events: ResultEvent[],
+  sourceCode: string,
+): ResultEvent[] {
+  return events.map((e) => {
+    if (e.kind !== 'error') return e
+    const sourceLine = lineFromSource(sourceCode, e.line)
+    return enrichErrorEvent(e, { sourceLine })
+  })
 }
 
 export type RunnerSnapshot = {
@@ -33,6 +51,8 @@ export type RunnerSnapshot = {
   durationMs: number | null
   runId: string | null
   error: string | null
+  /** Source that produced the current events (for goal checks). */
+  executedCode: string | null
 }
 
 export type RunnerListener = (snapshot: RunnerSnapshot) => void
@@ -50,12 +70,15 @@ export class PythonRunner {
   private activeId: string | null = null
   private timeoutHandle: ReturnType<typeof setTimeout> | null = null
   private timeoutMs: number
+  /** Last submitted source — used to teach from the failing line text. */
+  private lastCode = ''
   private snapshot: RunnerSnapshot = {
     status: 'booting',
     events: [],
     durationMs: null,
     runId: null,
     error: null,
+    executedCode: null,
   }
 
   constructor(timeoutMs = DEFAULT_TIMEOUT_MS) {
@@ -84,17 +107,27 @@ export class PythonRunner {
     if (!trimmed.trim()) {
       this.clearTimeout()
       this.activeId = null
+      this.lastCode = ''
       this.setSnapshot({
         status: 'idle',
         events: [],
         durationMs: null,
         runId: null,
         error: null,
+        executedCode: null,
       })
       return
     }
 
-    if (!this.worker || !this.ready) {
+    // If a previous run is still busy (e.g. infinite loop), the worker cannot
+    // accept a new message — kill it first so we do not stack CPU burners.
+    if (this.activeId !== null || this.snapshot.status === 'running') {
+      this.clearTimeout()
+      this.activeId = null
+      this.terminateWorker()
+      this.spawnWorker()
+      await this.waitUntilReady()
+    } else if (!this.worker || !this.ready) {
       this.spawnWorker()
       await this.waitUntilReady()
     }
@@ -102,6 +135,7 @@ export class PythonRunner {
     this.runCounter += 1
     const id = `run-${this.runCounter}`
     this.activeId = id
+    this.lastCode = trimmed
     this.clearTimeout()
     this.setSnapshot({
       status: 'running',
@@ -109,6 +143,7 @@ export class PythonRunner {
       durationMs: null,
       runId: id,
       error: null,
+      executedCode: null,
     })
 
     this.timeoutHandle = setTimeout(() => {
@@ -140,6 +175,7 @@ export class PythonRunner {
       durationMs: null,
       runId: null,
       error: null,
+      executedCode: wasRunning ? this.lastCode : this.snapshot.executedCode,
     })
   }
 
@@ -178,6 +214,7 @@ export class PythonRunner {
           durationMs: null,
           runId: null,
           error: message,
+          executedCode: this.lastCode || null,
         })
       }
     }
@@ -227,16 +264,19 @@ export class PythonRunner {
       if (msg.id !== this.activeId) return
       this.clearTimeout()
       this.activeId = null
-      const events = enrichEvents(msg.events)
-      const hasError = events.some((e) => e.kind === 'error')
+      const events = enrichEvents(msg.events, this.lastCode)
+      const errorEvent = events.find((e) => e.kind === 'error')
+      const hasError = errorEvent != null
+      const isLoopStop =
+        hasError &&
+        /TimeoutError|infinite loop/i.test(errorEvent.message)
       this.setSnapshot({
-        status: hasError ? 'error' : 'success',
+        status: isLoopStop ? 'timeout' : hasError ? 'error' : 'success',
         events,
         durationMs: msg.durationMs,
         runId: msg.id,
-        error: hasError
-          ? events.find((e) => e.kind === 'error')?.message ?? null
-          : null,
+        error: hasError ? errorEvent.message : null,
+        executedCode: this.lastCode,
       })
       return
     }
@@ -254,6 +294,7 @@ export class PythonRunner {
           durationMs: null,
           runId: null,
           error: msg.error,
+          executedCode: null,
         })
         return
       }
@@ -271,25 +312,31 @@ export class PythonRunner {
       durationMs: null,
       runId: id,
       error,
+      executedCode: this.lastCode || null,
     })
   }
 
   private handleTimeout(id: string): void {
     this.clearTimeout()
     this.activeId = null
+    // Hard kill — worker may be stuck in a tight loop with no event turn.
     this.terminateWorker()
     this.spawnWorker()
+    const seconds = Math.round(this.timeoutMs / 100) / 10
     this.setSnapshot({
       status: 'timeout',
       events: [
         makeErrorEvent(
-          'TimeoutError: execution exceeded the time limit',
-          'TimeoutError: This program ran longer than 5 seconds and was stopped.\nThe Python runner has been reset so you can try again.',
+          'TimeoutError: possible infinite loop — stopped to protect the browser',
+          `TimeoutError: This program ran longer than ${seconds}s without finishing and was force-stopped.\nThe Python runner was reset so the page stays responsive.`,
+          undefined,
+          this.lastCode,
         ),
       ],
       durationMs: this.timeoutMs,
       runId: id,
       error: 'timeout',
+      executedCode: this.lastCode || null,
     })
   }
 

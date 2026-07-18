@@ -4,12 +4,30 @@ import { CodeEditor } from './components/CodeEditor'
 import { ResultsPanel } from './components/ResultsPanel'
 import { ResultConnectors } from './components/ResultConnectors'
 import { Toolbar } from './components/Toolbar'
-import { EXAMPLES, getExample, DEFAULT_EXAMPLE_ID } from './examples'
+import { LessonGoal } from './components/LessonGoal'
+import { PredictPrompt } from './components/PredictPrompt'
+import {
+  getLesson,
+  firstLessonId,
+  lessonsForDifficulty,
+  DEFAULT_DIFFICULTY,
+  type Difficulty,
+} from './examples'
 import { usePythonExecution } from './execution/usePythonExecution'
 import { namesOnSourceLine } from './editor/variableColors'
+import { linesFromEvents, pulseSourceLines } from './editor/runPulse'
+import { evaluateLessonGoal } from './lessonGoalCheck'
+import {
+  buildLessonProgress,
+  isIncompleteAttempt,
+} from './lessonProgress'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
+
+const COACH_KEY = 'plp-seen-success'
+const HELP_HINT =
+  'Shortcuts: ⌘/Ctrl+Enter Run · Esc Stop · ? help'
 
 function preferredTheme(): ThemeMode {
   if (typeof window === 'undefined') return 'light'
@@ -18,6 +36,13 @@ function preferredTheme(): ThemeMode {
   return window.matchMedia('(prefers-color-scheme: dark)').matches
     ? 'dark'
     : 'light'
+}
+
+function preferredDifficulty(): Difficulty {
+  if (typeof window === 'undefined') return DEFAULT_DIFFICULTY
+  const stored = window.localStorage.getItem('plp-difficulty')
+  if (stored === 'beginner' || stored === 'intermediate') return stored
+  return DEFAULT_DIFFICULTY
 }
 
 function useWideLayout(minWidth = 801): boolean {
@@ -36,36 +61,184 @@ function useWideLayout(minWidth = 801): boolean {
 
 export default function App() {
   const [theme, setTheme] = useState<ThemeMode>(preferredTheme)
-  const [exampleId, setExampleId] = useState(DEFAULT_EXAMPLE_ID)
-  const [code, setCode] = useState(() => getExample(DEFAULT_EXAMPLE_ID).code)
+  const [difficulty, setDifficulty] = useState<Difficulty>(preferredDifficulty)
+  const [lessonId, setLessonId] = useState(() =>
+    firstLessonId(preferredDifficulty()),
+  )
+  const [code, setCode] = useState(
+    () => getLesson(firstLessonId(preferredDifficulty())).code,
+  )
   const [editorView, setEditorView] = useState<EditorView | null>(null)
   const [geometryKey, setGeometryKey] = useState(0)
   const [activeResult, setActiveResult] = useState<number | null>(null)
+  const [stuckRevealed, setStuckRevealed] = useState(false)
+  const [incompleteRuns, setIncompleteRuns] = useState(0)
+  const [predictDone, setPredictDone] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [seenSuccess, setSeenSuccess] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return window.localStorage.getItem(COACH_KEY) === '1'
+  })
   const workspaceRef = useRef<HTMLElement>(null)
+  const lastRunId = useRef<string | null>(null)
   const isWide = useWideLayout()
 
   const { snapshot, runNow, stop, isBooting, isRunning } =
     usePythonExecution(code)
+
+  const trackLessons = useMemo(
+    () => lessonsForDifficulty(difficulty),
+    [difficulty],
+  )
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme
     window.localStorage.setItem('plp-theme', theme)
   }, [theme])
 
-  // When a run ends in error, gently link the failing line (ribbon) without hover.
   useEffect(() => {
-    if (snapshot.status !== 'error' && snapshot.status !== 'timeout') return
-    const idx = snapshot.events.findIndex(
-      (e) => e.kind === 'error' && e.line != null,
-    )
-    if (idx >= 0) setActiveResult(idx)
-  }, [snapshot.status, snapshot.runId, snapshot.events])
+    window.localStorage.setItem('plp-difficulty', difficulty)
+  }, [difficulty])
 
-  const onSelectExample = useCallback((id: string) => {
-    setExampleId(id)
-    setCode(getExample(id).code)
+  useEffect(() => {
+    if (
+      snapshot.status === 'running' ||
+      snapshot.status === 'idle' ||
+      snapshot.status === 'booting'
+    ) {
+      setActiveResult(null)
+    }
+  }, [snapshot.status, snapshot.runId])
+
+  const onSelectLesson = useCallback((id: string) => {
+    setLessonId(id)
+    setCode(getLesson(id).code)
     setActiveResult(null)
+    setStuckRevealed(false)
+    setIncompleteRuns(0)
+    setPredictDone(false)
   }, [])
+
+  const onSelectDifficulty = useCallback((d: Difficulty) => {
+    setDifficulty(d)
+    const firstId = firstLessonId(d)
+    setLessonId(firstId)
+    setCode(getLesson(firstId).code)
+    setActiveResult(null)
+    setStuckRevealed(false)
+    setIncompleteRuns(0)
+    setPredictDone(false)
+  }, [])
+
+  const activeLesson = useMemo(() => getLesson(lessonId), [lessonId])
+
+  const goalProgress = useMemo(
+    () =>
+      evaluateLessonGoal(
+        activeLesson,
+        code,
+        snapshot.events,
+        snapshot.status,
+        snapshot.executedCode,
+      ),
+    [
+      activeLesson,
+      code,
+      snapshot.events,
+      snapshot.status,
+      snapshot.executedCode,
+    ],
+  )
+
+  const lessonView = useMemo(
+    () =>
+      buildLessonProgress(
+        activeLesson,
+        code,
+        goalProgress,
+        snapshot.status,
+        snapshot.events,
+        {
+          stuckRevealed,
+          incompleteRunCount: incompleteRuns,
+        },
+      ),
+    [
+      activeLesson,
+      code,
+      goalProgress,
+      snapshot.status,
+      snapshot.events,
+      stuckRevealed,
+      incompleteRuns,
+    ],
+  )
+
+  // Pulse lines + incomplete-run counter + first-success coaching.
+  useEffect(() => {
+    if (!snapshot.runId || snapshot.runId === lastRunId.current) return
+    if (
+      snapshot.status === 'running' ||
+      snapshot.status === 'booting' ||
+      snapshot.status === 'idle'
+    ) {
+      return
+    }
+    lastRunId.current = snapshot.runId
+
+    const lines = linesFromEvents(snapshot.events)
+    if (lines.length) pulseSourceLines(editorView, lines)
+
+    if (isIncompleteAttempt(snapshot.status, goalProgress)) {
+      setIncompleteRuns((n) => n + 1)
+    }
+
+    if (snapshot.status === 'success' && !seenSuccess) {
+      setSeenSuccess(true)
+      window.localStorage.setItem(COACH_KEY, '1')
+    }
+  }, [
+    snapshot.runId,
+    snapshot.status,
+    snapshot.events,
+    editorView,
+    goalProgress,
+    seenSuccess,
+  ])
+
+  // Keyboard: Run / Stop / help
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const meta = e.metaKey || e.ctrlKey
+      if (meta && e.key === 'Enter') {
+        e.preventDefault()
+        void runNow()
+        return
+      }
+      if (e.key === 'Escape') {
+        if (showHelp) {
+          setShowHelp(false)
+          return
+        }
+        stop()
+        return
+      }
+      if (
+        e.key === '?' &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement) &&
+        !(e.target as HTMLElement | null)?.closest?.('.cm-editor')
+      ) {
+        e.preventDefault()
+        setShowHelp((v) => !v)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [runNow, stop, showHelp])
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
@@ -75,7 +248,6 @@ export default function App() {
     setGeometryKey((k) => k + 1)
   }, [])
 
-  // Hovering a result → chip variables used on that source line (the “path”).
   const pathNames = useMemo(() => {
     if (activeResult == null || !editorView) return [] as string[]
     const event = snapshot.events[activeResult]
@@ -92,12 +264,21 @@ export default function App() {
       ? (snapshot.events[activeResult]?.kind ?? null)
       : null
 
+  const showPredict =
+    activeLesson.predict != null &&
+    !predictDone &&
+    snapshot.executedCode == null &&
+    snapshot.status !== 'running' &&
+    snapshot.status !== 'booting'
+
   return (
     <div className="app-shell">
       <Toolbar
-        examples={EXAMPLES}
-        activeExampleId={exampleId}
-        onSelectExample={onSelectExample}
+        difficulty={difficulty}
+        onSelectDifficulty={onSelectDifficulty}
+        lessons={trackLessons}
+        activeLessonId={lessonId}
+        onSelectLesson={onSelectLesson}
         onRun={() => void runNow()}
         onStop={stop}
         isRunning={isRunning}
@@ -105,6 +286,21 @@ export default function App() {
         theme={theme}
         onToggleTheme={toggleTheme}
       />
+
+      <LessonGoal
+        lesson={activeLesson}
+        progress={goalProgress}
+        view={lessonView}
+        onRevealStuck={() => setStuckRevealed(true)}
+        onSelectLesson={onSelectLesson}
+      />
+
+      {showPredict && activeLesson.predict ? (
+        <PredictPrompt
+          predict={activeLesson.predict}
+          onResolved={() => setPredictDone(true)}
+        />
+      ) : null}
 
       <main
         className="workspace"
@@ -133,6 +329,8 @@ export default function App() {
             durationMs={snapshot.durationMs}
             activeIndex={activeResult}
             onHoverResult={setActiveResult}
+            onGeometryChange={onGeometryChange}
+            showCoaching={!seenSuccess}
           />
         </div>
 
@@ -149,10 +347,45 @@ export default function App() {
       <footer className="app-footer">
         <span>Runs entirely in your browser · no account · no setup</span>
         <span className="footer-hint">
-          Code runs automatically after a short pause ·{' '}
-          <kbd>Run</kbd> anytime · <kbd>Stop</kbd> cancels loops
+          Code runs automatically after a short pause · <kbd>Run</kbd> anytime ·{' '}
+          <kbd>Stop</kbd> cancels loops · press <kbd>?</kbd> for shortcuts
         </span>
       </footer>
+
+      {showHelp && (
+        <div
+          className="help-overlay"
+          role="dialog"
+          aria-label="Keyboard shortcuts"
+          onClick={() => setShowHelp(false)}
+        >
+          <div
+            className="help-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h2 className="help-title">Shortcuts</h2>
+            <ul className="help-list">
+              <li>
+                <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> Run now
+              </li>
+              <li>
+                <kbd>Esc</kbd> Stop / close this help
+              </li>
+              <li>
+                <kbd>?</kbd> Toggle shortcuts
+              </li>
+            </ul>
+            <p className="help-note">{HELP_HINT}</p>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() => setShowHelp(false)}
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

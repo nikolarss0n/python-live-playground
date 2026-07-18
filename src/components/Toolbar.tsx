@@ -1,11 +1,14 @@
-import type { Example } from '../examples'
+import type { Difficulty, Lesson } from '../examples'
+import { DIFFICULTY_OPTIONS, lessonLabel } from '../examples'
 
 type ThemeMode = 'light' | 'dark'
 
 type ToolbarProps = {
-  examples: Example[]
-  activeExampleId: string
-  onSelectExample: (id: string) => void
+  difficulty: Difficulty
+  onSelectDifficulty: (d: Difficulty) => void
+  lessons: Lesson[]
+  activeLessonId: string
+  onSelectLesson: (id: string) => void
   onRun: () => void
   onStop: () => void
   isRunning: boolean
@@ -15,9 +18,11 @@ type ToolbarProps = {
 }
 
 export function Toolbar({
-  examples,
-  activeExampleId,
-  onSelectExample,
+  difficulty,
+  onSelectDifficulty,
+  lessons,
+  activeLessonId,
+  onSelectLesson,
   onRun,
   onStop,
   isRunning,
@@ -37,16 +42,34 @@ export function Toolbar({
 
       <div className="toolbar-actions">
         <label className="examples-label">
-          <span className="sr-only">Examples</span>
+          <span className="sr-only">Difficulty</span>
           <select
-            className="examples-select"
-            value={activeExampleId}
-            onChange={(e) => onSelectExample(e.target.value)}
-            aria-label="Load an example"
+            className="examples-select difficulty-select"
+            value={difficulty}
+            onChange={(e) =>
+              onSelectDifficulty(e.target.value as Difficulty)
+            }
+            aria-label="Choose difficulty"
           >
-            {examples.map((ex) => (
-              <option key={ex.id} value={ex.id}>
-                {ex.title}
+            {DIFFICULTY_OPTIONS.map((opt) => (
+              <option key={opt.id} value={opt.id}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <label className="examples-label">
+          <span className="sr-only">Lesson</span>
+          <select
+            className="examples-select lessons-select"
+            value={activeLessonId}
+            onChange={(e) => onSelectLesson(e.target.value)}
+            aria-label="Choose a lesson"
+          >
+            {lessons.map((lesson) => (
+              <option key={lesson.id} value={lesson.id}>
+                {lessonLabel(lesson)}
               </option>
             ))}
           </select>

@@ -8,6 +8,8 @@ import {
   setVariablePathNames,
   variablePathColors,
 } from '../editor/variableColors'
+import { blankHighlightExtension } from '../editor/blankHighlight'
+import { runPulseExtension } from '../editor/runPulse'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -83,9 +85,29 @@ function buildTheme(mode: ThemeMode) {
         fontSize: '12px',
       },
       '.cm-activeLine': {
+        // Tint only when focused — idle blue strip reads as an artifact.
+        backgroundColor: 'transparent',
+      },
+      '&.cm-focused .cm-activeLine': {
         backgroundColor: isDark
           ? 'rgba(255,255,255,0.03)'
           : 'rgba(0,0,0,0.025)',
+      },
+      '.cm-run-pulse-line': {
+        backgroundColor: isDark
+          ? 'rgba(61, 184, 168, 0.14)'
+          : 'rgba(13, 122, 111, 0.12)',
+        transition: 'background-color 200ms ease',
+      },
+      '.cm-blank-token': {
+        backgroundColor: isDark
+          ? 'rgba(251, 191, 36, 0.16)'
+          : 'rgba(180, 121, 31, 0.14)',
+        borderBottom: isDark
+          ? '2px solid rgba(251, 191, 36, 0.55)'
+          : '2px solid rgba(180, 121, 31, 0.5)',
+        borderRadius: '3px',
+        cursor: 'pointer',
       },
       '.cm-activeLineGutter': {
         backgroundColor: 'transparent',
@@ -126,6 +148,8 @@ export function CodeEditor({
       buildTheme(theme),
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
       ...variablePathColors(theme === 'dark'),
+      blankHighlightExtension(),
+      ...runPulseExtension(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (

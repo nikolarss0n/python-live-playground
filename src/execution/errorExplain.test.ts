@@ -3,7 +3,9 @@ import {
   enrichErrorEvent,
   explainError,
   friendlyErrorMessage,
+  looksLikeCStyleFor,
   parseErrorName,
+  suggestPythonForFromCStyle,
 } from './errorExplain'
 
 describe('explainError', () => {
@@ -62,5 +64,38 @@ describe('enrichErrorEvent', () => {
     expect(enriched.explanation.name).toBe('ZeroDivisionError')
     expect(enriched.explanation.title).toMatch(/zero/i)
     expect(enriched.line).toBe(4)
+  })
+})
+
+describe('C-style for-loop coaching', () => {
+  it('detects classic three-part for headers', () => {
+    expect(looksLikeCStyleFor('for(i = 0; i < 10; i++):')).toBe(true)
+    expect(looksLikeCStyleFor('for (i=0; i<10; i++)')).toBe(true)
+    expect(looksLikeCStyleFor('for i in range(10):')).toBe(false)
+  })
+
+  it('suggests a range-based rewrite', () => {
+    const fixed = suggestPythonForFromCStyle('for(i = 0; i < 10; i++):')
+    expect(fixed).toContain('for i in range(10):')
+    expect(fixed).toContain('print(i)')
+  })
+
+  it('explains SyntaxError with C-style for source line', () => {
+    const e = explainError('SyntaxError: invalid syntax', undefined, {
+      sourceLine: 'for(i = 0; i < 10; i++):',
+    })
+    expect(e.title.toLowerCase()).toMatch(/for|python/)
+    expect(e.summary.toLowerCase()).toMatch(/range|javascript|c/)
+    expect(e.example).toMatch(/range\(10\)/)
+    expect(e.tip.toLowerCase()).toMatch(/range/)
+  })
+
+  it('marks TimeoutError as a possible infinite loop when message says so', () => {
+    const e = explainError(
+      'TimeoutError: possible infinite loop — stopped to protect the browser',
+    )
+    expect(e.title.toLowerCase()).toMatch(/infinite loop/)
+    expect(e.summary.toLowerCase()).toMatch(/browser|stuck|loop/)
+    expect(e.example).toMatch(/while n < 3/)
   })
 })

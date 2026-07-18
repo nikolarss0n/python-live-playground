@@ -13,9 +13,9 @@ describe('execution protocol constants', () => {
     expect(DEFAULT_DEBOUNCE_MS).toBeLessThanOrEqual(800)
   })
 
-  it('caps runaway code with a multi-second timeout', () => {
-    expect(DEFAULT_TIMEOUT_MS).toBeGreaterThanOrEqual(3000)
-    expect(DEFAULT_TIMEOUT_MS).toBeLessThanOrEqual(15000)
+  it('caps runaway code with a short hard timeout', () => {
+    expect(DEFAULT_TIMEOUT_MS).toBeGreaterThanOrEqual(2000)
+    expect(DEFAULT_TIMEOUT_MS).toBeLessThanOrEqual(5000)
   })
 })
 
@@ -35,6 +35,20 @@ describe('result event shapes', () => {
     ]
     expect(events).toHaveLength(4)
     expect(events.every((e) => typeof e.kind === 'string')).toBe(true)
+  })
+
+  it('allows optional collection structure on print and expr', () => {
+    const listStruct = {
+      kind: 'list' as const,
+      length: 1,
+      items: [{ kind: 'atom' as const, type: 'int', preview: '1' }],
+    }
+    const events: ResultEvent[] = [
+      { kind: 'print', text: '[1]', line: 1, structure: listStruct },
+      { kind: 'expr', value: '[1]', line: 2, structure: listStruct },
+    ]
+    expect(events[0]).toMatchObject({ structure: { kind: 'list' } })
+    expect(events[1]).toMatchObject({ structure: { kind: 'list' } })
   })
 })
 

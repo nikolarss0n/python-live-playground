@@ -147,7 +147,7 @@ describe('PythonRunner', () => {
     runner.dispose()
   })
 
-  it('timeouts replace the worker', async () => {
+  it('timeouts replace the worker and mark infinite-loop style error', async () => {
     vi.useFakeTimers()
     const runner = new PythonRunner(50)
     await runner.start()
@@ -155,8 +155,24 @@ describe('PythonRunner', () => {
     const promise = runner.run('__HANG__')
     await promise
     await vi.advanceTimersByTimeAsync(60)
-    expect(runner.getSnapshot().status).toBe('timeout')
+    const snap = runner.getSnapshot()
+    expect(snap.status).toBe('timeout')
     expect(first?.terminated).toBe(true)
+    const err = snap.events.find((e) => e.kind === 'error')
+    expect(err?.kind === 'error' && err.message).toMatch(/infinite loop|time/i)
+    runner.dispose()
+  })
+
+  it('kills a busy worker before starting a new run', async () => {
+    const runner = new PythonRunner(5000)
+    await runner.start()
+    const first = MockWorker.instances[0]
+    await runner.run('__HANG__')
+    expect(runner.getSnapshot().status).toBe('running')
+    // New run must terminate the hung worker so messages are not queued forever.
+    await runner.run('print(1)')
+    expect(first?.terminated).toBe(true)
+    expect(MockWorker.instances.length).toBeGreaterThan(1)
     runner.dispose()
   })
 

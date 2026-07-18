@@ -3,9 +3,212 @@
 .app-shell {
   min-height: 100dvh;
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto auto 1fr auto;
   background: var(--bg);
   color: var(--text);
+}
+
+/* ── Lesson goal ─────────────────────────────────────── */
+
+.lesson-goal {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.65rem 1.25rem 0.7rem;
+  border-bottom: 1px solid var(--border-subtle);
+  border-left: 3px solid var(--accent);
+  background: color-mix(in srgb, var(--accent) 9%, var(--surface));
+  font-size: 0.875rem;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.lesson-goal-main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem 0.75rem;
+}
+
+.lesson-map {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.28rem;
+  max-width: 100%;
+}
+
+.lesson-map-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 35%, transparent);
+  cursor: pointer;
+  transition: transform 120ms ease, background 120ms ease;
+}
+
+.lesson-map-dot.is-past {
+  background: color-mix(in srgb, var(--accent) 45%, var(--muted));
+}
+
+.lesson-map-dot.is-current {
+  background: var(--accent);
+  transform: scale(1.35);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 25%, transparent);
+}
+
+.lesson-map-dot:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.lesson-map-dot:hover {
+  background: var(--accent-deep);
+}
+
+.lesson-goal-label {
+  font-weight: 600;
+  font-size: 0.78rem;
+  letter-spacing: 0.01em;
+  text-transform: none;
+  color: var(--accent-deep);
+}
+
+.lesson-goal-text {
+  margin: 0;
+  color: var(--text);
+  max-width: 52rem;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.lesson-goal-kicker {
+  font-weight: 700;
+  color: var(--accent-deep);
+  margin-right: 0.45rem;
+}
+
+.lesson-goal-statement {
+  color: var(--text);
+  font-weight: 500;
+}
+
+.lesson-tasks {
+  margin: 0.05rem 0 0;
+  padding: 0;
+  list-style: none;
+  color: var(--muted);
+  font-size: 0.82rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.1rem;
+}
+
+.lesson-task {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  max-width: 28rem;
+}
+
+.lesson-task.is-done {
+  color: color-mix(in srgb, var(--muted) 80%, var(--ok));
+}
+
+.lesson-task-mark {
+  font-size: 0.72em;
+  color: var(--gutter);
+  user-select: none;
+}
+
+.lesson-task.is-done .lesson-task-mark {
+  color: var(--ok);
+}
+
+.lesson-goal-next,
+.lesson-goal-hint {
+  margin: 0.1rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.lesson-goal-next .lesson-goal-kicker,
+.lesson-goal-hint .lesson-goal-kicker {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.lesson-goal-stuck {
+  margin: 0.15rem 0 0;
+  font-size: 0.8rem;
+}
+
+/* ── Predict then run ────────────────────────────────── */
+
+.predict-prompt {
+  padding: 0.5rem 1.25rem 0.55rem;
+  border-bottom: 1px solid var(--border-subtle);
+  background: color-mix(in srgb, var(--expr) 6%, var(--surface));
+  font-size: 0.84rem;
+}
+
+.predict-prompt-q {
+  margin: 0 0 0.4rem;
+  color: var(--text);
+}
+
+.predict-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.predict-choice {
+  font: inherit;
+  font-size: 0.82rem;
+  font-family: var(--font-mono);
+  padding: 0.28rem 0.65rem;
+  border-radius: 0.4rem;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.predict-choice:hover:not(:disabled) {
+  border-color: var(--accent);
+}
+
+.predict-choice:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.predict-choice.is-correct {
+  border-color: var(--ok);
+  background: color-mix(in srgb, var(--ok) 12%, var(--surface));
+}
+
+.predict-choice.is-wrong {
+  border-color: var(--danger);
+  opacity: 0.75;
+}
+
+.predict-feedback {
+  margin: 0.4rem 0 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.difficulty-select {
+  max-width: 8.5rem;
+}
+
+.lessons-select {
+  max-width: 14rem;
 }
 
 /* ── Toolbar ─────────────────────────────────────────── */
@@ -379,6 +582,306 @@
   color: var(--warn);
 }
 
+/* ── Visual collections (list / dict / set / tuple) ──── */
+
+.result-collection {
+  min-width: 0;
+  padding-top: 0.05rem;
+}
+
+.coll-tree {
+  font: inherit;
+  line-height: 1.55;
+}
+
+.coll-toggle {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  margin: 0;
+  padding: 0.05rem 0.2rem 0.05rem 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 0.25rem;
+  max-width: 100%;
+}
+
+.coll-toggle:disabled {
+  cursor: default;
+}
+
+.coll-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.coll-toggle:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.coll-chevron {
+  display: inline-block;
+  width: 0.85rem;
+  flex-shrink: 0;
+  color: var(--muted);
+  font-size: 0.72em;
+  line-height: 1.65;
+}
+
+.coll-label {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--muted);
+}
+
+.coll-tone-expr > .coll-toggle .coll-label,
+.coll-tone-expr.coll-atom {
+  color: color-mix(in srgb, var(--expr) 72%, var(--muted));
+}
+
+.coll-summary {
+  color: var(--muted);
+  opacity: 0.9;
+  word-break: break-word;
+}
+
+.coll-atom {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.3rem 0.4rem;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+.coll-type-chip,
+.result-type-chip {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: lowercase;
+  color: var(--muted);
+  background: color-mix(in srgb, var(--muted) 12%, transparent);
+  border-radius: 0.25rem;
+  padding: 0.05rem 0.3rem;
+  line-height: 1.3;
+  user-select: none;
+}
+
+.result-value-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem 0.5rem;
+  min-width: 0;
+}
+
+.result-value-wrap .result-text {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.result-row.is-dimmed {
+  opacity: 0.28;
+}
+
+.result-row.is-linked:hover,
+.result-row.is-active {
+  background: color-mix(in srgb, var(--path-hue, var(--accent)) 6%, transparent);
+}
+
+/* Loop step scrubber */
+.loop-trace {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.15rem 1rem 0.35rem;
+}
+
+.loop-trace-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-right: 0.25rem;
+}
+
+.loop-trace-btn {
+  font: inherit;
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  min-width: 1.5rem;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.3rem;
+  border: 1px solid var(--border-subtle);
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.loop-trace-btn.is-active {
+  border-color: var(--accent);
+  color: var(--accent-deep);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.loop-trace-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.error-card-tip-inline {
+  margin: 0.35rem 0 0;
+  font-family: var(--font-ui);
+  font-size: 0.82rem;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.error-card-tip-inline .error-card-tip-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.15rem;
+}
+
+/* Help overlay */
+.help-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  place-items: center;
+  background: rgb(0 0 0 / 35%);
+  padding: 1rem;
+}
+
+.help-card {
+  width: min(22rem, 100%);
+  background: var(--surface);
+  color: var(--text);
+  border-radius: 0.75rem;
+  border: 1px solid var(--border);
+  padding: 1.1rem 1.25rem 1.15rem;
+  box-shadow: 0 12px 40px rgb(0 0 0 / 18%);
+}
+
+.help-title {
+  margin: 0 0 0.65rem;
+  font-size: 1rem;
+}
+
+.help-list {
+  margin: 0 0 0.75rem;
+  padding: 0 0 0 1.1rem;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+
+.help-note {
+  margin: 0 0 0.85rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}
+
+.help-card kbd,
+.app-footer kbd {
+  font-family: var(--font-mono);
+  font-size: 0.78em;
+  padding: 0.05em 0.35em;
+  border-radius: 0.25rem;
+  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--muted) 8%, var(--surface));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cm-run-pulse-line,
+  .lesson-map-dot {
+    transition: none;
+  }
+}
+
+.coll-tone-print .coll-atom,
+.coll-tone-print.coll-atom {
+  color: var(--text);
+}
+
+.coll-tone-expr .coll-atom,
+.coll-tone-expr.coll-atom {
+  color: var(--expr);
+}
+
+.coll-children {
+  list-style: none;
+  margin: 0.05rem 0 0.15rem;
+  padding: 0 0 0 0.85rem;
+  border-left: 1px solid color-mix(in srgb, var(--border) 80%, transparent);
+}
+
+.coll-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.4rem;
+  padding: 0.05rem 0;
+  min-width: 0;
+}
+
+.coll-row-dict {
+  gap: 0.25rem 0.35rem;
+}
+
+.coll-index {
+  flex: 0 0 1.4rem;
+  text-align: right;
+  font-size: 0.72em;
+  color: var(--gutter);
+  user-select: none;
+}
+
+.coll-index-set {
+  text-align: center;
+}
+
+.coll-key {
+  flex: 0 1 auto;
+  min-width: 0;
+  color: var(--muted);
+}
+
+.coll-sep {
+  color: var(--gutter);
+  flex-shrink: 0;
+}
+
+.coll-value {
+  flex: 1 1 8rem;
+  min-width: 0;
+}
+
+.coll-truncated .coll-summary {
+  font-size: 0.85em;
+  font-style: italic;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .coll-toggle {
+    transition: none;
+  }
+}
+
 /*
  * Path chips — same hue + intensity as the ribbon for the active result kind
  * (set via .workspace[data-path-kind]). Height matches the line/ribbon band.
@@ -661,6 +1164,18 @@
 
   .toolbar {
     padding: 0.7rem 0.9rem;
+  }
+
+  .lesson-goal {
+    padding: 0.4rem 0.9rem;
+  }
+
+  .difficulty-select {
+    max-width: 7.25rem;
+  }
+
+  .lessons-select {
+    max-width: 10rem;
   }
 
   .app-footer {

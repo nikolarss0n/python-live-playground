@@ -36,5 +36,14 @@ describe('PYTHON_PRELUDE', () => {
     expect(PYTHON_PRELUDE).toContain('def __plp_show__')
     expect(PYTHON_PRELUDE).toContain('_plp_transform')
     expect(PYTHON_PRELUDE).toContain('def _plp_print')
+    expect(PYTHON_PRELUDE).toContain('def _plp_structure')
+    expect(PYTHON_PRELUDE).toContain('"structure"')
+  })
+
+  it('instruments loops with a soft time limit check', () => {
+    expect(PYTHON_PRELUDE).toContain('def _plp_check_limit')
+    expect(PYTHON_PRELUDE).toContain('_PlpLimitLoops')
+    expect(PYTHON_PRELUDE).toContain('possible infinite loop')
+    expect(PYTHON_PRELUDE).toContain('_PLP_SOFT_LIMIT_S')
   })
 })
