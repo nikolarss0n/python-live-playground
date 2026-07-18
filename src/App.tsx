@@ -361,6 +361,7 @@ export default function App() {
         onSelectDifficulty={onSelectDifficulty}
         lessons={trackLessons}
         activeLessonId={lessonId}
+        activeLesson={activeLesson}
         onSelectLesson={onSelectLesson}
         onRun={() => void runNow()}
         onStop={stop}

@@ -55,6 +55,9 @@ describe('App beginner flow', () => {
     expect(
       screen.getByRole('heading', { name: /python live/i }),
     ).toBeInTheDocument()
+    const current = screen.getByLabelText(/current lesson/i)
+    expect(current).toHaveTextContent(/Basics/i)
+    expect(current).toHaveTextContent(/Beginner · Lesson 1 · Printing/i)
     expect(screen.getByRole('region', { name: /python editor/i })).toBeInTheDocument()
     expect(screen.getByRole('region', { name: /results/i })).toBeInTheDocument()
     const results = screen.getByRole('region', { name: /results/i })

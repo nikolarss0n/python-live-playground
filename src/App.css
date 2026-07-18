@@ -847,6 +847,7 @@
   align-items: center;
   gap: 0.75rem;
   min-width: 0;
+  flex: 1 1 auto;
 }
 
 .brand-mark {
@@ -861,6 +862,7 @@
 
 .brand-text {
   min-width: 0;
+  flex-shrink: 0;
 }
 
 .brand-title {
@@ -877,6 +879,40 @@
   font-size: 0.78rem;
   color: var(--muted);
   letter-spacing: 0.01em;
+}
+
+/* Current chapter + lesson next to product name */
+.brand-lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+  min-width: 0;
+  padding-left: 0.85rem;
+  margin-left: 0.15rem;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.brand-chapter {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--accent-deep);
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.brand-lesson-title {
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text);
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: min(22rem, 36vw);
 }
 
 .toolbar-actions {
@@ -1854,6 +1890,15 @@
 
   .brand-subtitle {
     display: none;
+  }
+
+  .brand-lesson {
+    padding-left: 0.55rem;
+  }
+
+  .brand-lesson-title {
+    max-width: min(14rem, 42vw);
+    font-size: 0.74rem;
   }
 
   .toolbar {

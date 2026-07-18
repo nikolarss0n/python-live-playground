@@ -1,5 +1,10 @@
 import type { Difficulty, Lesson } from '../examples'
-import { DIFFICULTY_OPTIONS, lessonLabel, lessonsByChapter } from '../examples'
+import {
+  DIFFICULTY_OPTIONS,
+  lessonHeading,
+  lessonLabel,
+  lessonsByChapter,
+} from '../examples'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -8,6 +13,7 @@ type ToolbarProps = {
   onSelectDifficulty: (d: Difficulty) => void
   lessons: Lesson[]
   activeLessonId: string
+  activeLesson: Lesson
   onSelectLesson: (id: string) => void
   onRun: () => void
   onStop: () => void
@@ -25,6 +31,7 @@ export function Toolbar({
   onSelectDifficulty,
   lessons,
   activeLessonId,
+  activeLesson,
   onSelectLesson,
   onRun,
   onStop,
@@ -47,6 +54,15 @@ export function Toolbar({
         <div className="brand-text">
           <h1 className="brand-title">Python Live</h1>
           <p className="brand-subtitle">Write a little. See it run.</p>
+        </div>
+        <div
+          className="brand-lesson"
+          aria-label="Current lesson"
+        >
+          <span className="brand-chapter">{activeLesson.chapter}</span>
+          <span className="brand-lesson-title">
+            {lessonHeading(activeLesson)}
+          </span>
         </div>
       </div>
 
