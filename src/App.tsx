@@ -29,6 +29,8 @@ import {
   readSnapshotFromLocation,
 } from './shareSnapshot'
 import { LocalApiStrip } from './components/LocalApiStrip'
+import { SettingsModal } from './components/SettingsModal'
+import { loadSettings, type AppSettings } from './settings'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
@@ -114,6 +116,10 @@ export default function App() {
   )
   const [shareNote, setShareNote] = useState<string | null>(null)
   const [shareBusy, setShareBusy] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [appSettings, setAppSettings] = useState<AppSettings>(() =>
+    loadSettings(),
+  )
   const [seenSuccess, setSeenSuccess] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.localStorage.getItem(COACH_KEY) === '1'
@@ -363,6 +369,7 @@ export default function App() {
         onToggleTheme={toggleTheme}
         onShare={() => void onShare()}
         shareBusy={shareBusy}
+        onOpenSettings={() => setSettingsOpen(true)}
       />
 
       {shareNote ? (
@@ -370,6 +377,12 @@ export default function App() {
           {shareNote}
         </p>
       ) : null}
+
+      <SettingsModal
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        onSaved={(s) => setAppSettings(s)}
+      />
 
       <LessonGoal
         lesson={activeLesson}
@@ -387,7 +400,7 @@ export default function App() {
         />
       ) : null}
 
-      <LocalApiStrip enabled={difficulty === 'api'} />
+      <LocalApiStrip enabled={difficulty === 'api'} settings={appSettings} />
 
       <main
         className="workspace"

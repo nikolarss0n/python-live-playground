@@ -17,6 +17,7 @@ type ToolbarProps = {
   onToggleTheme: () => void
   onShare?: () => void
   shareBusy?: boolean
+  onOpenSettings?: () => void
 }
 
 export function Toolbar({
@@ -33,6 +34,7 @@ export function Toolbar({
   onToggleTheme,
   onShare,
   shareBusy,
+  onOpenSettings,
 }: ToolbarProps) {
   const chapters = lessonsByChapter(difficulty)
   // Keep select valid if lessons prop is a flat list
@@ -116,6 +118,18 @@ export function Toolbar({
             title="Copy a link with this lesson and your code"
           >
             Share
+          </button>
+        )}
+
+        {onOpenSettings && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onOpenSettings}
+            title="API key, companion URL, optional LLM"
+            aria-label="Open settings"
+          >
+            Settings
           </button>
         )}
 

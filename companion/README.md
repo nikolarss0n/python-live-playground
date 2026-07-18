@@ -1,6 +1,6 @@
 # Python Live — optional FastAPI companion
 
-The main app runs **entirely in the browser**. This folder is optional: a tiny real HTTP server that matches the Web APIs lesson shapes so you can feel network requests after learning with dicts.
+The main app runs **entirely in the browser**. This folder is optional: a tiny real HTTP server that matches the Web APIs lesson shapes.
 
 ## Run
 
@@ -9,21 +9,40 @@ cd companion
 python3 -m venv .venv
 source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
+
+# Optional: require the same key you put in playground Settings
+export PLP_API_KEY=dev-secret
+
 uvicorn main:app --reload --host 127.0.0.1 --port 8000
 ```
 
-Open interactive docs: http://127.0.0.1:8000/docs
+Or from the repo root (after the venv is active and deps installed):
 
-Keep the playground on http://127.0.0.1:5173 and switch to **Web APIs**. Use the **Local API** strip to probe `/health`, `/hello`, and friends.
+```bash
+npm run companion
+```
+
+- Docs: http://127.0.0.1:8000/docs  
+- Playground: http://127.0.0.1:5173 → **Web APIs** → **Local API** strip  
+- **Settings** (toolbar): companion base URL + API key
+
+## Auth
+
+| `PLP_API_KEY` env | Behavior |
+|-------------------|----------|
+| unset / empty | Open (no key needed) |
+| set (e.g. `dev-secret`) | Requests need `X-API-Key` or `Authorization: Bearer …` |
+
+Put the same value in playground **Settings → API key**.
 
 ## Endpoints
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/health` | Liveness |
+| GET | `/health` | Liveness (+ `auth_required` flag) |
 | GET | `/hello` | Simple JSON |
 | GET | `/greet?name=` | Query param |
 | GET | `/items/{id}` | Path param (`a1` exists) |
 | POST | `/users` | JSON body `{"name":"Ada"}` |
 
-CORS allows the Vite dev origins only.
+CORS allows Vite dev origins only.

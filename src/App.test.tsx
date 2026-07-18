@@ -89,12 +89,20 @@ describe('App beginner flow', () => {
     ).toBeInTheDocument()
   })
 
-  it('exposes share and chapter context on the first lesson', () => {
+  it('exposes share, settings, and chapter context on the first lesson', async () => {
+    const user = userEvent.setup()
     render(<App />)
     expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /open settings/i }),
+    ).toBeInTheDocument()
     const goal = screen.getByRole('region', { name: /lesson goal/i })
     expect(goal).toHaveTextContent(/Basics/i)
     expect(goal).toHaveTextContent(/Stretch/i)
+
+    await user.click(screen.getByRole('button', { name: /open settings/i }))
+    expect(screen.getByRole('dialog', { name: /settings/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/api key/i)).toBeInTheDocument()
   })
 
   it('switches difficulty to intermediate and loads its first lesson', async () => {

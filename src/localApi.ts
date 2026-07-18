@@ -1,5 +1,5 @@
 /**
- * Optional probe of the local FastAPI companion (127.0.0.1:8000).
+ * Optional probe of the local FastAPI companion.
  * Pure helpers — UI decides when to call.
  */
 
@@ -29,6 +29,13 @@ export type LocalApiSample = {
   method: 'GET' | 'POST'
   path: string
   body?: unknown
+}
+
+export type LocalApiOptions = {
+  baseUrl?: string
+  /** Sent as X-API-Key (and Authorization Bearer) when non-empty */
+  apiKey?: string
+  fetchImpl?: typeof fetch
 }
 
 export const LOCAL_API_SAMPLES: LocalApiSample[] = [
@@ -61,20 +68,49 @@ export const LOCAL_API_SAMPLES: LocalApiSample[] = [
   },
 ]
 
+function buildHeaders(
+  sample: LocalApiSample,
+  apiKey: string | undefined,
+): Record<string, string> {
+  const headers: Record<string, string> = {
+    accept: 'application/json',
+  }
+  if (sample.body != null) {
+    headers['content-type'] = 'application/json'
+  }
+  const key = apiKey?.trim()
+  if (key) {
+    headers['x-api-key'] = key
+    headers.authorization = `Bearer ${key}`
+  }
+  return headers
+}
+
 export async function probeLocalApi(
   sample: LocalApiSample,
-  baseUrl: string = DEFAULT_LOCAL_API_BASE,
-  fetchImpl: typeof fetch = fetch,
+  options: LocalApiOptions | string = {},
+  // backward-compat: old signature (sample, baseUrl, fetch)
+  fetchLegacy?: typeof fetch,
 ): Promise<LocalApiProbeResult> {
+  let baseUrl = DEFAULT_LOCAL_API_BASE
+  let apiKey = ''
+  let fetchImpl: typeof fetch = fetch
+
+  if (typeof options === 'string') {
+    baseUrl = options
+    fetchImpl = fetchLegacy ?? fetch
+  } else {
+    baseUrl = options.baseUrl ?? DEFAULT_LOCAL_API_BASE
+    apiKey = options.apiKey ?? ''
+    fetchImpl = options.fetchImpl ?? fetch
+  }
+
   const url = baseUrl.replace(/\/$/, '') + sample.path
   const started = performance.now()
   try {
     const init: RequestInit = {
       method: sample.method,
-      headers:
-        sample.body != null
-          ? { 'content-type': 'application/json', accept: 'application/json' }
-          : { accept: 'application/json' },
+      headers: buildHeaders(sample, apiKey),
     }
     if (sample.body != null) {
       init.body = JSON.stringify(sample.body)
@@ -99,7 +135,7 @@ export async function probeLocalApi(
       method: sample.method,
       error:
         /Failed to fetch|NetworkError|Load failed/i.test(message)
-          ? 'Offline — start companion on port 8000 (see companion/README.md)'
+          ? 'Offline — start companion (see companion/README.md) or check Settings URL'
           : message,
       durationMs: Math.round(performance.now() - started),
     }
@@ -107,13 +143,13 @@ export async function probeLocalApi(
 }
 
 export async function checkLocalApiHealth(
-  baseUrl: string = DEFAULT_LOCAL_API_BASE,
-  fetchImpl: typeof fetch = fetch,
+  options: LocalApiOptions | string = {},
+  fetchLegacy?: typeof fetch,
 ): Promise<boolean> {
   const result = await probeLocalApi(
     { id: 'health', label: 'health', method: 'GET', path: '/health' },
-    baseUrl,
-    fetchImpl,
+    options,
+    fetchLegacy,
   )
   return result.ok && result.status === 200
 }

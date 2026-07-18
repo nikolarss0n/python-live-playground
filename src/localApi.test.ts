@@ -10,8 +10,11 @@ describe('localApi probe', () => {
     })
     const result = await probeLocalApi(
       { id: 'health', label: 'h', method: 'GET', path: '/health' },
-      'http://127.0.0.1:8000',
-      fetchImpl as unknown as typeof fetch,
+      {
+        baseUrl: 'http://127.0.0.1:8000',
+        apiKey: 'secret',
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
     )
     expect(result.ok).toBe(true)
     if (result.ok) {
@@ -20,7 +23,13 @@ describe('localApi probe', () => {
     }
     expect(fetchImpl).toHaveBeenCalledWith(
       'http://127.0.0.1:8000/health',
-      expect.objectContaining({ method: 'GET' }),
+      expect.objectContaining({
+        method: 'GET',
+        headers: expect.objectContaining({
+          'x-api-key': 'secret',
+          authorization: 'Bearer secret',
+        }),
+      }),
     )
   })
 
@@ -28,8 +37,10 @@ describe('localApi probe', () => {
     const fetchImpl = vi.fn().mockRejectedValue(new TypeError('Failed to fetch'))
     const result = await probeLocalApi(
       { id: 'health', label: 'h', method: 'GET', path: '/health' },
-      'http://127.0.0.1:8000',
-      fetchImpl as unknown as typeof fetch,
+      {
+        baseUrl: 'http://127.0.0.1:8000',
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+      },
     )
     expect(result.ok).toBe(false)
     if (!result.ok) {
@@ -44,10 +55,10 @@ describe('localApi probe', () => {
       text: async () => '{}',
     })
     expect(
-      await checkLocalApiHealth(
-        'http://127.0.0.1:8000',
-        ok as unknown as typeof fetch,
-      ),
+      await checkLocalApiHealth({
+        baseUrl: 'http://127.0.0.1:8000',
+        fetchImpl: ok as unknown as typeof fetch,
+      }),
     ).toBe(true)
 
     const bad = vi.fn().mockResolvedValue({
@@ -56,10 +67,11 @@ describe('localApi probe', () => {
       text: async () => '{}',
     })
     expect(
-      await checkLocalApiHealth(
-        'http://127.0.0.1:8000',
-        bad as unknown as typeof fetch,
-      ),
+      await checkLocalApiHealth({
+        baseUrl: 'http://127.0.0.1:8000',
+        fetchImpl: bad as unknown as typeof fetch,
+      }),
     ).toBe(false)
   })
 })
+

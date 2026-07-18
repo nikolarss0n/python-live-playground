@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  DEFAULT_LOCAL_API_BASE,
   LOCAL_API_SAMPLES,
   checkLocalApiHealth,
   probeLocalApi,
@@ -9,10 +8,12 @@ import {
 } from '../localApi'
 import { HttpResponseCard } from './HttpResponseCard'
 import type { HttpResponseView } from '../httpResponse'
+import type { AppSettings } from '../settings'
 
 type LocalApiStripProps = {
   /** When false, do not poll (e.g. not on Web APIs track). */
   enabled: boolean
+  settings: AppSettings
 }
 
 function toHttpView(result: LocalApiProbeResult): HttpResponseView | null {
@@ -29,6 +30,7 @@ function toHttpView(result: LocalApiProbeResult): HttpResponseView | null {
   const labels: Record<number, string> = {
     200: 'OK',
     201: 'Created',
+    401: 'Unauthorized',
     404: 'Not Found',
     405: 'Method Not Allowed',
     422: 'Unprocessable',
@@ -43,18 +45,23 @@ function toHttpView(result: LocalApiProbeResult): HttpResponseView | null {
 
 /**
  * Quiet strip: optional real HTTP against the local FastAPI companion.
- * Hidden entirely when `enabled` is false.
  */
-export function LocalApiStrip({ enabled }: LocalApiStripProps) {
+export function LocalApiStrip({ enabled, settings }: LocalApiStripProps) {
   const [online, setOnline] = useState<boolean | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [last, setLast] = useState<LocalApiProbeResult | null>(null)
 
+  const opts = {
+    baseUrl: settings.companionBaseUrl,
+    apiKey: settings.apiKey,
+  }
+
   const refreshHealth = useCallback(async () => {
     if (!enabled) return
-    const ok = await checkLocalApiHealth()
+    const ok = await checkLocalApiHealth(opts)
     setOnline(ok)
-  }, [enabled])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- opts from settings fields
+  }, [enabled, settings.companionBaseUrl, settings.apiKey])
 
   useEffect(() => {
     if (!enabled) {
@@ -70,9 +77,10 @@ export function LocalApiStrip({ enabled }: LocalApiStripProps) {
   const runSample = async (sample: LocalApiSample) => {
     setBusyId(sample.id)
     try {
-      const result = await probeLocalApi(sample)
+      const result = await probeLocalApi(sample, opts)
       setLast(result)
-      if (result.ok) setOnline(true)
+      if (result.ok && result.status === 200) setOnline(true)
+      else if (result.ok && result.status === 401) setOnline(true)
       else if (!result.ok && /Offline/i.test(result.error)) setOnline(false)
     } finally {
       setBusyId(null)
@@ -82,6 +90,7 @@ export function LocalApiStrip({ enabled }: LocalApiStripProps) {
   if (!enabled) return null
 
   const httpView = last ? toHttpView(last) : null
+  const hostLabel = settings.companionBaseUrl.replace(/^https?:\/\//, '')
 
   return (
     <div className="local-api-strip" role="region" aria-label="Local API">
@@ -93,14 +102,13 @@ export function LocalApiStrip({ enabled }: LocalApiStripProps) {
           }`}
         >
           {online === true
-            ? 'online · 8000'
+            ? `online · ${hostLabel}`
             : online === false
               ? 'offline'
               : 'checking…'}
         </span>
         <span className="local-api-hint">
-          Optional real HTTP —{' '}
-          <code>companion/README.md</code> · {DEFAULT_LOCAL_API_BASE}
+          Real HTTP via companion · key in Settings if required
         </span>
         <button
           type="button"
@@ -135,6 +143,7 @@ export function LocalApiStrip({ enabled }: LocalApiStripProps) {
           {last.ok && (
             <p className="local-api-meta">
               {last.method} {last.path} · {last.durationMs} ms
+              {last.status === 401 ? ' · check API key in Settings' : ''}
             </p>
           )}
         </div>
