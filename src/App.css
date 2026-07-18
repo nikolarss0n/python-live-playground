@@ -412,6 +412,33 @@
   font-family: var(--font-mono);
 }
 
+.local-api-openapi {
+  margin-top: 0.45rem;
+  padding-top: 0.4rem;
+  border-top: 1px dashed var(--border-subtle);
+}
+
+.local-api-openapi-label {
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 0.3rem;
+}
+
+.local-api-btn-insert {
+  border-style: dashed;
+  color: var(--accent-deep);
+}
+
+.local-api-openapi-note {
+  margin: 0.35rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
 /* Settings modal */
 .settings-overlay {
   position: fixed;

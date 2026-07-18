@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   LOCAL_API_SAMPLES,
   checkLocalApiHealth,
@@ -9,11 +9,18 @@ import {
 import { HttpResponseCard } from './HttpResponseCard'
 import type { HttpResponseView } from '../httpResponse'
 import type { AppSettings } from '../settings'
+import {
+  fetchOpenApiDocument,
+  operationToSample,
+  pythonSnippetForOperation,
+  type OpenApiOperation,
+} from '../openapiImport'
 
 type LocalApiStripProps = {
-  /** When false, do not poll (e.g. not on Web APIs track). */
   enabled: boolean
   settings: AppSettings
+  /** Append a generated request-dict snippet into the editor. */
+  onInsertSnippet?: (snippet: string) => void
 }
 
 function toHttpView(result: LocalApiProbeResult): HttpResponseView | null {
@@ -45,28 +52,49 @@ function toHttpView(result: LocalApiProbeResult): HttpResponseView | null {
 
 /**
  * Quiet strip: optional real HTTP against the local FastAPI companion.
+ * Can import routes from /openapi.json into probes + Python snippets.
  */
-export function LocalApiStrip({ enabled, settings }: LocalApiStripProps) {
+export function LocalApiStrip({
+  enabled,
+  settings,
+  onInsertSnippet,
+}: LocalApiStripProps) {
   const [online, setOnline] = useState<boolean | null>(null)
   const [busyId, setBusyId] = useState<string | null>(null)
   const [last, setLast] = useState<LocalApiProbeResult | null>(null)
+  const [operations, setOperations] = useState<OpenApiOperation[] | null>(null)
+  const [openApiNote, setOpenApiNote] = useState<string | null>(null)
+  const [importing, setImporting] = useState(false)
 
-  const opts = {
-    baseUrl: settings.companionBaseUrl,
-    apiKey: settings.apiKey,
-  }
+  const opts = useMemo(
+    () => ({
+      baseUrl: settings.companionBaseUrl,
+      apiKey: settings.apiKey,
+    }),
+    [settings.companionBaseUrl, settings.apiKey],
+  )
+
+  const samples: LocalApiSample[] = useMemo(() => {
+    if (operations?.length) {
+      return operations
+        .filter((o) => o.method === 'GET' || o.method === 'POST')
+        .map(operationToSample)
+    }
+    return LOCAL_API_SAMPLES
+  }, [operations])
 
   const refreshHealth = useCallback(async () => {
     if (!enabled) return
     const ok = await checkLocalApiHealth(opts)
     setOnline(ok)
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- opts from settings fields
-  }, [enabled, settings.companionBaseUrl, settings.apiKey])
+  }, [enabled, opts])
 
   useEffect(() => {
     if (!enabled) {
       setOnline(null)
       setLast(null)
+      setOperations(null)
+      setOpenApiNote(null)
       return
     }
     void refreshHealth()
@@ -79,12 +107,44 @@ export function LocalApiStrip({ enabled, settings }: LocalApiStripProps) {
     try {
       const result = await probeLocalApi(sample, opts)
       setLast(result)
-      if (result.ok && result.status === 200) setOnline(true)
-      else if (result.ok && result.status === 401) setOnline(true)
-      else if (!result.ok && /Offline/i.test(result.error)) setOnline(false)
+      if (result.ok && (result.status === 200 || result.status === 201)) {
+        setOnline(true)
+      } else if (result.ok && result.status === 401) {
+        setOnline(true)
+      } else if (!result.ok && /Offline/i.test(result.error)) {
+        setOnline(false)
+      }
     } finally {
       setBusyId(null)
     }
+  }
+
+  const importOpenApi = async () => {
+    setImporting(true)
+    setOpenApiNote(null)
+    try {
+      const result = await fetchOpenApiDocument(
+        settings.companionBaseUrl,
+        settings.apiKey,
+      )
+      if (!result.ok) {
+        setOpenApiNote(result.error)
+        setOperations(null)
+        return
+      }
+      setOperations(result.operations)
+      setOnline(true)
+      setOpenApiNote(
+        `Imported ${result.operations.length} operations from /openapi.json`,
+      )
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const insertOp = (op: OpenApiOperation) => {
+    onInsertSnippet?.(pythonSnippetForOperation(op))
+    setOpenApiNote(`Inserted snippet for ${op.method} ${op.pathTemplate}`)
   }
 
   if (!enabled) return null
@@ -108,7 +168,7 @@ export function LocalApiStrip({ enabled, settings }: LocalApiStripProps) {
               : 'checking…'}
         </span>
         <span className="local-api-hint">
-          Real HTTP via companion · key in Settings if required
+          Real HTTP via companion · OpenAPI import · key in Settings if required
         </span>
         <button
           type="button"
@@ -117,21 +177,55 @@ export function LocalApiStrip({ enabled, settings }: LocalApiStripProps) {
         >
           Refresh
         </button>
+        <button
+          type="button"
+          className="linkish local-api-refresh"
+          disabled={importing}
+          onClick={() => void importOpenApi()}
+        >
+          {importing ? 'Importing…' : 'Import OpenAPI'}
+        </button>
       </div>
 
       <div className="local-api-actions">
-        {LOCAL_API_SAMPLES.map((sample) => (
+        {samples.map((sample) => (
           <button
             key={sample.id}
             type="button"
             className="local-api-btn"
             disabled={busyId != null}
             onClick={() => void runSample(sample)}
+            title={sample.label}
           >
             {busyId === sample.id ? '…' : sample.label}
           </button>
         ))}
       </div>
+
+      {operations && operations.length > 0 && onInsertSnippet ? (
+        <div className="local-api-openapi">
+          <span className="local-api-openapi-label">Insert Python request</span>
+          <div className="local-api-actions">
+            {operations.slice(0, 12).map((op) => (
+              <button
+                key={`ins-${op.id}`}
+                type="button"
+                className="local-api-btn local-api-btn-insert"
+                onClick={() => insertOp(op)}
+                title={op.summary}
+              >
+                + {op.method} {op.pathTemplate}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {openApiNote ? (
+        <p className="local-api-openapi-note" role="status">
+          {openApiNote}
+        </p>
+      ) : null}
 
       {last && (
         <div className="local-api-result">

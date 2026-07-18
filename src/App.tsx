@@ -401,7 +401,16 @@ export default function App() {
         />
       ) : null}
 
-      <LocalApiStrip enabled={difficulty === 'api'} settings={appSettings} />
+      <LocalApiStrip
+        enabled={difficulty === 'api'}
+        settings={appSettings}
+        onInsertSnippet={(snippet) =>
+          setCode((prev) => {
+            const base = prev.endsWith('\n') ? prev : `${prev}\n`
+            return `${base}\n${snippet}`
+          })
+        }
+      />
 
       {activeLesson.runWithModel ? (
         <ModelRunBar

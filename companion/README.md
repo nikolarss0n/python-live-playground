@@ -23,7 +23,8 @@ npm run companion
 ```
 
 - Docs: http://127.0.0.1:8000/docs  
-- Playground: http://127.0.0.1:5173 → **Web APIs** → **Local API** strip  
+- OpenAPI JSON: http://127.0.0.1:8000/openapi.json  
+- Playground: http://127.0.0.1:5173 → **Web APIs** → **Local API** → **Import OpenAPI**  
 - **Settings** (toolbar): companion base URL + API key
 
 ## Auth

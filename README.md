@@ -88,7 +88,7 @@ No real HTTP server required: you model requests/responses as Python dicts. Resu
 
 On **AI · Prompt templates**, after `print(prompt)` succeeds, **Run with model** can call your Settings LLM (one-shot; no chat sidebar).
 
-**Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip probes the companion. Use toolbar **Settings** for companion URL, API key, and optional OpenAI-compatible LLM test (keys stay in `localStorage` only).
+**Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip probes the companion, can **Import OpenAPI** from `/openapi.json`, and insert Python request-dict snippets into the editor. Use toolbar **Settings** for companion URL, API key, and optional OpenAI-compatible LLM test (keys stay in `localStorage` only).
 
 ```bash
 # terminal A
