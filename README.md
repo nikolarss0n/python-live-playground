@@ -86,7 +86,7 @@ Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (toke
 
 No real HTTP server required: you model requests/responses as Python dicts. Results shaped like `{"status": 200, "body": ...}` render as quiet **HTTP cards** (status + body).
 
-On **AI · Prompt templates**, after `print(prompt)` succeeds, **Run with model** can call your Settings LLM (one-shot; no chat sidebar).
+On **AI foundations** lessons, **Run with model** can call your Settings LLM (one-shot; no chat sidebar). It prefers your longest printed result, or a lesson default prompt if you have not printed yet.
 
 **Optional real server:** see [companion/README.md](./companion/README.md). On the Web APIs track a **Local API** strip probes the companion, can **Import OpenAPI** from `/openapi.json`, and insert Python request-dict snippets into the editor. Use toolbar **Settings** for companion URL, API key, and optional OpenAI-compatible LLM test (keys stay in `localStorage` only).
 

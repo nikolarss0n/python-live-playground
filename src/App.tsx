@@ -417,6 +417,7 @@ export default function App() {
           events={snapshot.events}
           settings={appSettings}
           onOpenSettings={() => setSettingsOpen(true)}
+          fallbackPrompt={activeLesson.modelPromptFallback}
         />
       ) : null}
 

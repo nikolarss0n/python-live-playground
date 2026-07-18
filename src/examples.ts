@@ -62,6 +62,8 @@ export type Lesson = {
    * No chat sidebar — one-shot completion only.
    */
   runWithModel?: boolean
+  /** Used when Results has no long print yet */
+  modelPromptFallback?: string
 }
 
 type LessonDraft = Omit<Lesson, 'chapter' | 'stretch'> & {
@@ -1128,6 +1130,14 @@ len(tokens)
     pipeline: ['text', 'tokenize', 'count'],
     stretch: 'Stretch: also lowercase tokens before returning them.',
     hints: ['Use text.split() to break on spaces.'],
+    runWithModel: true,
+    modelPromptFallback:
+      'In one short sentence, explain what a token is in large language models.',
+    compare: {
+      note: 'split() returns a list of pieces.',
+      wrong: 'return text  # still one string',
+      fixed: 'return text.split()',
+    },
   },
   {
     id: 'ai-bag-of-words',
@@ -1167,6 +1177,14 @@ counts["cat"]
       wrong: 'counts[t] = counts[t] + 1  # KeyError on first sight',
       fixed: 'counts[t] = counts.get(t, 0) + 1',
     },
+    runWithModel: true,
+    modelPromptFallback:
+      'Explain bag-of-words features in two short sentences for a beginner.',
+    predict: {
+      prompt: 'In counts for ["cat","sat","cat"], what is counts["cat"]?',
+      choices: ['1', '2', '3'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-vocab',
@@ -1203,6 +1221,14 @@ print(ids)
       minNonEmptyPrints: 2,
     },
     pipeline: ['tokens', 'vocab', 'encode'],
+    runWithModel: true,
+    modelPromptFallback:
+      'Why do NLP systems map words to integer ids? Answer in one sentence.',
+    compare: {
+      note: 'Assign each new token the next free id.',
+      wrong: 'vocab[t] = 0  # every token becomes 0',
+      fixed: 'vocab[t] = next_id',
+    },
   },
   {
     id: 'ai-dot-product',
@@ -1239,6 +1265,14 @@ print(dot(v1, v2))
     },
     pipeline: ['vectors', 'multiply', 'sum'],
     hints: ['Inside the loop, add a[i] * b[i] to total.'],
+    runWithModel: true,
+    modelPromptFallback:
+      'In one sentence, what is a dot product used for in machine learning?',
+    predict: {
+      prompt: 'dot([1,2,3], [0,1,1]) equals…',
+      choices: ['3', '5', '6'],
+      correctIndex: 1,
+    },
   },
   {
     id: 'ai-cosine',
@@ -1285,6 +1319,14 @@ print(round(cosine(a, b), 3))
     },
     pipeline: ['embed', 'normalize', 'compare'],
     stretch: 'Stretch: compare a third vector and print all pairwise scores.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Explain cosine similarity between two vectors in two short sentences.',
+    compare: {
+      note: 'Cosine is dot product divided by the product of lengths.',
+      wrong: 'return dot(a, b)  # not normalized',
+      fixed: 'return dot(a, b) / (magnitude(a) * magnitude(b))',
+    },
   },
   {
     id: 'ai-prompt-template',
@@ -1329,6 +1371,8 @@ print(prompt)
       fixed: 'student = "Ada"\nprompt = f"Student: {student}"',
     },
     runWithModel: true,
+    modelPromptFallback:
+      'You are a Python tutor. In two short sentences, explain lists to a beginner named Ada.',
   },
   {
     id: 'ai-json-contract',
@@ -1354,6 +1398,13 @@ payload = json.loads(raw)
 missing = [key for key in required if key not in ???]
 ok = len(missing) == 0
 print({"ok": ok, "missing": missing, "payload": payload})
+
+# Optional: ask a model for structured output (use Run with model)
+instruction = (
+    "Reply with JSON only, keys answer (string) and confidence (0 to 1), "
+    "about what a Python list is."
+)
+print(instruction)
 `,
     goalCheck: {
       requireSuccess: true,
@@ -1366,6 +1417,14 @@ print({"ok": ok, "missing": missing, "payload": payload})
     },
     pipeline: ['parse', 'validate', 'use'],
     stretch: 'Stretch: also reject confidence outside 0..1.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Reply with JSON only, keys answer (string) and confidence (0 to 1), about what a Python list is.',
+    compare: {
+      note: 'Check membership with `key not in payload`.',
+      wrong: 'if key == payload:',
+      fixed: 'if key not in payload:',
+    },
   },
   {
     id: 'ai-pipeline',
@@ -1417,6 +1476,14 @@ print(winner)
     hints: [
       'max(counts, key=counts.get) returns the key with the largest value.',
     ],
+    runWithModel: true,
+    modelPromptFallback:
+      'Describe a simple NLP pipeline (tokenize → count → decide) in three short steps.',
+    compare: {
+      note: 'Pass the tokens list into count_tokens.',
+      wrong: 'counts = count_tokens(text)',
+      fixed: 'counts = count_tokens(tokens)',
+    },
   },
 
   // ── Web APIs (browser-local FastAPI mental model, no real server) ──

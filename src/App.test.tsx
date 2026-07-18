@@ -132,19 +132,26 @@ describe('App beginner flow', () => {
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
   })
 
-  it('shows Run with model on the prompt-template lesson', async () => {
+  it('shows Run with model on AI lessons that support it', async () => {
     const user = userEvent.setup()
     render(<App />)
     await user.selectOptions(screen.getByLabelText(/choose difficulty/i), 'ai')
+    // First AI lesson (tokens) now includes the bar + lesson default prompt
+    expect(
+      screen.getByRole('region', { name: /run with model/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /run with model/i }),
+    ).toBeInTheDocument()
+    // Mock execution already has prints → "From Results", else lesson default
+    expect(screen.getByText(/from results|lesson default/i)).toBeInTheDocument()
+
     await user.selectOptions(
       screen.getByLabelText(/choose a lesson/i),
       'ai-prompt-template',
     )
     expect(
       screen.getByRole('region', { name: /run with model/i }),
-    ).toBeInTheDocument()
-    expect(
-      screen.getByRole('button', { name: /run with model/i }),
     ).toBeInTheDocument()
   })
 

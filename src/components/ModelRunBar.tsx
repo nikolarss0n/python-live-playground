@@ -7,6 +7,8 @@ type ModelRunBarProps = {
   events: ResultEvent[]
   settings: AppSettings
   onOpenSettings: () => void
+  /** Lesson-provided prompt when Results has no long print yet */
+  fallbackPrompt?: string
 }
 
 /** Prefer the longest non-empty print — usually the filled prompt. */
@@ -16,21 +18,37 @@ export function pickPromptFromEvents(events: readonly ResultEvent[]): string | n
     if (e.kind !== 'print') continue
     const t = e.text.trim()
     if (t.length < 8) continue
+    // Skip pure JSON/dict dumps when a longer instruction exists later
     if (!best || t.length >= best.length) best = t
   }
   return best
 }
 
+export function resolveModelPrompt(
+  events: readonly ResultEvent[],
+  fallback?: string,
+): { text: string; source: 'print' | 'fallback' } | null {
+  const fromPrint = pickPromptFromEvents(events)
+  if (fromPrint) return { text: fromPrint, source: 'print' }
+  const fb = fallback?.trim()
+  if (fb && fb.length >= 8) return { text: fb, source: 'fallback' }
+  return null
+}
+
 /**
- * One-shot “Run with model” using Settings key + last printed prompt.
+ * One-shot “Run with model” using Settings key + printed or fallback prompt.
  * No chat sidebar.
  */
 export function ModelRunBar({
   events,
   settings,
   onOpenSettings,
+  fallbackPrompt,
 }: ModelRunBarProps) {
-  const prompt = useMemo(() => pickPromptFromEvents(events), [events])
+  const resolved = useMemo(
+    () => resolveModelPrompt(events, fallbackPrompt),
+    [events, fallbackPrompt],
+  )
   const [busy, setBusy] = useState(false)
   const [note, setNote] = useState<string | null>(null)
 
@@ -42,8 +60,8 @@ export function ModelRunBar({
       setNote('Add an API key and LLM base URL in Settings first.')
       return
     }
-    if (!prompt) {
-      setNote('Run your code so print(prompt) appears in Results first.')
+    if (!resolved) {
+      setNote('Run your code so a prompt appears in Results, or use a lesson with a default prompt.')
       return
     }
     setBusy(true)
@@ -53,7 +71,7 @@ export function ModelRunBar({
         baseUrl: settings.llmBaseUrl,
         apiKey: settings.apiKey,
         model: settings.llmModel,
-        prompt,
+        prompt: resolved.text,
       })
       if (result.ok) {
         setNote(`${result.model} · ${result.durationMs} ms\n${result.text}`)
@@ -70,7 +88,7 @@ export function ModelRunBar({
       <div className="model-run-head">
         <span className="model-run-title">Model</span>
         <span className="model-run-hint">
-          Optional — sends your last printed prompt with the Settings key (no chat UI)
+          Optional — one-shot completion with your Settings key (no chat UI)
         </span>
       </div>
       <div className="model-run-actions">
@@ -85,10 +103,14 @@ export function ModelRunBar({
         <button type="button" className="linkish" onClick={onOpenSettings}>
           Settings
         </button>
-        {prompt ? (
-          <span className="model-run-ready">Prompt ready ({prompt.length} chars)</span>
+        {resolved ? (
+          <span className="model-run-ready">
+            {resolved.source === 'print'
+              ? `From Results (${resolved.text.length} chars)`
+              : `Lesson default (${resolved.text.length} chars)`}
+          </span>
         ) : (
-          <span className="model-run-ready is-muted">Waiting for printed prompt</span>
+          <span className="model-run-ready is-muted">No prompt ready</span>
         )}
       </div>
       {note ? (

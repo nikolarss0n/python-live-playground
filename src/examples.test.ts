@@ -43,6 +43,13 @@ describe('lessons', () => {
     expect(api[0]?.id).toBe('api-request')
     expect(api.some((l) => l.id === 'api-auth')).toBe(true)
     expect(getLesson('ai-prompt-template').runWithModel).toBe(true)
+    const withModel = lessonsForDifficulty('ai').filter((l) => l.runWithModel)
+    expect(withModel.length).toBeGreaterThanOrEqual(6)
+    expect(
+      withModel.every(
+        (l) => (l.modelPromptFallback?.length ?? 0) > 10 || l.id === 'ai-prompt-template',
+      ),
+    ).toBe(true)
   })
 
   it('gives learners something to edit (blanks or a clear fix)', () => {
