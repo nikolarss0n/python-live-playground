@@ -11,6 +11,7 @@ import {
   firstLessonId,
   lessonsForDifficulty,
   DEFAULT_DIFFICULTY,
+  isDifficulty,
   type Difficulty,
 } from './examples'
 import { usePythonExecution } from './execution/usePythonExecution'
@@ -47,7 +48,7 @@ function preferredTheme(): ThemeMode {
 function preferredDifficulty(): Difficulty {
   if (typeof window === 'undefined') return DEFAULT_DIFFICULTY
   const stored = window.localStorage.getItem('plp-difficulty')
-  if (stored === 'beginner' || stored === 'intermediate') return stored
+  if (stored && isDifficulty(stored)) return stored
   return DEFAULT_DIFFICULTY
 }
 
@@ -375,6 +376,7 @@ export default function App() {
         view={lessonView}
         onRevealStuck={() => setStuckRevealed(true)}
         onSelectLesson={onSelectLesson}
+        code={code}
       />
 
       {showPredict && activeLesson.predict ? (

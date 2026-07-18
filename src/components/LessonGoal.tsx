@@ -3,6 +3,7 @@ import { lessonHeading, lessonsForDifficulty } from '../examples'
 import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
 import { CompareSnippet } from './CompareSnippet'
+import { PipelineStrip } from './PipelineStrip'
 
 type LessonGoalProps = {
   lesson: Lesson
@@ -10,6 +11,7 @@ type LessonGoalProps = {
   view: LessonProgressView
   onRevealStuck: () => void
   onSelectLesson: (id: string) => void
+  code: string
 }
 
 /**
@@ -22,6 +24,7 @@ export function LessonGoal({
   view,
   onRevealStuck,
   onSelectLesson,
+  code,
 }: LessonGoalProps) {
   const track = lessonsForDifficulty(lesson.difficulty)
 
@@ -56,6 +59,10 @@ export function LessonGoal({
         <strong className="lesson-goal-kicker">Goal</strong>{' '}
         <span className="lesson-goal-statement">{lesson.goal}</span>
       </p>
+
+      {lesson.pipeline && lesson.pipeline.length > 0 ? (
+        <PipelineStrip stages={lesson.pipeline} code={code} />
+      ) : null}
 
       {view.tasks.length > 0 && (
         <ol className="lesson-tasks">

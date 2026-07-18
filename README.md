@@ -72,6 +72,13 @@ Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 5. Dict loops · 6. Sets · 7. Tuples · 8. Function defaults · 9. Sorting  
 10. Try / except · 11. Classes · 12. Math & random · 13. JSON · 14. Capstone
 
+### AI foundations (8) — browser-local, no API keys
+
+1. Tokens · 2. Bag of words · 3. Vocabulary ids · 4. Dot product  
+5. Cosine similarity · 6. Prompt templates · 7. JSON contracts · 8. Mini pipeline
+
+Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (tokenize → count → decide, etc.). Still no chat sidebar or cloud models.
+
 Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
 
 ## Outside this MVP

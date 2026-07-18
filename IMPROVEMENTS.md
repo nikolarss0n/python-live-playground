@@ -33,7 +33,15 @@ Quiet, RunJS-like visual and interaction upgrades.
 - [x] **Share snapshot** (#20) — copy URL hash with lesson + code
 - [x] **Richer loop scrub** (#15+) — step buttons show print previews
 
+## AI foundations track (browser-local)
+
+- [x] **21** Token chips — list-of-strings results render as chips
+- [x] **23** Embedding-style labs — bag of words, vocab ids, dot product, cosine
+- [x] **24** JSON contract lesson — required keys validation
+- [x] **25** Pipeline strip — soft stages on AI lessons
+- [x] **22** Prompt templates — string composition (no external model API)
+
 ## Deferred (separate product decisions)
 
-- [ ] **21–24** AI Engineering labs (browser-local, no chat sidebar)
-- [ ] **26–29** FastAPI companion runner
+- [ ] **26–29** FastAPI companion runner (needs local process boundary)
+- [ ] Live LLM API sandbox (user-supplied key) — out of quiet MVP

@@ -138,6 +138,88 @@
   border-bottom: 1px solid var(--border-subtle);
 }
 
+/* AI pipeline ribbon */
+.pipeline-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.15rem;
+  margin: 0.15rem 0 0.1rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+
+.pipeline-stage {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  opacity: 0.55;
+}
+
+.pipeline-stage.is-active {
+  opacity: 0.9;
+  color: var(--text);
+}
+
+.pipeline-stage.is-current {
+  opacity: 1;
+  color: var(--accent-deep);
+  font-weight: 600;
+}
+
+.pipeline-stage-dot {
+  width: 0.35rem;
+  height: 0.35rem;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--muted) 50%, transparent);
+}
+
+.pipeline-stage.is-active .pipeline-stage-dot {
+  background: var(--accent);
+}
+
+.pipeline-stage-join {
+  margin: 0 0.15rem 0 0.05rem;
+  opacity: 0.5;
+}
+
+/* Token chips for list-of-strings results */
+.token-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0 0 0.35rem;
+}
+
+.token-chip {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  line-height: 1.3;
+  padding: 0.12rem 0.4rem;
+  border-radius: 0.35rem;
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface));
+  border: 1px solid color-mix(in srgb, var(--accent) 22%, var(--border-subtle));
+  color: var(--text);
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.token-chips-expr .token-chip {
+  background: color-mix(in srgb, var(--expr) 14%, var(--surface));
+  border-color: color-mix(in srgb, var(--expr) 28%, var(--border-subtle));
+}
+
+.token-chip.is-more {
+  opacity: 0.7;
+  border-style: dashed;
+}
+
+.difficulty-select {
+  max-width: 9.5rem;
+}
+
 .loop-trace-num {
   font-weight: 600;
   font-variant-numeric: tabular-nums;

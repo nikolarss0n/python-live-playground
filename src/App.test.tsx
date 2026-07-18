@@ -111,6 +111,19 @@ describe('App beginner flow', () => {
     )
   })
 
+  it('switches to AI foundations and shows a pipeline strip', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const difficulty = screen.getByLabelText(/choose difficulty/i)
+    await user.selectOptions(difficulty, 'ai')
+    expect(difficulty).toHaveValue('ai')
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+    expect(goal).toHaveTextContent(/AI foundations/i)
+    expect(goal).toHaveTextContent(/Tokens/i)
+    expect(screen.getByRole('list', { name: /pipeline stages/i })).toBeTruthy()
+    expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
+  })
+
   it('toggles theme', async () => {
     const user = userEvent.setup()
     render(<App />)

@@ -14,13 +14,15 @@ import {
 import { evaluateGoal } from './goalCheck'
 
 describe('lessons', () => {
-  it('has beginner and intermediate tracks with interactive fields', () => {
+  it('has beginner, intermediate, and AI tracks with interactive fields', () => {
     const beginner = lessonsForDifficulty('beginner')
     const intermediate = lessonsForDifficulty('intermediate')
+    const ai = lessonsForDifficulty('ai')
     expect(beginner.length).toBeGreaterThanOrEqual(14)
     expect(intermediate.length).toBeGreaterThanOrEqual(10)
+    expect(ai.length).toBeGreaterThanOrEqual(6)
 
-    for (const track of [beginner, intermediate]) {
+    for (const track of [beginner, intermediate, ai]) {
       track.forEach((lesson, index) => {
         expect(lesson.number).toBe(index + 1)
         expect(lesson.topic.length).toBeGreaterThan(0)
@@ -32,6 +34,9 @@ describe('lessons', () => {
         expect(lesson.goalCheck).toBeTruthy()
       })
     }
+
+    expect(ai[0]?.pipeline?.length).toBeGreaterThan(0)
+    expect(ai.every((l) => l.pipeline && l.pipeline.length > 0)).toBe(true)
   })
 
   it('gives learners something to edit (blanks or a clear fix)', () => {

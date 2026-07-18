@@ -3,7 +3,7 @@
  * No server, no account.
  */
 
-import type { Difficulty } from './examples'
+import { isDifficulty, type Difficulty } from './examples'
 
 export type SnapshotPayload = {
   v: 1
@@ -45,7 +45,7 @@ export function decodeSnapshot(hash: string): SnapshotPayload | null {
     if (typeof data.lessonId !== 'string' || typeof data.code !== 'string') {
       return null
     }
-    if (data.difficulty !== 'beginner' && data.difficulty !== 'intermediate') {
+    if (!isDifficulty(data.difficulty)) {
       return null
     }
     // Guard absurd payloads

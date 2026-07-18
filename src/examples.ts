@@ -7,7 +7,13 @@ import type { GoalCheck } from './goalCheck'
 export type { GoalCheck, GoalProgress } from './goalCheck'
 export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
 
-export type Difficulty = 'beginner' | 'intermediate'
+export type Difficulty = 'beginner' | 'intermediate' | 'ai'
+
+export const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'ai']
+
+export function isDifficulty(value: string): value is Difficulty {
+  return (DIFFICULTIES as string[]).includes(value)
+}
 
 /** Optional “predict then run” micro-quiz before the first run. */
 export type LessonPredict = {
@@ -44,6 +50,8 @@ export type Lesson = {
   stretch?: string
   /** Collapsible wrong vs fix teaching pair */
   compare?: LessonCompare
+  /** Soft pipeline stages for AI / multi-step labs */
+  pipeline?: string[]
 }
 
 type LessonDraft = Omit<Lesson, 'chapter' | 'stretch'> & {
@@ -58,9 +66,15 @@ function chapterFor(lesson: Pick<LessonDraft, 'difficulty' | 'number'>): string 
     if (lesson.number <= 11) return 'Collections & loops'
     return 'Functions & pitfalls'
   }
-  if (lesson.number <= 4) return 'Sequences'
-  if (lesson.number <= 8) return 'Structure'
-  return 'Patterns & libraries'
+  if (lesson.difficulty === 'intermediate') {
+    if (lesson.number <= 4) return 'Sequences'
+    if (lesson.number <= 8) return 'Structure'
+    return 'Patterns & libraries'
+  }
+  // AI foundations (browser-local, no API keys)
+  if (lesson.number <= 3) return 'Tokens & text'
+  if (lesson.number <= 6) return 'Vectors & similarity'
+  return 'Contracts & pipelines'
 }
 
 function stretchFor(lesson: Pick<LessonDraft, 'topic' | 'stretch'>): string {
@@ -89,6 +103,7 @@ export const DEFAULT_EXAMPLE_ID = DEFAULT_LESSON_ID
 export const DIFFICULTY_OPTIONS: { id: Difficulty; label: string }[] = [
   { id: 'beginner', label: 'Beginner' },
   { id: 'intermediate', label: 'Intermediate' },
+  { id: 'ai', label: 'AI foundations' },
 ]
 
 export function difficultyLabel(d: Difficulty): string {
@@ -1054,6 +1069,332 @@ top_students(students, limit=2)
       minExprs: 1,
     },
     stretch: 'Stretch: also return the scores next to each name as tuples.',
+  },
+
+  // ── AI foundations (browser-local, no API keys) ───────
+  {
+    id: 'ai-tokens',
+    difficulty: 'ai',
+    number: 1,
+    topic: 'Tokens',
+    goal: 'Split text into tokens and show the list of pieces.',
+    tasks: [
+      'Finish tokenize() so it splits on spaces',
+      'Print tokens for the sample sentence',
+    ],
+    code: `# AI 1 — Tokens
+# Goal: Split text into tokens and show the list of pieces.
+# Models read text as tokens — start with simple whitespace splits.
+
+def tokenize(text):
+    # Your turn: return a list of words
+    return ???
+
+sentence = "hello world from python"
+tokens = tokenize(sentence)
+print(tokens)
+len(tokens)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def tokenize', 'split'],
+      minNonEmptyPrints: 1,
+      minExprs: 1,
+    },
+    pipeline: ['text', 'tokenize', 'count'],
+    stretch: 'Stretch: also lowercase tokens before returning them.',
+    hints: ['Use text.split() to break on spaces.'],
+  },
+  {
+    id: 'ai-bag-of-words',
+    difficulty: 'ai',
+    number: 2,
+    topic: 'Bag of words',
+    goal: 'Count how often each token appears.',
+    tasks: [
+      'Fill counts for each token in the loop',
+      'Print the finished counts dict',
+    ],
+    code: `# AI 2 — Bag of words
+# Goal: Count how often each token appears.
+# This is a tiny "feature vector" models use for text.
+
+tokens = ["cat", "sat", "on", "the", "cat", "mat"]
+counts = {}
+
+for t in tokens:
+    counts[t] = counts.get(t, 0) + ???
+
+print(counts)
+counts["cat"]
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['counts.get', 'for t in'],
+      printsInclude: ['cat'],
+      minExprs: 1,
+    },
+    pipeline: ['tokens', 'count', 'vector'],
+    compare: {
+      note: 'Use .get(key, 0) so missing keys start at zero.',
+      wrong: 'counts[t] = counts[t] + 1  # KeyError on first sight',
+      fixed: 'counts[t] = counts.get(t, 0) + 1',
+    },
+  },
+  {
+    id: 'ai-vocab',
+    difficulty: 'ai',
+    number: 3,
+    topic: 'Vocabulary ids',
+    goal: 'Map each unique token to a small integer id.',
+    tasks: [
+      'Build vocab as token → index',
+      'Encode the sentence as a list of ids and print it',
+    ],
+    code: `# AI 3 — Vocabulary ids
+# Goal: Map each unique token to a small integer id.
+# Real tokenizers also map pieces of words to ids.
+
+tokens = ["the", "cat", "sat", "the", "mat"]
+vocab = {}
+next_id = 0
+for t in tokens:
+    if t not in vocab:
+        vocab[t] = ???
+        next_id += 1
+
+ids = [vocab[t] for t in tokens]
+print(vocab)
+print(ids)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['vocab', 'ids'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['tokens', 'vocab', 'encode'],
+  },
+  {
+    id: 'ai-dot-product',
+    difficulty: 'ai',
+    number: 4,
+    topic: 'Dot product',
+    goal: 'Write dot(a, b) for equal-length vectors and use it.',
+    tasks: [
+      'Implement the sum of a[i] * b[i]',
+      'Print the dot product of the two samples',
+    ],
+    code: `# AI 4 — Dot product
+# Goal: Write dot(a, b) for equal-length vectors and use it.
+# Similarity often starts with a simple sum of products.
+
+def dot(a, b):
+    total = 0
+    for i in range(len(a)):
+        total += ???
+    return total
+
+v1 = [1, 2, 3]
+v2 = [0, 1, 1]
+print(dot(v1, v2))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def dot'],
+      printPatterns: ['\\b5\\b'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['vectors', 'multiply', 'sum'],
+    hints: ['Inside the loop, add a[i] * b[i] to total.'],
+  },
+  {
+    id: 'ai-cosine',
+    difficulty: 'ai',
+    number: 5,
+    topic: 'Cosine similarity',
+    goal: 'Finish cosine(a, b) using dot and vector length.',
+    tasks: [
+      'Complete magnitude (length) of a vector',
+      'Return dot / (mag_a * mag_b) and print cosine for two vectors',
+    ],
+    code: `# AI 5 — Cosine similarity
+# Goal: Finish cosine(a, b) using dot and vector length.
+# Cosine is a common way to compare embeddings (here: tiny hand-made vectors).
+
+import math
+
+def dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+def magnitude(v):
+    return math.sqrt(sum(x * x for x in v))
+
+def cosine(a, b):
+    denom = magnitude(a) * magnitude(b)
+    if denom == 0:
+        return 0.0
+    return ???
+
+# "cat sat" vs "cat mat" as bag-of-words over [cat, sat, mat]
+a = [1, 1, 0]
+b = [1, 0, 1]
+print(round(cosine(a, b), 3))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def cosine', 'magnitude'],
+      codePatterns: ['dot\\s*\\(\\s*a\\s*,\\s*b\\s*\\)'],
+      printPatterns: ['0\\.5'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['embed', 'normalize', 'compare'],
+    stretch: 'Stretch: compare a third vector and print all pairwise scores.',
+  },
+  {
+    id: 'ai-prompt-template',
+    difficulty: 'ai',
+    number: 6,
+    topic: 'Prompt templates',
+    goal: 'Fill a prompt template with variables and print the final prompt.',
+    tasks: [
+      'Replace ??? in the f-string template',
+      'Print the filled prompt for the sample user',
+    ],
+    code: `# AI 6 — Prompt templates
+# Goal: Fill a prompt template with variables and print the final prompt.
+# Chat apps build prompts the same way — with strings, carefully.
+
+system = "You are a patient Python tutor."
+student = ???
+task = "explain lists"
+
+prompt = f"""{system}
+
+Student: {student}
+Task: {task}
+
+Answer in two short sentences."""
+print(prompt)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['prompt', 'print(prompt)', 'student'],
+      printPatterns: ['Ada|Grace|Alan', 'lists'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['system', 'user', 'prompt'],
+    hints: ['Set student to a string name in quotes, e.g. "Ada".'],
+    compare: {
+      note: 'Template variables must already be defined as Python names.',
+      wrong: 'prompt = f"Student: {???}"',
+      fixed: 'student = "Ada"\nprompt = f"Student: {student}"',
+    },
+  },
+  {
+    id: 'ai-json-contract',
+    difficulty: 'ai',
+    number: 7,
+    topic: 'JSON contracts',
+    goal: 'Validate a model-style JSON object has the required keys.',
+    tasks: [
+      'Finish required list and the missing-key check',
+      'Print ok True only when the payload is valid',
+    ],
+    code: `# AI 7 — JSON contracts
+# Goal: Validate a model-style JSON object has the required keys.
+# Structured output is a contract: check keys before you trust the answer.
+
+import json
+
+required = ["answer", "confidence"]
+
+raw = '{"answer": "list", "confidence": 0.9}'
+payload = json.loads(raw)
+
+missing = [key for key in required if key not in ???]
+ok = len(missing) == 0
+print({"ok": ok, "missing": missing, "payload": payload})
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['json.loads', 'required', 'missing'],
+      printPatterns: ['True'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['parse', 'validate', 'use'],
+    stretch: 'Stretch: also reject confidence outside 0..1.',
+  },
+  {
+    id: 'ai-pipeline',
+    difficulty: 'ai',
+    number: 8,
+    topic: 'Mini pipeline',
+    goal: 'Chain tokenize → counts → top token and print each stage.',
+    tasks: [
+      'Wire the three functions in order',
+      'Print tokens, counts, and the top token',
+    ],
+    code: `# AI 8 — Mini pipeline
+# Goal: Chain tokenize → counts → top token and print each stage.
+# AI apps are pipelines: clean text, featurize, then decide.
+
+def tokenize(text):
+    return text.lower().split()
+
+def count_tokens(tokens):
+    counts = {}
+    for t in tokens:
+        counts[t] = counts.get(t, 0) + 1
+    return counts
+
+def top_token(counts):
+    # Your turn: return the token with the highest count
+    return ???
+
+text = "to be or not to be"
+# pipeline stages
+tokens = tokenize(text)
+counts = count_tokens(???)
+winner = top_token(counts)
+
+print(tokens)
+print(counts)
+print(winner)
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['tokenize(', 'count_tokens(', 'top_token('],
+      minNonEmptyPrints: 3,
+      printPatterns: ['to'],
+    },
+    pipeline: ['tokenize', 'count', 'decide'],
+    hints: [
+      'max(counts, key=counts.get) returns the key with the largest value.',
+    ],
   },
 ]
 

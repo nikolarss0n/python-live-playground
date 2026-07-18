@@ -6,6 +6,7 @@ import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
 import { computeStackedTops } from './resultAlignment'
 import { CollectionTree } from './CollectionTree'
+import { looksLikeTokenList, TokenChips } from './TokenChips'
 
 type ResultsPanelProps = {
   events: ResultEvent[]
@@ -138,6 +139,9 @@ function EventRow({
         {lineSpan}
         {isCollectionRoot(event.structure) ? (
           <div className="result-collection">
+            {looksLikeTokenList(event.structure) ? (
+              <TokenChips node={event.structure} tone="print" />
+            ) : null}
             <CollectionTree node={event.structure} tone="print" />
           </div>
         ) : (
@@ -158,6 +162,9 @@ function EventRow({
         {lineSpan}
         {isCollectionRoot(event.structure) ? (
           <div className="result-collection">
+            {looksLikeTokenList(event.structure) ? (
+              <TokenChips node={event.structure} tone="expr" />
+            ) : null}
             <CollectionTree node={event.structure} tone="expr" />
           </div>
         ) : (
