@@ -17,11 +17,20 @@ export type LessonPredict = {
   correctIndex: number
 }
 
+/** Side-by-side wrong vs fixed snippet (collapsed by default). */
+export type LessonCompare = {
+  wrong: string
+  fixed: string
+  note?: string
+}
+
 export type Lesson = {
   id: string
   difficulty: Difficulty
   number: number
   topic: string
+  /** Book-style section for the lesson menu */
+  chapter: string
   goal: string
   /** Short interactive steps shown under the goal */
   tasks: string[]
@@ -31,6 +40,42 @@ export type Lesson = {
   hints?: string[]
   /** Quiet predict-then-run prompt (shown once per lesson visit) */
   predict?: LessonPredict
+  /** Optional stretch after the main goal */
+  stretch?: string
+  /** Collapsible wrong vs fix teaching pair */
+  compare?: LessonCompare
+}
+
+type LessonDraft = Omit<Lesson, 'chapter' | 'stretch'> & {
+  chapter?: string
+  stretch?: string
+}
+
+function chapterFor(lesson: Pick<LessonDraft, 'difficulty' | 'number'>): string {
+  if (lesson.difficulty === 'beginner') {
+    if (lesson.number <= 4) return 'Basics'
+    if (lesson.number <= 7) return 'Text & decisions'
+    if (lesson.number <= 11) return 'Collections & loops'
+    return 'Functions & pitfalls'
+  }
+  if (lesson.number <= 4) return 'Sequences'
+  if (lesson.number <= 8) return 'Structure'
+  return 'Patterns & libraries'
+}
+
+function stretchFor(lesson: Pick<LessonDraft, 'topic' | 'stretch'>): string {
+  return (
+    lesson.stretch ??
+    `Stretch: try one more small variation on “${lesson.topic}” once the goal works.`
+  )
+}
+
+function finalizeLesson(draft: LessonDraft): Lesson {
+  return {
+    ...draft,
+    chapter: draft.chapter ?? chapterFor(draft),
+    stretch: stretchFor(draft),
+  }
 }
 
 /** @deprecated use Lesson */
@@ -58,7 +103,7 @@ export function lessonHeading(lesson: Lesson): string {
   return `${difficultyLabel(lesson.difficulty)} · ${lessonLabel(lesson)}`
 }
 
-export const LESSONS: Lesson[] = [
+const LESSON_DRAFTS: LessonDraft[] = [
   // ── Beginner ──────────────────────────────────────────
   {
     id: 'printing',
@@ -91,6 +136,12 @@ print(???)
       prompt: 'What will the first line print before you change it?',
       choices: ['Hello, world!', '???', 'Nothing'],
       correctIndex: 0,
+    },
+    stretch: 'Stretch: print a third line with today’s mood in quotes.',
+    compare: {
+      note: 'print needs parentheses and quotes around text.',
+      wrong: 'print Hello',
+      fixed: 'print("Hello")',
     },
   },
   {
@@ -452,6 +503,12 @@ a / b
       codePatterns: ['b\\s*=\\s*(?!0\\b)\\d+'],
       minExprs: 1,
     },
+    compare: {
+      note: 'Division by zero is illegal — change the divisor.',
+      wrong: 'a = 10\nb = 0\na / b',
+      fixed: 'a = 10\nb = 2\na / b',
+    },
+    stretch: 'Stretch: also print a clear message when the math works.',
   },
   {
     id: 'python-for',
@@ -479,6 +536,11 @@ for(i = 0; i < 10; i++):
       codeForbiddenPatterns: ['for\\s*\\(', 'i\\+\\+'],
       minNonEmptyPrints: 5,
     },
+    compare: {
+      note: 'Python uses for name in range(...): — not C-style headers.',
+      wrong: 'for(i = 0; i < 10; i++):\n    print(i)',
+      fixed: 'for i in range(10):\n    print(i)',
+    },
   },
   {
     id: 'infinite',
@@ -505,6 +567,11 @@ while True:
       codeForbiddenPatterns: ['while\\s+True'],
       codeIncludes: ['while'],
       minNonEmptyPrints: 1,
+    },
+    compare: {
+      note: 'A loop needs a condition that eventually becomes false.',
+      wrong: 'while True:\n    pass',
+      fixed: 'n = 0\nwhile n < 3:\n    print(n)\n    n = n + 1',
     },
   },
   {
@@ -986,14 +1053,37 @@ top_students(students, limit=2)
       codePatterns: ['reverse\\s*=\\s*True'],
       minExprs: 1,
     },
+    stretch: 'Stretch: also return the scores next to each name as tuples.',
   },
 ]
+
+export const LESSONS: Lesson[] = LESSON_DRAFTS.map(finalizeLesson)
 
 /** @deprecated use LESSONS */
 export const EXAMPLES = LESSONS
 
 export function lessonsForDifficulty(difficulty: Difficulty): Lesson[] {
   return LESSONS.filter((l) => l.difficulty === difficulty)
+}
+
+/** Lessons grouped by chapter for the toolbar menu. */
+export function lessonsByChapter(
+  difficulty: Difficulty,
+): { chapter: string; lessons: Lesson[] }[] {
+  const track = lessonsForDifficulty(difficulty)
+  const order: string[] = []
+  const map = new Map<string, Lesson[]>()
+  for (const lesson of track) {
+    if (!map.has(lesson.chapter)) {
+      map.set(lesson.chapter, [])
+      order.push(lesson.chapter)
+    }
+    map.get(lesson.chapter)!.push(lesson)
+  }
+  return order.map((chapter) => ({
+    chapter,
+    lessons: map.get(chapter)!,
+  }))
 }
 
 export function getLesson(id: string): Lesson {

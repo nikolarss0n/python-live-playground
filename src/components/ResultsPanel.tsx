@@ -1,8 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import type { EditorView } from '@codemirror/view'
 import type { ExecutionStatus, ResultEvent } from '../execution/protocol'
 import { explainError } from '../execution/errorExplain'
 import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
+import { computeStackedTops } from './resultAlignment'
 import { CollectionTree } from './CollectionTree'
 
 type ResultsPanelProps = {
@@ -15,6 +17,17 @@ type ResultsPanelProps = {
   onGeometryChange?: () => void
   /** First-run coaching until the learner has seen success once. */
   showCoaching?: boolean
+  /** Align rows beside source lines (wide layout). */
+  editorView?: EditorView | null
+  geometryKey?: number
+  align?: boolean
+  /** Previous run — faded ghost + baseline for “updated” marks. */
+  previousEvents?: ResultEvent[] | null
+  /** Indices that differ from the previous run. */
+  updatedIndices?: ReadonlySet<number>
+  /** Show previous-run ghost layer. */
+  showPrevious?: boolean
+  onTogglePrevious?: () => void
 }
 
 /** Only surface states that need attention — skip success/ready noise. */
@@ -66,6 +79,8 @@ function EventRow({
   onHover,
   onLayout,
   dimmed,
+  updated,
+  ghost,
 }: {
   event: ResultEvent
   index: number
@@ -73,44 +88,54 @@ function EventRow({
   onHover?: (index: number | null) => void
   onLayout?: () => void
   dimmed?: boolean
+  updated?: boolean
+  ghost?: boolean
 }) {
   const [showTrace, setShowTrace] = useState(false)
   const [showExample, setShowExample] = useState(false)
-  // Error lessons: open the teaching card by default (still calm, optional hide).
-  const [showExplain, setShowExplain] = useState(event.kind === 'error')
-  const linked = event.line != null && event.line > 0
+  const [showExplain, setShowExplain] = useState(
+    event.kind === 'error' && !ghost,
+  )
+  const linked = !ghost && event.line != null && event.line > 0
   const className = [
     'result-row',
     `result-${event.kind === 'error' ? 'error' : event.kind}`,
     linked ? 'is-linked' : '',
     active ? 'is-active' : '',
     dimmed ? 'is-dimmed' : '',
+    updated ? 'is-updated' : '',
+    ghost ? 'is-ghost' : '',
   ]
     .filter(Boolean)
     .join(' ')
 
   useEffect(() => {
-    onLayout?.()
-  }, [showExplain, showTrace, showExample, onLayout])
+    if (!ghost) onLayout?.()
+  }, [showExplain, showTrace, showExample, onLayout, ghost])
 
-  const hoverProps = linked
-    ? {
-        onMouseEnter: () => onHover?.(index),
-        onMouseLeave: () => onHover?.(null),
-      }
-    : {}
+  const hoverProps =
+    linked && onHover
+      ? {
+          onMouseEnter: () => onHover(index),
+          onMouseLeave: () => onHover(null),
+        }
+      : {}
+
+  const lineSpan = (
+    <span className="result-line" aria-hidden="true">
+      {event.line ?? ''}
+    </span>
+  )
 
   if (event.kind === 'print') {
     return (
       <div
         className={className}
-        data-result-index={index}
+        data-result-index={ghost ? undefined : index}
         data-source-line={event.line ?? undefined}
         {...hoverProps}
       >
-        <span className="result-line" aria-hidden="true">
-          {event.line ?? ''}
-        </span>
+        {lineSpan}
         {isCollectionRoot(event.structure) ? (
           <div className="result-collection">
             <CollectionTree node={event.structure} tone="print" />
@@ -126,13 +151,11 @@ function EventRow({
     return (
       <div
         className={className}
-        data-result-index={index}
+        data-result-index={ghost ? undefined : index}
         data-source-line={event.line}
         {...hoverProps}
       >
-        <span className="result-line" aria-hidden="true">
-          {event.line}
-        </span>
+        {lineSpan}
         {isCollectionRoot(event.structure) ? (
           <div className="result-collection">
             <CollectionTree node={event.structure} tone="expr" />
@@ -148,13 +171,11 @@ function EventRow({
     return (
       <div
         className={className}
-        data-result-index={index}
+        data-result-index={ghost ? undefined : index}
         data-source-line={event.line ?? undefined}
         {...hoverProps}
       >
-        <span className="result-line" aria-hidden="true">
-          {event.line ?? ''}
-        </span>
+        {lineSpan}
         <PlainValue text={event.text} tone="warning" />
       </div>
     )
@@ -164,6 +185,15 @@ function EventRow({
   const rawMessage =
     event.message || `${explanation.name}: ${explanation.detail}`
 
+  if (ghost) {
+    return (
+      <div className={className}>
+        {lineSpan}
+        <pre className="result-text">{rawMessage}</pre>
+      </div>
+    )
+  }
+
   return (
     <div
       className={`${className} result-error-card`}
@@ -171,9 +201,7 @@ function EventRow({
       data-source-line={event.line ?? undefined}
       {...hoverProps}
     >
-      <span className="result-line" aria-hidden="true">
-        {event.line ?? ''}
-      </span>
+      {lineSpan}
       <div className="result-error-body">
         <div className={`error-card${showExplain ? ' is-expanded' : ''}`}>
           <pre className="error-card-raw" data-error-anchor>
@@ -183,7 +211,6 @@ function EventRow({
             <p className="error-card-meta">line {event.line}</p>
           )}
 
-          {/* Always-visible tip strip — expand for full lesson. */}
           <p className="error-card-tip-inline">
             <span className="error-card-tip-label">What to fix</span>
             {explanation.tip}
@@ -247,7 +274,6 @@ function EventRow({
   )
 }
 
-/** Group of print steps that look like a loop (3+ prints). */
 function useLoopTrace(events: ResultEvent[]) {
   return useMemo(() => {
     const prints = events
@@ -266,6 +292,13 @@ export function ResultsPanel({
   onHoverResult,
   onGeometryChange,
   showCoaching = false,
+  editorView = null,
+  geometryKey = 0,
+  align = false,
+  previousEvents = null,
+  updatedIndices,
+  showPrevious = false,
+  onTogglePrevious,
 }: ResultsPanelProps) {
   const bodyRef = useRef<HTMLDivElement>(null)
   const empty =
@@ -276,7 +309,6 @@ export function ResultsPanel({
   const showStatus = label != null
   const showDuration =
     durationMs != null && status !== 'running' && status !== 'booting'
-  const showHeader = showStatus || showDuration
 
   const loopTrace = useLoopTrace(events)
   const [step, setStep] = useState<number | 'all'>('all')
@@ -294,13 +326,76 @@ export function ResultsPanel({
     return () => ro.disconnect()
   }, [onGeometryChange])
 
+  // Align each result row with the source line that produced it (wide only).
+  useLayoutEffect(() => {
+    const body = bodyRef.current
+    if (!body) return
+
+    const rows = () =>
+      Array.from(body.querySelectorAll<HTMLElement>('[data-result-index]'))
+
+    if (!align || !editorView) {
+      for (const row of rows()) row.style.marginTop = ''
+      return
+    }
+
+    const applyAlignment = () => {
+      const measured = rows()
+      if (measured.length !== events.length) return
+      for (const row of measured) row.style.marginTop = ''
+
+      const bodyRect = body.getBoundingClientRect()
+      const targets = events.map((event) => {
+        if (event.line == null || event.line < 1) return null
+        try {
+          const line = editorView.state.doc.line(event.line)
+          const coords = editorView.coordsAtPos(line.from)
+          if (!coords) return null
+          return coords.top - bodyRect.top + body.scrollTop
+        } catch {
+          return null
+        }
+      })
+      const naturalTops = measured.map(
+        (row) =>
+          row.getBoundingClientRect().top - bodyRect.top + body.scrollTop,
+      )
+      const heights = measured.map((row) => row.getBoundingClientRect().height)
+      const stacked = computeStackedTops(targets, heights, 2)
+      measured.forEach((row, i) => {
+        const naturalGap =
+          i === 0 ? naturalTops[0] : naturalTops[i] - naturalTops[i - 1]
+        const desiredGap = i === 0 ? stacked[0] : stacked[i] - stacked[i - 1]
+        const margin = Math.max(0, desiredGap - naturalGap)
+        const next = margin > 0.5 ? `${margin.toFixed(1)}px` : ''
+        if (row.style.marginTop !== next) row.style.marginTop = next
+      })
+    }
+
+    const raf = requestAnimationFrame(applyAlignment)
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            requestAnimationFrame(applyAlignment)
+          })
+        : null
+    ro?.observe(body)
+    return () => {
+      cancelAnimationFrame(raf)
+      ro?.disconnect()
+    }
+  }, [align, editorView, events, geometryKey])
+
   const focusIndex =
     step === 'all' || !loopTrace ? null : (loopTrace[step]?.index ?? null)
 
+  const hasPrevious = (previousEvents?.length ?? 0) > 0
+
   return (
     <section className="results-panel" aria-label="Results" aria-live="polite">
-      {showHeader && (
-        <header className="results-header">
+      <header className="pane-label results-head">
+        <span>Results</span>
+        <span className="results-status">
           {showStatus && (
             <>
               <span
@@ -313,8 +408,19 @@ export function ResultsPanel({
           {showDuration && (
             <span className="status-meta">{durationMs} ms</span>
           )}
-        </header>
-      )}
+          {hasPrevious && onTogglePrevious && (
+            <button
+              type="button"
+              className={`linkish results-prev-toggle${showPrevious ? ' is-on' : ''}`}
+              onClick={onTogglePrevious}
+              aria-pressed={showPrevious}
+              title="Show previous run as a faint ghost"
+            >
+              {showPrevious ? 'Hide previous' : 'Previous'}
+            </button>
+          )}
+        </span>
+      </header>
 
       {loopTrace && (
         <div className="loop-trace" role="group" aria-label="Loop steps">
@@ -326,21 +432,34 @@ export function ResultsPanel({
           >
             All
           </button>
-          {loopTrace.map((_, i) => (
-            <button
-              key={i}
-              type="button"
-              className={`loop-trace-btn${step === i ? ' is-active' : ''}`}
-              onClick={() => setStep(i)}
-              aria-label={`Step ${i + 1}`}
-            >
-              {i + 1}
-            </button>
-          ))}
+          {loopTrace.map(({ e }, i) => {
+            const preview =
+              e.kind === 'print'
+                ? e.text.trim().slice(0, 14) || `·${i + 1}`
+                : `${i + 1}`
+            const label =
+              preview.length >= 14 ? `${preview.slice(0, 13)}…` : preview
+            return (
+              <button
+                key={i}
+                type="button"
+                className={`loop-trace-btn${step === i ? ' is-active' : ''}`}
+                onClick={() => setStep(i)}
+                aria-label={`Step ${i + 1}: ${e.kind === 'print' ? e.text : ''}`}
+                title={e.kind === 'print' ? e.text : `Step ${i + 1}`}
+              >
+                <span className="loop-trace-num">{i + 1}</span>
+                <span className="loop-trace-preview">{label}</span>
+              </button>
+            )
+          })}
         </div>
       )}
 
-      <div className="results-body" ref={bodyRef}>
+      <div
+        className={`results-body${align && editorView ? ' is-aligned' : ''}`}
+        ref={bodyRef}
+      >
         {empty && (
           <p className="results-placeholder">
             {status === 'booting'
@@ -351,15 +470,35 @@ export function ResultsPanel({
           </p>
         )}
 
+        {showPrevious &&
+          previousEvents?.map((event, index) => (
+            <EventRow
+              key={`ghost-${event.kind}-${index}-${event.line ?? 0}`}
+              event={event}
+              index={index}
+              active={false}
+              ghost
+            />
+          ))}
+
         {events.map((event, index) => (
           <EventRow
-            key={`${event.kind}-${index}-${event.line ?? 0}`}
+            key={`${event.kind}-${index}-${event.line ?? 0}-${
+              event.kind === 'print'
+                ? event.text
+                : event.kind === 'expr'
+                  ? event.value
+                  : event.kind === 'error'
+                    ? event.message
+                    : event.text
+            }`}
             event={event}
             index={index}
             active={activeIndex === index}
             onHover={onHoverResult}
             onLayout={onGeometryChange}
             dimmed={focusIndex != null && index !== focusIndex}
+            updated={updatedIndices?.has(index)}
           />
         ))}
       </div>

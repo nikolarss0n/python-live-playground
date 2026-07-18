@@ -21,6 +21,12 @@ import {
   buildLessonProgress,
   isIncompleteAttempt,
 } from './lessonProgress'
+import { updatedEventIndices } from './resultDiff'
+import type { ResultEvent } from './execution/protocol'
+import {
+  copyShareUrl,
+  readSnapshotFromLocation,
+} from './shareSnapshot'
 import './App.css'
 
 type ThemeMode = 'light' | 'dark'
@@ -59,28 +65,60 @@ function useWideLayout(minWidth = 801): boolean {
   return wide
 }
 
+function initialFromShare(): {
+  difficulty: Difficulty
+  lessonId: string
+  code: string
+  predictDone: boolean
+} {
+  const snap = typeof window !== 'undefined' ? readSnapshotFromLocation() : null
+  if (snap) {
+    const lesson = getLesson(snap.lessonId)
+    const difficulty =
+      snap.difficulty === lesson.difficulty ? snap.difficulty : lesson.difficulty
+    return {
+      difficulty,
+      lessonId: lesson.id,
+      code: snap.code,
+      predictDone: true,
+    }
+  }
+  const difficulty = preferredDifficulty()
+  const lessonId = firstLessonId(difficulty)
+  return {
+    difficulty,
+    lessonId,
+    code: getLesson(lessonId).code,
+    predictDone: false,
+  }
+}
+
 export default function App() {
+  const boot = useMemo(() => initialFromShare(), [])
   const [theme, setTheme] = useState<ThemeMode>(preferredTheme)
-  const [difficulty, setDifficulty] = useState<Difficulty>(preferredDifficulty)
-  const [lessonId, setLessonId] = useState(() =>
-    firstLessonId(preferredDifficulty()),
-  )
-  const [code, setCode] = useState(
-    () => getLesson(firstLessonId(preferredDifficulty())).code,
-  )
+  const [difficulty, setDifficulty] = useState<Difficulty>(boot.difficulty)
+  const [lessonId, setLessonId] = useState(boot.lessonId)
+  const [code, setCode] = useState(boot.code)
   const [editorView, setEditorView] = useState<EditorView | null>(null)
   const [geometryKey, setGeometryKey] = useState(0)
   const [activeResult, setActiveResult] = useState<number | null>(null)
   const [stuckRevealed, setStuckRevealed] = useState(false)
   const [incompleteRuns, setIncompleteRuns] = useState(0)
-  const [predictDone, setPredictDone] = useState(false)
+  const [predictDone, setPredictDone] = useState(boot.predictDone)
   const [showHelp, setShowHelp] = useState(false)
+  const [showPrevious, setShowPrevious] = useState(false)
+  const [previousEvents, setPreviousEvents] = useState<ResultEvent[] | null>(
+    null,
+  )
+  const [shareNote, setShareNote] = useState<string | null>(null)
+  const [shareBusy, setShareBusy] = useState(false)
   const [seenSuccess, setSeenSuccess] = useState(() => {
     if (typeof window === 'undefined') return false
     return window.localStorage.getItem(COACH_KEY) === '1'
   })
   const workspaceRef = useRef<HTMLElement>(null)
   const lastRunId = useRef<string | null>(null)
+  const prevEventsRef = useRef<ResultEvent[]>([])
   const isWide = useWideLayout()
 
   const { snapshot, runNow, stop, isBooting, isRunning } =
@@ -117,6 +155,9 @@ export default function App() {
     setStuckRevealed(false)
     setIncompleteRuns(0)
     setPredictDone(false)
+    setPreviousEvents(null)
+    setShowPrevious(false)
+    prevEventsRef.current = []
   }, [])
 
   const onSelectDifficulty = useCallback((d: Difficulty) => {
@@ -128,6 +169,9 @@ export default function App() {
     setStuckRevealed(false)
     setIncompleteRuns(0)
     setPredictDone(false)
+    setPreviousEvents(null)
+    setShowPrevious(false)
+    prevEventsRef.current = []
   }, [])
 
   const activeLesson = useMemo(() => getLesson(lessonId), [lessonId])
@@ -174,7 +218,7 @@ export default function App() {
     ],
   )
 
-  // Pulse lines + incomplete-run counter + first-success coaching.
+  // Pulse lines + incomplete-run counter + previous-run memory + coaching.
   useEffect(() => {
     if (!snapshot.runId || snapshot.runId === lastRunId.current) return
     if (
@@ -185,6 +229,12 @@ export default function App() {
       return
     }
     lastRunId.current = snapshot.runId
+
+    // Keep prior finished stream for ghost / diff (skip first run).
+    if (prevEventsRef.current.length > 0) {
+      setPreviousEvents(prevEventsRef.current)
+    }
+    prevEventsRef.current = snapshot.events
 
     const lines = linesFromEvents(snapshot.events)
     if (lines.length) pulseSourceLines(editorView, lines)
@@ -205,6 +255,11 @@ export default function App() {
     goalProgress,
     seenSuccess,
   ])
+
+  const updatedIndices = useMemo(
+    () => updatedEventIndices(snapshot.events, previousEvents),
+    [snapshot.events, previousEvents],
+  )
 
   // Keyboard: Run / Stop / help
   useEffect(() => {
@@ -243,6 +298,25 @@ export default function App() {
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
+
+  const onShare = useCallback(async () => {
+    setShareBusy(true)
+    try {
+      await copyShareUrl({
+        v: 1,
+        lessonId,
+        difficulty,
+        code,
+      })
+      setShareNote('Link copied — lesson and code are in the URL.')
+      window.setTimeout(() => setShareNote(null), 2800)
+    } catch {
+      setShareNote('Could not copy — try again.')
+      window.setTimeout(() => setShareNote(null), 2800)
+    } finally {
+      setShareBusy(false)
+    }
+  }, [lessonId, difficulty, code])
 
   const onGeometryChange = useCallback(() => {
     setGeometryKey((k) => k + 1)
@@ -285,7 +359,15 @@ export default function App() {
         isBooting={isBooting}
         theme={theme}
         onToggleTheme={toggleTheme}
+        onShare={() => void onShare()}
+        shareBusy={shareBusy}
       />
+
+      {shareNote ? (
+        <p className="share-toast" role="status">
+          {shareNote}
+        </p>
+      ) : null}
 
       <LessonGoal
         lesson={activeLesson}
@@ -322,7 +404,6 @@ export default function App() {
         <div className="split" aria-hidden="true" />
 
         <div className="pane pane-results">
-          <div className="pane-label">Results</div>
           <ResultsPanel
             events={snapshot.events}
             status={snapshot.status}
@@ -331,6 +412,13 @@ export default function App() {
             onHoverResult={setActiveResult}
             onGeometryChange={onGeometryChange}
             showCoaching={!seenSuccess}
+            editorView={editorView}
+            geometryKey={geometryKey}
+            align={isWide}
+            previousEvents={previousEvents}
+            updatedIndices={updatedIndices}
+            showPrevious={showPrevious}
+            onTogglePrevious={() => setShowPrevious((v) => !v)}
           />
         </div>
 

@@ -19,8 +19,21 @@ Quiet, RunJS-like visual and interaction upgrades.
 - [x] **15. Loop step scrubber** — when 3+ prints, focus one step at a time
 - [x] **18. Lesson map** — path dots in the goal strip
 
+## Visual polish (in progress / next)
+
+- [x] **Line-aligned results** — rows stack beside source lines (wide layout)
+- [x] **Single Results header** — one row for label + status + time + Previous
+- [x] **Thin scrollbars / density** — quieter chrome
+- [x] **Diff-aware re-run** — soft underline on changed outputs
+- [x] **Previous-run ghost** — toggle faint prior results
+- [x] **Active-line only when focused**
+- [x] **Wrong vs fix in-code** (#14) — collapsible wrong/fixed pairs on repair labs
+- [x] **Stretch challenge strip** (#17) — quiet stretch under every goal
+- [x] **Book-style chapters** (#19) — optgroup menu + chapter label
+- [x] **Share snapshot** (#20) — copy URL hash with lesson + code
+- [x] **Richer loop scrub** (#15+) — step buttons show print previews
+
 ## Deferred (separate product decisions)
 
 - [ ] **21–24** AI Engineering labs (browser-local, no chat sidebar)
 - [ ] **26–29** FastAPI companion runner
-- [ ] **4, 9, 14, 17, 19, 20** Diff-aware output, run compare, wrong-vs-fix panel, stretch challenges, chapters, share links

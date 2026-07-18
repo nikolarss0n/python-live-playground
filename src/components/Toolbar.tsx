@@ -1,5 +1,5 @@
 import type { Difficulty, Lesson } from '../examples'
-import { DIFFICULTY_OPTIONS, lessonLabel } from '../examples'
+import { DIFFICULTY_OPTIONS, lessonLabel, lessonsByChapter } from '../examples'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -15,6 +15,8 @@ type ToolbarProps = {
   isBooting: boolean
   theme: ThemeMode
   onToggleTheme: () => void
+  onShare?: () => void
+  shareBusy?: boolean
 }
 
 export function Toolbar({
@@ -29,7 +31,13 @@ export function Toolbar({
   isBooting,
   theme,
   onToggleTheme,
+  onShare,
+  shareBusy,
 }: ToolbarProps) {
+  const chapters = lessonsByChapter(difficulty)
+  // Keep select valid if lessons prop is a flat list
+  void lessons
+
   return (
     <header className="toolbar">
       <div className="toolbar-brand">
@@ -67,10 +75,14 @@ export function Toolbar({
             onChange={(e) => onSelectLesson(e.target.value)}
             aria-label="Choose a lesson"
           >
-            {lessons.map((lesson) => (
-              <option key={lesson.id} value={lesson.id}>
-                {lessonLabel(lesson)}
-              </option>
+            {chapters.map((group) => (
+              <optgroup key={group.chapter} label={group.chapter}>
+                {group.lessons.map((lesson) => (
+                  <option key={lesson.id} value={lesson.id}>
+                    {lessonLabel(lesson)}
+                  </option>
+                ))}
+              </optgroup>
             ))}
           </select>
         </label>
@@ -94,6 +106,18 @@ export function Toolbar({
         >
           Stop
         </button>
+
+        {onShare && (
+          <button
+            type="button"
+            className="btn btn-ghost"
+            onClick={onShare}
+            disabled={shareBusy}
+            title="Copy a link with this lesson and your code"
+          >
+            Share
+          </button>
+        )}
 
         <button
           type="button"

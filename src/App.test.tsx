@@ -89,6 +89,14 @@ describe('App beginner flow', () => {
     ).toBeInTheDocument()
   })
 
+  it('exposes share and chapter context on the first lesson', () => {
+    render(<App />)
+    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+    expect(goal).toHaveTextContent(/Basics/i)
+    expect(goal).toHaveTextContent(/Stretch/i)
+  })
+
   it('switches difficulty to intermediate and loads its first lesson', async () => {
     const user = userEvent.setup()
     render(<App />)

@@ -46,7 +46,7 @@ npm run preview
 
 ## What this MVP includes
 
-- Two-pane layout: Python editor + live results (hover path ribbons + var chips)
+- Two-pane layout: Python editor + live results aligned beside source lines (wide), hover path ribbons + var chips
 - Automatic execution after a short typing pause, plus **Run** and **Stop**
 - Captured `print()` output, top-level expression values, and expandable collections
 - Quiet type chips (`int`, `str`, `list`, …) and soft goal / task progress
@@ -72,7 +72,7 @@ Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 5. Dict loops · 6. Sets · 7. Tuples · 8. Function defaults · 9. Sorting  
 10. Try / except · 11. Classes · 12. Math & random · 13. JSON · 14. Capstone
 
-Switch difficulty and lesson from the toolbar. Each lesson has a goal strip, soft tasks, and starter code with something left to finish.
+Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
 
 ## Outside this MVP
 

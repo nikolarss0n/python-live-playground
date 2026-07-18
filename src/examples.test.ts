@@ -5,6 +5,7 @@ import {
   lessonLabel,
   lessonHeading,
   lessonsForDifficulty,
+  lessonsByChapter,
   firstLessonId,
   BLANK,
   DEFAULT_LESSON_ID,
@@ -23,6 +24,8 @@ describe('lessons', () => {
       track.forEach((lesson, index) => {
         expect(lesson.number).toBe(index + 1)
         expect(lesson.topic.length).toBeGreaterThan(0)
+        expect(lesson.chapter.length).toBeGreaterThan(0)
+        expect(lesson.stretch?.length).toBeGreaterThan(0)
         expect(lesson.goal.length).toBeGreaterThan(10)
         expect(lesson.tasks.length).toBeGreaterThan(0)
         expect(lesson.code.length).toBeGreaterThan(0)
@@ -47,6 +50,20 @@ describe('lessons', () => {
     expect(lessonLabel(first)).toMatch(/^Lesson \d+ · /)
     expect(lessonHeading(first)).toMatch(/^Beginner · Lesson /)
     expect(firstLessonId(DEFAULT_DIFFICULTY)).toBe(DEFAULT_LESSON_ID)
+  })
+
+  it('groups lessons into chapters for the menu', () => {
+    const groups = lessonsByChapter('beginner')
+    expect(groups.length).toBeGreaterThanOrEqual(3)
+    expect(groups[0]?.chapter).toBe('Basics')
+    const ids = groups.flatMap((g) => g.lessons.map((l) => l.id))
+    expect(ids).toContain('printing')
+    expect(ids).toContain('capstone')
+  })
+
+  it('includes compare pairs on repair labs', () => {
+    expect(getLesson('errors').compare?.fixed).toContain('b = 2')
+    expect(getLesson('python-for').compare?.fixed).toContain('range')
   })
 
   it('does not mark goals complete on stale runs or unfinished blanks', () => {

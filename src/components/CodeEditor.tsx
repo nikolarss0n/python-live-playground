@@ -111,6 +111,9 @@ function buildTheme(mode: ThemeMode) {
       },
       '.cm-activeLineGutter': {
         backgroundColor: 'transparent',
+        color: isDark ? '#5C5852' : '#B0A99E',
+      },
+      '&.cm-focused .cm-activeLineGutter': {
         color: isDark ? '#A8A29E' : '#6B6560',
       },
       '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {

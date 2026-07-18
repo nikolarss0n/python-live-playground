@@ -2,6 +2,7 @@ import type { Lesson } from '../examples'
 import { lessonHeading, lessonsForDifficulty } from '../examples'
 import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
+import { CompareSnippet } from './CompareSnippet'
 
 type LessonGoalProps = {
   lesson: Lesson
@@ -13,7 +14,7 @@ type LessonGoalProps = {
 
 /**
  * Goal strip: goal, soft task checks, lesson map, Next + optional stuck hint.
- * No green “Done” badge.
+ * Stretch + wrong/fix stay quiet under the main goal.
  */
 export function LessonGoal({
   lesson,
@@ -27,7 +28,10 @@ export function LessonGoal({
   return (
     <div className="lesson-goal" role="region" aria-label="Lesson goal">
       <div className="lesson-goal-main">
-        <span className="lesson-goal-label">{lessonHeading(lesson)}</span>
+        <div className="lesson-goal-titles">
+          <span className="lesson-goal-chapter">{lesson.chapter}</span>
+          <span className="lesson-goal-label">{lessonHeading(lesson)}</span>
+        </div>
         <nav className="lesson-map" aria-label="Lesson path">
           {track.map((l) => {
             const current = l.id === lesson.id
@@ -38,7 +42,7 @@ export function LessonGoal({
                 className={`lesson-map-dot${current ? ' is-current' : ''}${
                   l.number < lesson.number ? ' is-past' : ''
                 }`}
-                title={lessonHeading(l)}
+                title={`${l.chapter} · ${lessonHeading(l)}`}
                 aria-label={`Lesson ${l.number}: ${l.topic}`}
                 aria-current={current ? 'step' : undefined}
                 onClick={() => onSelectLesson(l.id)}
@@ -95,6 +99,22 @@ export function LessonGoal({
           <span>{view.extraHint}</span>
         </p>
       ) : null}
+
+      {lesson.stretch ? (
+        <p
+          className={`lesson-stretch${progress.met ? ' is-ready' : ''}`}
+          title={
+            progress.met
+              ? 'Main goal met — try the stretch when you like'
+              : 'Optional after you finish the goal'
+          }
+        >
+          <strong className="lesson-goal-kicker">Stretch</strong>{' '}
+          <span>{lesson.stretch}</span>
+        </p>
+      ) : null}
+
+      {lesson.compare ? <CompareSnippet compare={lesson.compare} /> : null}
     </div>
   )
 }
