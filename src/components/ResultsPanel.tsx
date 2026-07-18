@@ -7,6 +7,11 @@ import { inferTypeLabel } from '../valueType'
 import { computeStackedTops } from './resultAlignment'
 import { CollectionTree } from './CollectionTree'
 import { looksLikeTokenList, TokenChips } from './TokenChips'
+import { HttpResponseCard } from './HttpResponseCard'
+import {
+  httpResponseFromStructure,
+  httpResponseFromText,
+} from '../httpResponse'
 
 type ResultsPanelProps = {
   events: ResultEvent[]
@@ -129,6 +134,9 @@ function EventRow({
   )
 
   if (event.kind === 'print') {
+    const http =
+      httpResponseFromStructure(event.structure) ??
+      httpResponseFromText(event.text)
     return (
       <div
         className={className}
@@ -137,7 +145,14 @@ function EventRow({
         {...hoverProps}
       >
         {lineSpan}
-        {isCollectionRoot(event.structure) ? (
+        {http ? (
+          <div className="result-collection">
+            <HttpResponseCard view={http} />
+            {isCollectionRoot(event.structure) ? (
+              <CollectionTree node={event.structure} tone="print" />
+            ) : null}
+          </div>
+        ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
             {looksLikeTokenList(event.structure) ? (
               <TokenChips node={event.structure} tone="print" />
@@ -152,6 +167,9 @@ function EventRow({
   }
 
   if (event.kind === 'expr') {
+    const http =
+      httpResponseFromStructure(event.structure) ??
+      httpResponseFromText(event.value)
     return (
       <div
         className={className}
@@ -160,7 +178,14 @@ function EventRow({
         {...hoverProps}
       >
         {lineSpan}
-        {isCollectionRoot(event.structure) ? (
+        {http ? (
+          <div className="result-collection">
+            <HttpResponseCard view={http} />
+            {isCollectionRoot(event.structure) ? (
+              <CollectionTree node={event.structure} tone="expr" />
+            ) : null}
+          </div>
+        ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
             {looksLikeTokenList(event.structure) ? (
               <TokenChips node={event.structure} tone="expr" />

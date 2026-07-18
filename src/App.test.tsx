@@ -124,6 +124,18 @@ describe('App beginner flow', () => {
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
   })
 
+  it('switches to Web APIs and loads the request lesson', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const difficulty = screen.getByLabelText(/choose difficulty/i)
+    await user.selectOptions(difficulty, 'api')
+    expect(difficulty).toHaveValue('api')
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+    expect(goal).toHaveTextContent(/Web APIs/i)
+    expect(goal).toHaveTextContent(/Request/i)
+    expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('api-request')
+  })
+
   it('toggles theme', async () => {
     const user = userEvent.setup()
     render(<App />)

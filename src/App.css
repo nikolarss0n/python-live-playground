@@ -220,6 +220,91 @@
   max-width: 9.5rem;
 }
 
+/* HTTP response cards (Web APIs track) */
+.http-card {
+  border-radius: 0.45rem;
+  border: 1px solid var(--border-subtle);
+  padding: 0.4rem 0.55rem 0.45rem;
+  margin: 0 0 0.35rem;
+  background: color-mix(in srgb, var(--surface) 90%, var(--bg));
+  max-width: 28rem;
+}
+
+.http-card-ok {
+  border-color: color-mix(in srgb, var(--ok) 35%, var(--border-subtle));
+}
+
+.http-card-client {
+  border-color: color-mix(in srgb, var(--warn) 40%, var(--border-subtle));
+}
+
+.http-card-server {
+  border-color: color-mix(in srgb, var(--danger) 40%, var(--border-subtle));
+}
+
+.http-card-status {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  margin-bottom: 0.25rem;
+}
+
+.http-card-code {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: 0.95rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+}
+
+.http-card-ok .http-card-code {
+  color: var(--ok);
+}
+
+.http-card-client .http-card-code {
+  color: var(--warn);
+}
+
+.http-card-server .http-card-code {
+  color: var(--danger);
+}
+
+.http-card-label {
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.http-card-body {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text);
+}
+
+.http-card-headers {
+  margin: 0.3rem 0 0;
+  font-size: 0.72rem;
+  color: var(--muted);
+  font-family: var(--font-mono);
+  word-break: break-word;
+}
+
+.http-card-headers-label {
+  display: block;
+  font-family: var(--font-ui);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  margin-bottom: 0.1rem;
+}
+
 .loop-trace-num {
   font-weight: 600;
   font-variant-numeric: tabular-nums;

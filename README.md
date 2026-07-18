@@ -79,6 +79,13 @@ Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 
 Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (tokenize → count → decide, etc.). Still no chat sidebar or cloud models.
 
+### Web APIs (8) — FastAPI-shaped thinking, still in-browser
+
+1. Request dict · 2. Response dict · 3. Status codes · 4. Routing  
+5. Query params · 6. JSON body · 7. Middleware · 8. Mini app
+
+No real HTTP server: you model requests/responses as Python dicts. Results shaped like `{"status": 200, "body": ...}` render as quiet **HTTP cards** (status + body).
+
 Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
 
 ## Outside this MVP

@@ -7,9 +7,14 @@ import type { GoalCheck } from './goalCheck'
 export type { GoalCheck, GoalProgress } from './goalCheck'
 export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
 
-export type Difficulty = 'beginner' | 'intermediate' | 'ai'
+export type Difficulty = 'beginner' | 'intermediate' | 'ai' | 'api'
 
-export const DIFFICULTIES: Difficulty[] = ['beginner', 'intermediate', 'ai']
+export const DIFFICULTIES: Difficulty[] = [
+  'beginner',
+  'intermediate',
+  'ai',
+  'api',
+]
 
 export function isDifficulty(value: string): value is Difficulty {
   return (DIFFICULTIES as string[]).includes(value)
@@ -71,10 +76,15 @@ function chapterFor(lesson: Pick<LessonDraft, 'difficulty' | 'number'>): string 
     if (lesson.number <= 8) return 'Structure'
     return 'Patterns & libraries'
   }
-  // AI foundations (browser-local, no API keys)
-  if (lesson.number <= 3) return 'Tokens & text'
-  if (lesson.number <= 6) return 'Vectors & similarity'
-  return 'Contracts & pipelines'
+  if (lesson.difficulty === 'ai') {
+    if (lesson.number <= 3) return 'Tokens & text'
+    if (lesson.number <= 6) return 'Vectors & similarity'
+    return 'Contracts & pipelines'
+  }
+  // Web APIs — FastAPI-shaped thinking, still in-browser (no real server)
+  if (lesson.number <= 3) return 'HTTP basics'
+  if (lesson.number <= 6) return 'Routing & bodies'
+  return 'Middleware & apps'
 }
 
 function stretchFor(lesson: Pick<LessonDraft, 'topic' | 'stretch'>): string {
@@ -104,6 +114,7 @@ export const DIFFICULTY_OPTIONS: { id: Difficulty; label: string }[] = [
   { id: 'beginner', label: 'Beginner' },
   { id: 'intermediate', label: 'Intermediate' },
   { id: 'ai', label: 'AI foundations' },
+  { id: 'api', label: 'Web APIs' },
 ]
 
 export function difficultyLabel(d: Difficulty): string {
@@ -1395,6 +1406,320 @@ print(winner)
     hints: [
       'max(counts, key=counts.get) returns the key with the largest value.',
     ],
+  },
+
+  // ── Web APIs (browser-local FastAPI mental model, no real server) ──
+  {
+    id: 'api-request',
+    difficulty: 'api',
+    number: 1,
+    topic: 'Request dict',
+    goal: 'Build a request dict and print method + path.',
+    tasks: [
+      'Fill method and path on the request',
+      'Print both fields',
+    ],
+    code: `# API 1 — Request dict
+# Goal: Build a request dict and print method + path.
+# Frameworks like FastAPI turn HTTP into structured data you handle in Python.
+
+request = {
+    "method": ???,
+    "path": "/hello",
+    "headers": {"accept": "application/json"},
+    "query": {},
+    "body": None,
+}
+
+print(request["method"])
+print(request["path"])
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['"method"', '"path"'],
+      printPatterns: ['GET|POST|PUT|DELETE', '/hello'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['receive', 'parse', 'handle'],
+    hints: ['Use the string "GET" for a read request.'],
+  },
+  {
+    id: 'api-response',
+    difficulty: 'api',
+    number: 2,
+    topic: 'Response dict',
+    goal: 'Return a response with status and JSON body.',
+    tasks: [
+      'Set status to 200 and a message in body',
+      'Print the whole response dict',
+    ],
+    code: `# API 2 — Response dict
+# Goal: Return a response with status and JSON body.
+# Print a dict shaped like {"status": 200, "body": {...}} to see an HTTP card.
+
+def ok(message):
+    return {
+        "status": ???,
+        "headers": {"content-type": "application/json"},
+        "body": {"message": message},
+    }
+
+print(ok("hello from the browser"))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['"status"', '"body"'],
+      printPatterns: ['200', 'hello'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['handle', 'status', 'body'],
+    stretch: 'Stretch: add a 404 helper that returns status 404.',
+  },
+  {
+    id: 'api-status',
+    difficulty: 'api',
+    number: 3,
+    topic: 'Status codes',
+    goal: 'Choose 200 or 404 based on whether an item exists.',
+    tasks: [
+      'Return 200 + item when found, else 404',
+      'Print both found and missing cases',
+    ],
+    code: `# API 3 — Status codes
+# Goal: Choose 200 or 404 based on whether an item exists.
+# Status codes are part of the contract with API clients.
+
+items = {"1": {"name": "Ada"}, "2": {"name": "Grace"}}
+
+def get_item(item_id):
+    if item_id in items:
+        return {"status": 200, "body": items[item_id]}
+    return {"status": ???, "body": {"error": "not found"}}
+
+print(get_item("1"))
+print(get_item("99"))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      printPatterns: ['200', '404'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['lookup', 'branch', 'respond'],
+    compare: {
+      note: 'Missing resources usually answer 404, not 200 with empty data.',
+      wrong: 'return {"status": 200, "body": None}',
+      fixed: 'return {"status": 404, "body": {"error": "not found"}}',
+    },
+  },
+  {
+    id: 'api-routing',
+    difficulty: 'api',
+    number: 4,
+    topic: 'Routing',
+    goal: 'Route /health and /hello to different handlers.',
+    tasks: [
+      'Finish the if/elif path checks',
+      'Print responses for both paths',
+    ],
+    code: `# API 4 — Routing
+# Goal: Route /health and /hello to different handlers.
+# FastAPI maps paths to functions; here we do it with plain if/elif.
+
+def handle(request):
+    path = request["path"]
+    if path == "/health":
+        return {"status": 200, "body": {"ok": True}}
+    if path == ???:
+        return {"status": 200, "body": {"message": "hi"}}
+    return {"status": 404, "body": {"error": "no route"}}
+
+print(handle({"method": "GET", "path": "/health"}))
+print(handle({"method": "GET", "path": "/hello"}))
+print(handle({"method": "GET", "path": "/missing"}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def handle', 'path'],
+      printPatterns: ['True', 'hi', '404'],
+      minNonEmptyPrints: 3,
+    },
+    pipeline: ['match', 'handler', 'respond'],
+  },
+  {
+    id: 'api-query',
+    difficulty: 'api',
+    number: 5,
+    topic: 'Query params',
+    goal: 'Read a name from query params with a default.',
+    tasks: [
+      'Pull name from request["query"] with .get',
+      'Return a greeting in the body',
+    ],
+    code: `# API 5 — Query params
+# Goal: Read a name from query params with a default.
+# /greet?name=Ada → query dict {"name": "Ada"}
+
+def greet(request):
+    name = request["query"].get(???, "world")
+    return {
+        "status": 200,
+        "body": {"message": f"Hello, {name}!"},
+    }
+
+print(greet({"method": "GET", "path": "/greet", "query": {"name": "Ada"}}))
+print(greet({"method": "GET", "path": "/greet", "query": {}}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['.get(', 'query'],
+      printPatterns: ['Ada', 'world'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['parse', 'query', 'respond'],
+    hints: ['Use "name" as the query key.'],
+  },
+  {
+    id: 'api-json-body',
+    difficulty: 'api',
+    number: 6,
+    topic: 'JSON body',
+    goal: 'Accept a POST body and echo a created resource.',
+    tasks: [
+      'Reject non-POST with 405',
+      'Return 201 with the posted name',
+    ],
+    code: `# API 6 — JSON body
+# Goal: Accept a POST body and echo a created resource.
+# POST bodies are often JSON objects — validate before trusting them.
+
+def create_user(request):
+    if request["method"] != "POST":
+        return {"status": ???, "body": {"error": "method not allowed"}}
+    body = request.get("body") or {}
+    name = body.get("name")
+    if not name:
+        return {"status": 400, "body": {"error": "name required"}}
+    return {"status": 201, "body": {"id": 1, "name": name}}
+
+print(create_user({"method": "GET", "path": "/users", "body": None}))
+print(create_user({"method": "POST", "path": "/users", "body": {"name": "Ada"}}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      printPatterns: ['405', '201', 'Ada'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['method', 'validate', 'create'],
+    stretch: 'Stretch: also reject names shorter than 2 characters with 400.',
+  },
+  {
+    id: 'api-middleware',
+    difficulty: 'api',
+    number: 7,
+    topic: 'Middleware',
+    goal: 'Wrap a handler to add an X-Request-Id header on every response.',
+    tasks: [
+      'Call the inner handler',
+      'Add headers["x-request-id"] before returning',
+    ],
+    code: `# API 7 — Middleware
+# Goal: Wrap a handler to add an X-Request-Id header on every response.
+# FastAPI middleware runs before/after your route — here a simple wrapper.
+
+def with_request_id(handler):
+    def wrapped(request):
+        response = ???
+        headers = dict(response.get("headers") or {})
+        headers["x-request-id"] = "req-1"
+        response = {**response, "headers": headers}
+        return response
+    return wrapped
+
+def hello(_request):
+    return {"status": 200, "body": {"message": "hi"}, "headers": {}}
+
+app = with_request_id(hello)
+print(app({"method": "GET", "path": "/"}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['handler(', 'x-request-id'],
+      printPatterns: ['req-1', 'hi'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['before', 'handler', 'after'],
+    hints: ['Call handler(request) to get the inner response.'],
+  },
+  {
+    id: 'api-mini-app',
+    difficulty: 'api',
+    number: 8,
+    topic: 'Mini app',
+    goal: 'Wire a tiny app() that routes health and items by id.',
+    tasks: [
+      'Route /health and /items/... inside app',
+      'Print three sample requests',
+    ],
+    code: `# API 8 — Mini app
+# Goal: Wire a tiny app() that routes health and items by id.
+# This is the FastAPI mental model without a real network.
+
+DB = {"a1": {"title": "Notebook"}}
+
+def app(request):
+    method = request["method"]
+    path = request["path"]
+    if method == "GET" and path == "/health":
+        return {"status": 200, "body": {"ok": True}}
+    if method == "GET" and path.startswith("/items/"):
+        item_id = path.split("/")[-1]
+        item = DB.get(item_id)
+        if item:
+            return {"status": 200, "body": item}
+        return {"status": 404, "body": {"error": "missing"}}
+    return {"status": ???, "body": {"error": "no route"}}
+
+print(app({"method": "GET", "path": "/health"}))
+print(app({"method": "GET", "path": "/items/a1"}))
+print(app({"method": "GET", "path": "/items/nope"}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def app', '/health', '/items/'],
+      printPatterns: ['True', 'Notebook', '404'],
+      minNonEmptyPrints: 3,
+    },
+    pipeline: ['route', 'lookup', 'respond'],
+    stretch: 'Stretch: add POST /items that stores a new title in DB.',
+    compare: {
+      note: 'Unknown routes should not pretend to succeed.',
+      wrong: 'return {"status": 200, "body": {}}',
+      fixed: 'return {"status": 404, "body": {"error": "no route"}}',
+    },
   },
 ]
 

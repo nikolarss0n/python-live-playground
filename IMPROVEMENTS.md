@@ -41,7 +41,15 @@ Quiet, RunJS-like visual and interaction upgrades.
 - [x] **25** Pipeline strip — soft stages on AI lessons
 - [x] **22** Prompt templates — string composition (no external model API)
 
+## Web APIs track (browser-local FastAPI mental model)
+
+- [x] **26** Request/response dicts & status codes
+- [x] **27** Routing, query, JSON body lessons
+- [x] **28** HTTP response cards in Results (status + body)
+- [x] **29** Middleware wrapper + mini app
+- [ ] Real FastAPI companion process (optional later — needs local server)
+
 ## Deferred (separate product decisions)
 
-- [ ] **26–29** FastAPI companion runner (needs local process boundary)
 - [ ] Live LLM API sandbox (user-supplied key) — out of quiet MVP
+- [ ] Real network FastAPI/uvicorn runner
