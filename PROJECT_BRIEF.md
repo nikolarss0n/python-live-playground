@@ -29,7 +29,7 @@ A complete programming beginner learning Python from a guided study book.
 Build a responsive single-page application with:
 
 - A refined two-pane layout: Python editor on the left, live results on the right.
-- Automatic execution after a short debounce, plus visible Run and Stop controls.
+- Automatic execution after a short debounce, plus keyboard Run (`⌘/Ctrl+Enter`) and Stop (`Esc`).
 - Captured `print()` output, warnings, exceptions, and the value of top-level expressions.
 - Output associated with source lines when practical, similar to RunJS.
 - Clear states for loading Python, running, success, timeout, and error.

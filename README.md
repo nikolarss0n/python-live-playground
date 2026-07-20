@@ -52,7 +52,7 @@ npm run preview
 - Quiet type chips (`int`, `str`, `list`, …) and soft goal / task progress
 - Friendly error cards with always-visible “what to fix” + optional full explanation
 - Soft loop timeout + hard Stop that terminates and recreates the worker
-- Beginner + intermediate **lessons** (goals, `???` blanks, Next / stuck hints)
+- 61 guided **lessons** across Python, AI foundations, and Web APIs (goals, why-it-matters context, `???` blanks, step-by-step task instructions, Next / stuck hints)
 - Light and dark themes, keyboard shortcuts (`⌘/Ctrl+Enter`, `Esc`, `?`)
 - Responsive layout for desktop and narrow widths
 
@@ -66,18 +66,23 @@ Learning polish roadmap: [IMPROVEMENTS.md](./IMPROVEMENTS.md).
 7. If decisions · 8. Lists · 9. For loops · 10. While loops · 11. Dictionaries  
 12. Functions · 13. Reading errors · 14. Python for-loops · 15. Infinite loops · 16. Capstone
 
-### Intermediate (14)
+### Intermediate (20)
 
-1. Enumerate & zip · 2. Nested loops · 3. List methods · 4. Comprehensions  
-5. Dict loops · 6. Sets · 7. Tuples · 8. Function defaults · 9. Sorting  
+1. Enumerate & zip · 2. Nested loops · 3. List methods · 4. Comprehensions
+5. Dict loops · 6. Sets · 7. Tuples · 8. Function defaults · 9. Sorting
 10. Try / except · 11. Classes · 12. Math & random · 13. JSON · 14. Capstone
+15. Counter & defaultdict · 16. Generators · 17. Priority queues
+18. Dataclasses · 19. Decorators & cache · 20. Context managers
 
-### AI foundations (8) — browser-local, no API keys
+### AI foundations (16) — browser-local, no API keys
 
-1. Tokens · 2. Bag of words · 3. Vocabulary ids · 4. Dot product  
+1. Tokens · 2. Bag of words · 3. Vocabulary ids · 4. Dot product
 5. Cosine similarity · 6. Prompt templates · 7. JSON contracts · 8. Mini pipeline
+9. Softmax & temperature · 10. Train, validation & test · 11. Precision, recall & F1
+12. Next-token generation · 13. Attention & causal masks · 14. Retrieval & top-k
+15. Evals & regressions · 16. Safe tool calls
 
-Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (tokenize → count → decide, etc.). Still no chat sidebar or cloud models.
+The expanded topics draw from the companion study book’s Python engineering, ML fundamentals, LLM internals, RAG, evals, and agent-safety chapters. Token lists show as quiet chips; AI lessons include a soft pipeline ribbon (tokenize → count → decide, etc.). Still no chat sidebar or cloud models.
 
 ### Web APIs (9) — FastAPI-shaped thinking, still in-browser
 
@@ -109,7 +114,7 @@ pip install -r requirements.txt && npm run companion
 
 Also: **Import OpenAPI**, optional API key / LLM in **Settings** (localStorage only).
 
-Switch difficulty and lesson from the toolbar (grouped by chapter). Each lesson has a goal strip, soft tasks, optional stretch, and starter code with something left to finish. **Share** copies a URL that restores the lesson and your code (no account).
+Switch difficulty and lesson from the toolbar (grouped by chapter), or step with **Prev** / **Next**. Each lesson has a detailed goal strip with a short “why it matters” plus lesson-specific “How” and “Then” instructions. The current step is emphasized, the next step stays quieter, and completed guidance disappears. Each lesson also includes an optional stretch and starter code with something left to finish. Code auto-runs as you type; use `⌘/Ctrl+Enter` to run now and `Esc` to stop loops.
 
 ## Outside this MVP
 
@@ -128,7 +133,8 @@ Product direction lives in [PROJECT_BRIEF.md](./PROJECT_BRIEF.md).
 | `src/execution/python.worker.ts` | Loads Pyodide, instruments AST, runs code off the UI thread |
 | `src/execution/PythonRunner.ts` | Main-thread worker lifecycle, debounce/timeout/Stop |
 | `src/execution/protocol.ts` | Typed messages between UI and worker |
-| `src/examples.ts` | Beginner + intermediate lessons, goals, checks |
+| `src/examples.ts` | Python, AI, and Web API lessons, context, goals, checks |
+| `src/lessonInstructions.ts` | Actionable instructions for each lesson task |
 | `src/components/*` | Editor, results, lesson goal, toolbar |
 
 Stop and timeout always `terminate()` the worker and spawn a fresh one so infinite loops cannot freeze the page.

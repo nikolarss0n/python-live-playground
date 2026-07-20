@@ -2,8 +2,8 @@
 
 .app-shell {
   min-height: 100dvh;
-  display: grid;
-  grid-template-rows: auto auto 1fr auto;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
   color: var(--text);
 }
@@ -47,6 +47,25 @@
   line-height: 1.4;
   color: var(--text);
   max-width: 36rem;
+}
+
+.lesson-goal-why {
+  display: grid;
+  gap: 0.18rem;
+  margin: 0.45rem 0 0;
+  max-width: 38rem;
+  font-size: 0.78rem;
+  line-height: 1.42;
+  color: var(--muted);
+}
+
+.lesson-goal-why-label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 80%, var(--accent));
 }
 
 .lesson-goal-pipeline {
@@ -109,14 +128,6 @@
   border-top: 1px solid var(--border-subtle);
 }
 
-.lesson-goal-footer {
-  display: flex;
-  align-items: center;
-  margin-top: 0.7rem;
-  padding-top: 0.5rem;
-  border-top: 1px solid var(--border-subtle);
-}
-
 /* Tasks column */
 .lesson-tasks {
   margin: 0;
@@ -141,6 +152,10 @@
   color: color-mix(in srgb, var(--muted) 70%, var(--ok));
 }
 
+.lesson-task.is-current {
+  color: var(--text);
+}
+
 .lesson-task-mark {
   font-size: 0.75em;
   color: var(--gutter);
@@ -152,46 +167,45 @@
   color: var(--ok);
 }
 
+.lesson-task.is-current .lesson-task-mark {
+  color: var(--accent-deep);
+}
+
+.lesson-task-copy {
+  display: grid;
+  gap: 0.22rem;
+  min-width: 0;
+}
+
 .lesson-task-text {
   min-width: 0;
 }
 
-/* Lesson path dots */
-.lesson-map {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.28rem;
+.lesson-task.is-current .lesson-task-text {
+  font-weight: 600;
 }
 
-.lesson-map-dot {
-  width: 0.42rem;
-  height: 0.42rem;
-  padding: 0;
-  border: none;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--muted) 32%, transparent);
-  cursor: pointer;
-  transition: transform 120ms ease, background 120ms ease;
+.lesson-task-instruction {
+  display: grid;
+  gap: 0.12rem;
+  max-width: 34rem;
+  font-size: 0.74rem;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--muted);
 }
 
-.lesson-map-dot.is-past {
-  background: color-mix(in srgb, var(--accent) 45%, var(--muted));
+.lesson-task-instruction-label {
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  line-height: 1.15;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--muted) 72%, var(--accent));
 }
 
-.lesson-map-dot.is-current {
-  background: var(--accent);
-  transform: scale(1.35);
-  box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 22%, transparent);
-}
-
-.lesson-map-dot:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.lesson-map-dot:hover {
-  background: var(--accent-deep);
+.lesson-task:not(.is-current) .lesson-task-instruction {
+  opacity: 0.72;
 }
 
 /* Wrong vs fix */
@@ -898,6 +912,21 @@
   max-width: 14rem;
 }
 
+.lesson-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.15rem;
+  padding-left: 0.45rem;
+  border-left: 1px solid var(--border-subtle);
+}
+
+.lesson-nav-btn {
+  padding: 0.4rem 0.65rem;
+  min-width: 2.75rem;
+  font-size: 0.8rem;
+}
+
 /* ── Toolbar ─────────────────────────────────────────── */
 
 .toolbar {
@@ -1087,6 +1116,7 @@
   position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1fr) 1px minmax(0, 1fr);
+  flex: 1 1 0;
   min-height: 0;
   overflow: hidden;
 }
@@ -1605,8 +1635,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .cm-run-pulse-line,
-  .lesson-map-dot {
+  .cm-run-pulse-line {
     transition: none;
   }
 }

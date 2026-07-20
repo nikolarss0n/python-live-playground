@@ -12,6 +12,10 @@ const lesson: Lesson = {
     'Change the first print so it greets you by name',
     'Fill in the second print (replace ???)',
   ],
+  taskInstructions: [
+    'Edit the first print call.',
+    'Replace the blank with quoted text.',
+  ],
   code: 'print("Hello")\nprint(???)',
 }
 
@@ -26,6 +30,9 @@ describe('buildLessonProgress', () => {
       { stuckRevealed: false, incompleteRunCount: 0 },
     )
     expect(view.tasks[1]?.status).toBe('done')
+    expect(view.tasks[1]?.instruction).toBe(
+      'Replace the blank with quoted text.',
+    )
     expect(view.next).toBe('Run your code')
   })
 

@@ -63,8 +63,15 @@ describe('App beginner flow', () => {
     const results = screen.getByRole('region', { name: /results/i })
     expect(results).toHaveTextContent('Hello, world!')
     expect(results).toHaveTextContent('4')
-    expect(screen.getByRole('button', { name: /run/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /stop/i })).toBeInTheDocument()
+    expect(
+      screen.getByRole('group', { name: /lesson navigation/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /previous lesson/i }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: /next lesson/i }),
+    ).toBeInTheDocument()
   })
 
   it('loads another lesson from the menu and shows its goal and tasks', async () => {
@@ -72,10 +79,14 @@ describe('App beginner flow', () => {
     render(<App />)
     const goal = screen.getByRole('region', { name: /lesson goal/i })
     expect(goal).toHaveTextContent(/Make Python show two messages/i)
+    expect(goal).toHaveTextContent(/Why it matters/i)
+    expect(goal).toHaveTextContent(/fastest way to inspect/i)
     expect(goal.querySelector('.lesson-tasks')).toBeTruthy()
+    expect(goal.querySelectorAll('.lesson-task-instruction')).toHaveLength(2)
+    expect(goal).toHaveTextContent(/Edit the text inside the first print/i)
+    expect(goal).toHaveTextContent(/Replace \?\?\? in the second print/i)
     expect(goal.querySelector('.lesson-goal-statement')).toBeTruthy()
     expect(goal.querySelector('.lesson-goal-grid')).toBeTruthy()
-    expect(screen.getByRole('navigation', { name: /lesson path/i })).toBeTruthy()
     // Chapter + full heading live in the toolbar brand cluster
     expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
       /Lesson 1 · Printing/i,
@@ -89,6 +100,31 @@ describe('App beginner flow', () => {
     )
   })
 
+  it('moves between lessons with Prev and Next', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+    const select = screen.getByLabelText(/choose a lesson/i)
+    expect(select).toHaveValue('printing')
+
+    const prev = screen.getByRole('button', { name: /previous lesson/i })
+    const next = screen.getByRole('button', { name: /next lesson/i })
+    // First lesson: Prev disabled, Next enabled
+    expect(prev).toBeDisabled()
+    expect(next).toBeEnabled()
+
+    await user.click(next)
+    expect(select).not.toHaveValue('printing')
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Lesson 2/i,
+    )
+
+    expect(
+      screen.getByRole('button', { name: /previous lesson/i }),
+    ).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /previous lesson/i }))
+    expect(select).toHaveValue('printing')
+  })
+
   it('shows a predict prompt on the first lesson', () => {
     render(<App />)
     expect(
@@ -96,10 +132,9 @@ describe('App beginner flow', () => {
     ).toBeInTheDocument()
   })
 
-  it('exposes share, settings, and chapter context on the first lesson', async () => {
+  it('exposes settings and chapter context on the first lesson', async () => {
     const user = userEvent.setup()
     render(<App />)
-    expect(screen.getByRole('button', { name: /share/i })).toBeInTheDocument()
     expect(
       screen.getByRole('button', { name: /open settings/i }),
     ).toBeInTheDocument()
@@ -138,6 +173,30 @@ describe('App beginner flow', () => {
     )
     expect(screen.getByRole('list', { name: /pipeline stages/i })).toBeTruthy()
     expect(screen.getByLabelText(/choose a lesson/i)).toHaveValue('ai-tokens')
+  })
+
+  it('opens the expanded Python and AI study-book topics', async () => {
+    const user = userEvent.setup()
+    render(<App />)
+
+    const difficulty = screen.getByLabelText(/choose difficulty/i)
+    const lesson = screen.getByLabelText(/choose a lesson/i)
+    const goal = screen.getByRole('region', { name: /lesson goal/i })
+
+    await user.selectOptions(difficulty, 'intermediate')
+    await user.selectOptions(lesson, 'mid-generators')
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Idiomatic Python.*Lesson 16.*Generators/i,
+    )
+    expect(goal).toHaveTextContent(/Yield even squares lazily/i)
+    expect(goal).toHaveTextContent(/memory nearly flat/i)
+
+    await user.selectOptions(difficulty, 'ai')
+    await user.selectOptions(lesson, 'ai-retrieval')
+    expect(screen.getByLabelText(/current lesson/i)).toHaveTextContent(
+      /Retrieval & agents.*Lesson 14.*Retrieval & top-k/i,
+    )
+    expect(goal).toHaveTextContent(/abstain when evidence is weak/i)
   })
 
   it('shows Run with model on AI lessons that support it', async () => {
@@ -190,4 +249,3 @@ describe('App beginner flow', () => {
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 })
-

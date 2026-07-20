@@ -19,10 +19,10 @@ describe('lessons', () => {
     const intermediate = lessonsForDifficulty('intermediate')
     const ai = lessonsForDifficulty('ai')
     const api = lessonsForDifficulty('api')
-    expect(beginner.length).toBeGreaterThanOrEqual(14)
-    expect(intermediate.length).toBeGreaterThanOrEqual(10)
-    expect(ai.length).toBeGreaterThanOrEqual(6)
-    expect(api.length).toBeGreaterThanOrEqual(8)
+    expect(beginner).toHaveLength(16)
+    expect(intermediate).toHaveLength(20)
+    expect(ai).toHaveLength(16)
+    expect(api).toHaveLength(9)
 
     for (const track of [beginner, intermediate, ai, api]) {
       track.forEach((lesson, index) => {
@@ -31,7 +31,9 @@ describe('lessons', () => {
         expect(lesson.chapter.length).toBeGreaterThan(0)
         expect(lesson.stretch?.length).toBeGreaterThan(0)
         expect(lesson.goal.length).toBeGreaterThan(10)
+        expect(lesson.why?.length).toBeGreaterThan(30)
         expect(lesson.tasks.length).toBeGreaterThan(0)
+        expect(lesson.taskInstructions).toHaveLength(lesson.tasks.length)
         expect(lesson.code.length).toBeGreaterThan(0)
         expect(lesson.goalCheck).toBeTruthy()
       })
@@ -42,6 +44,11 @@ describe('lessons', () => {
     expect(api.every((l) => l.pipeline && l.pipeline.length > 0)).toBe(true)
     expect(api[0]?.id).toBe('api-request')
     expect(api.some((l) => l.id === 'api-auth')).toBe(true)
+    expect(intermediate.some((l) => l.id === 'mid-generators')).toBe(true)
+    expect(intermediate.some((l) => l.id === 'mid-context-managers')).toBe(true)
+    expect(ai.some((l) => l.id === 'ai-softmax')).toBe(true)
+    expect(ai.some((l) => l.id === 'ai-retrieval')).toBe(true)
+    expect(ai.some((l) => l.id === 'ai-safe-tools')).toBe(true)
     expect(getLesson('ai-prompt-template').runWithModel).toBe(true)
     const withModel = lessonsForDifficulty('ai').filter((l) => l.runWithModel)
     expect(withModel.length).toBeGreaterThanOrEqual(6)
@@ -83,6 +90,17 @@ describe('lessons', () => {
     const ids = groups.flatMap((g) => g.lessons.map((l) => l.id))
     expect(ids).toContain('printing')
     expect(ids).toContain('capstone')
+
+    expect(lessonsByChapter('intermediate').map((g) => g.chapter)).toContain(
+      'Idiomatic Python',
+    )
+    expect(lessonsByChapter('ai').map((g) => g.chapter)).toContain(
+      'Retrieval & agents',
+    )
+  })
+
+  it('keeps every lesson id unique', () => {
+    expect(new Set(LESSONS.map((lesson) => lesson.id)).size).toBe(LESSONS.length)
   })
 
   it('includes compare pairs on repair labs', () => {

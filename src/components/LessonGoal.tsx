@@ -1,5 +1,4 @@
 import type { Lesson } from '../examples'
-import { lessonsForDifficulty } from '../examples'
 import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
 import { CompareSnippet } from './CompareSnippet'
@@ -10,7 +9,6 @@ type LessonGoalProps = {
   progress: GoalProgress
   view: LessonProgressView
   onRevealStuck: () => void
-  onSelectLesson: (id: string) => void
   code: string
 }
 
@@ -28,15 +26,16 @@ export function LessonGoal({
   progress,
   view,
   onRevealStuck,
-  onSelectLesson,
   code,
 }: LessonGoalProps) {
-  const track = lessonsForDifficulty(lesson.difficulty)
   const stretchText = lesson.stretch ? stretchBody(lesson.stretch) : ''
   const nextExtra =
     progress.missing.length > 1 && !view.extraHint
       ? ` (+${progress.missing.length - 1} more)`
       : ''
+  const currentTaskIndex = view.tasks.findIndex(
+    (task) => task.status === 'todo',
+  )
 
   return (
     <div className="lesson-goal" role="region" aria-label="Lesson goal">
@@ -44,6 +43,12 @@ export function LessonGoal({
         <section className="lesson-goal-col lesson-goal-col-goal">
           <h2 className="lesson-goal-col-label">Goal</h2>
           <p className="lesson-goal-statement">{lesson.goal}</p>
+          {lesson.why ? (
+            <p className="lesson-goal-why">
+              <span className="lesson-goal-why-label">Why it matters</span>
+              <span>{lesson.why}</span>
+            </p>
+          ) : null}
           {lesson.pipeline && lesson.pipeline.length > 0 ? (
             <div className="lesson-goal-pipeline">
               <PipelineStrip stages={lesson.pipeline} code={code} />
@@ -55,19 +60,27 @@ export function LessonGoal({
           <section className="lesson-goal-col lesson-goal-col-tasks">
             <h2 className="lesson-goal-col-label">Tasks</h2>
             <ol className="lesson-tasks">
-              {view.tasks.map((task) => (
+              {view.tasks.map((task, index) => (
                 <li
                   key={task.text}
-                  className={
-                    task.status === 'done'
-                      ? 'lesson-task is-done'
-                      : 'lesson-task'
-                  }
+                  className={`lesson-task${
+                    task.status === 'done' ? ' is-done' : ''
+                  }${index === currentTaskIndex ? ' is-current' : ''}`}
                 >
                   <span className="lesson-task-mark" aria-hidden="true">
                     {task.status === 'done' ? '✓' : '○'}
                   </span>
-                  <span className="lesson-task-text">{task.text}</span>
+                  <span className="lesson-task-copy">
+                    <span className="lesson-task-text">{task.text}</span>
+                    {task.status !== 'done' && task.instruction ? (
+                      <span className="lesson-task-instruction">
+                        <span className="lesson-task-instruction-label">
+                          {index === currentTaskIndex ? 'How' : 'Then'}
+                        </span>
+                        <span>{task.instruction}</span>
+                      </span>
+                    ) : null}
+                  </span>
                 </li>
               ))}
             </ol>
@@ -133,27 +146,6 @@ export function LessonGoal({
           </div>
         </section>
       </div>
-
-      <footer className="lesson-goal-footer">
-        <nav className="lesson-map" aria-label="Lesson path">
-          {track.map((l) => {
-            const current = l.id === lesson.id
-            return (
-              <button
-                key={l.id}
-                type="button"
-                className={`lesson-map-dot${current ? ' is-current' : ''}${
-                  l.number < lesson.number ? ' is-past' : ''
-                }`}
-                title={`${l.chapter} · Lesson ${l.number} · ${l.topic}`}
-                aria-label={`Lesson ${l.number}: ${l.topic}`}
-                aria-current={current ? 'step' : undefined}
-                onClick={() => onSelectLesson(l.id)}
-              />
-            )
-          })}
-        </nav>
-      </footer>
     </div>
   )
 }

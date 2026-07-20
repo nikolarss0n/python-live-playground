@@ -4,6 +4,7 @@
  */
 
 import type { GoalCheck } from './goalCheck'
+import { taskInstructionsFor } from './lessonInstructions'
 export type { GoalCheck, GoalProgress } from './goalCheck'
 export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
 
@@ -43,8 +44,12 @@ export type Lesson = {
   /** Book-style section for the lesson menu */
   chapter: string
   goal: string
+  /** Plain-language context that connects the exercise to real Python / AI work. */
+  why?: string
   /** Short interactive steps shown under the goal */
   tasks: string[]
+  /** Actionable detail aligned by index with tasks. */
+  taskInstructions?: string[]
   code: string
   goalCheck?: GoalCheck
   /** Extra stuck hints beyond goal-check missing steps */
@@ -81,12 +86,17 @@ function chapterFor(lesson: Pick<LessonDraft, 'difficulty' | 'number'>): string 
   if (lesson.difficulty === 'intermediate') {
     if (lesson.number <= 4) return 'Sequences'
     if (lesson.number <= 8) return 'Structure'
-    return 'Patterns & libraries'
+    if (lesson.number <= 14) return 'Patterns & libraries'
+    if (lesson.number <= 17) return 'Idiomatic Python'
+    return 'Python data model'
   }
   if (lesson.difficulty === 'ai') {
     if (lesson.number <= 3) return 'Tokens & text'
     if (lesson.number <= 6) return 'Vectors & similarity'
-    return 'Contracts & pipelines'
+    if (lesson.number <= 8) return 'Contracts & pipelines'
+    if (lesson.number <= 11) return 'Learning & metrics'
+    if (lesson.number <= 13) return 'LLM internals'
+    return 'Retrieval & agents'
   }
   // Web APIs — FastAPI-shaped thinking, still in-browser (no real server)
   if (lesson.number <= 3) return 'HTTP basics'
@@ -106,6 +116,11 @@ function finalizeLesson(draft: LessonDraft): Lesson {
     ...draft,
     chapter: draft.chapter ?? chapterFor(draft),
     stretch: stretchFor(draft),
+    why:
+      draft.why ??
+      LESSON_WHY[draft.id] ??
+      `This exercise builds a reusable ${draft.topic.toLowerCase()} skill through one small, visible result.`,
+    taskInstructions: taskInstructionsFor(draft.id, draft.tasks),
   }
 }
 
@@ -1363,6 +1378,284 @@ top_students(students, limit=2)
       fixed: 'sorted(rows, key=lambda r: r["score"], reverse=True)',
     },
   },
+  {
+    id: 'mid-counter-defaultdict',
+    difficulty: 'intermediate',
+    number: 15,
+    topic: 'Counter & defaultdict',
+    goal: 'Count repeated words and group them by first letter with collection helpers.',
+    tasks: [
+      'Pass words into Counter to build the frequency table',
+      'Group every word in a defaultdict(list) and print both results',
+    ],
+    code: `# Intermediate 15 — Counter & defaultdict
+# Goal: Count words and group them without manual missing-key checks.
+
+from collections import Counter, defaultdict
+
+words = ["python", "prompt", "model", "python", "metric", "pipeline"]
+counts = Counter(???)
+
+groups = defaultdict(list)
+for word in words:
+    groups[word[0]].append(word)
+
+print(counts.most_common(2))
+print(dict(groups))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['Counter(', 'defaultdict(list)', '.append('],
+      printPatterns: ['python', 'pipeline'],
+      minNonEmptyPrints: 2,
+    },
+    hints: ['Counter accepts the whole words list: Counter(words).'],
+    predict: {
+      prompt: 'What does Counter(words).most_common(1) return first here?',
+      choices: ['python with count 2', 'model with count 1', 'all words alphabetically'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Use Counter for tallies and defaultdict when each key owns a collection.',
+      wrong: 'counts = {}\ncounts[word] += 1',
+      fixed: 'counts = Counter(words)',
+    },
+    stretch: 'Stretch: print only the words whose count is greater than 1.',
+  },
+  {
+    id: 'mid-generators',
+    difficulty: 'intermediate',
+    number: 16,
+    topic: 'Generators',
+    goal: 'Yield even squares lazily and consume the stream in two steps.',
+    tasks: [
+      'Yield n * n only when n is even',
+      'Read one item with next(), then collect the remaining items',
+    ],
+    code: `# Intermediate 16 — Generators
+# Goal: Produce values one at a time instead of building a list up front.
+
+def even_squares(limit):
+    for n in range(limit):
+        if n % 2 == 0:
+            yield ???
+
+stream = even_squares(8)
+print(next(stream))
+print(list(stream))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['yield', 'next(', 'list('],
+      printPatterns: ['0', '36'],
+      minNonEmptyPrints: 2,
+    },
+    hints: ['Yield n * n; yield pauses the function until the next value is requested.'],
+    predict: {
+      prompt: 'After next(stream) returns 0, list(stream) contains…',
+      choices: ['[0, 4, 16, 36]', '[4, 16, 36]', '[]'],
+      correctIndex: 1,
+    },
+    compare: {
+      note: 'yield streams values; return would end the function on the first match.',
+      wrong: 'return n * n',
+      fixed: 'yield n * n',
+    },
+    stretch: 'Stretch: add a start argument so the generator can skip early numbers.',
+  },
+  {
+    id: 'mid-heapq',
+    difficulty: 'intermediate',
+    number: 17,
+    topic: 'Priority queues',
+    goal: 'Turn task tuples into a min-heap and process the smallest priority first.',
+    tasks: [
+      'Heapify the task list',
+      'Pop from tasks until the priority queue is empty',
+    ],
+    code: `# Intermediate 17 — Priority queues with heapq
+# Goal: Process the most urgent task first without sorting after every change.
+
+import heapq
+
+tasks = [(3, "write docs"), (1, "fix urgent bug"), (2, "run tests")]
+heapq.heapify(tasks)
+
+while tasks:
+    priority, label = heapq.heappop(???)
+    print(f"{priority}: {label}")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['heapq.heapify', 'heapq.heappop'],
+      printPatterns: ['1: fix urgent bug', '3: write docs'],
+      minNonEmptyPrints: 3,
+    },
+    hints: ['heappop needs the heap itself: heapq.heappop(tasks).'],
+    predict: {
+      prompt: 'Which tuple comes out of this min-heap first?',
+      choices: ['(1, "fix urgent bug")', '(2, "run tests")', '(3, "write docs")'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'A heap keeps the smallest item ready at index 0 with O(log n) pushes and pops.',
+      wrong: 'tasks.pop()  # removes the last item',
+      fixed: 'heapq.heappop(tasks)',
+    },
+    stretch: 'Stretch: push a new priority-0 task before the loop.',
+  },
+  {
+    id: 'mid-dataclasses',
+    difficulty: 'intermediate',
+    number: 18,
+    topic: 'Dataclasses',
+    goal: 'Create an immutable model specification that can be used as a dictionary key.',
+    tasks: [
+      'Make the dataclass frozen',
+      'Construct a ModelSpec and use it to read from the lookup dict',
+    ],
+    code: `# Intermediate 18 — Dataclasses
+# Goal: Define compact, immutable data with generated methods.
+
+from dataclasses import dataclass
+
+@dataclass(frozen=???)
+class ModelSpec:
+    name: str
+    dimensions: int
+
+model = ModelSpec("tiny-embed", 384)
+availability = {model: "ready"}
+
+print(model)
+print(availability[model])
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['@dataclass', 'frozen=True', 'ModelSpec('],
+      printPatterns: ['tiny-embed', 'ready'],
+      minNonEmptyPrints: 2,
+    },
+    hints: ['Set frozen=True so instances are immutable and hashable.'],
+    predict: {
+      prompt: 'Why can a frozen dataclass be used as a dict key?',
+      choices: ['It is immutable and hashable', 'It stores fewer fields', 'It runs in a worker'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'frozen=True prevents field mutation and gives compatible fields a hash.',
+      wrong: '@dataclass\nclass ModelSpec: ...  # mutable',
+      fixed: '@dataclass(frozen=True)\nclass ModelSpec: ...',
+    },
+    stretch: 'Stretch: create a second ModelSpec and add it to availability.',
+  },
+  {
+    id: 'mid-decorators-cache',
+    difficulty: 'intermediate',
+    number: 19,
+    topic: 'Decorators & cache',
+    goal: 'Memoize a recursive function and inspect how many repeated calls hit the cache.',
+    tasks: [
+      'Finish the second recursive fib call',
+      'Run fib(10) and inspect cache_info()',
+    ],
+    code: `# Intermediate 19 — Decorators & lru_cache
+# Goal: Cache results from a pure function so repeated work is reused.
+
+from functools import lru_cache
+
+@lru_cache(maxsize=None)
+def fib(n):
+    if n < 2:
+        return n
+    return fib(n - 1) + fib(???)
+
+print(fib(10))
+print(fib.cache_info())
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['@lru_cache', 'fib.cache_info'],
+      printPatterns: ['55', 'hits='],
+      minNonEmptyPrints: 2,
+    },
+    hints: ['Fibonacci adds fib(n - 1) and fib(n - 2).'],
+    predict: {
+      prompt: 'What does lru_cache do on a repeated fib(n) call?',
+      choices: ['Reuses the stored result', 'Runs the full recursion again', 'Deletes the function'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Memoization is safest for pure functions whose output depends only on arguments.',
+      wrong: 'return fib(n - 1) + fib(n - 1)',
+      fixed: 'return fib(n - 1) + fib(n - 2)',
+    },
+    stretch: 'Stretch: call fib(10) again and compare cache hits before and after.',
+  },
+  {
+    id: 'mid-context-managers',
+    difficulty: 'intermediate',
+    number: 20,
+    topic: 'Context managers',
+    goal: 'Use a context manager to guarantee setup and cleanup around a block.',
+    tasks: [
+      'Return the current object from __enter__',
+      'Run the with block and confirm close prints last',
+    ],
+    code: `# Intermediate 20 — Context managers
+# Goal: Make cleanup happen reliably, even when work is wrapped in a block.
+
+class StudySession:
+    def __init__(self, topic):
+        self.topic = topic
+
+    def __enter__(self):
+        print("open")
+        return ???
+
+    def __exit__(self, exc_type, exc, traceback):
+        print("close")
+
+with StudySession("vectors") as session:
+    print(f"studying {session.topic}")
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['__enter__', '__exit__', 'with StudySession'],
+      printPatterns: ['open', 'studying vectors', 'close'],
+      minNonEmptyPrints: 3,
+    },
+    hints: ['Return self from __enter__ so the name after “as” receives the session.'],
+    predict: {
+      prompt: 'Which message should appear last?',
+      choices: ['open', 'studying vectors', 'close'],
+      correctIndex: 2,
+    },
+    compare: {
+      note: 'The with statement calls __exit__ when the block finishes, including on errors.',
+      wrong: 'return StudySession  # the class',
+      fixed: 'return self  # this active instance',
+    },
+    stretch: 'Stretch: make __exit__ print whether an exception type was received.',
+  },
 
   // ── AI foundations (browser-local, no API keys) ───────
   {
@@ -1789,6 +2082,439 @@ print(winner)
       choices: ['or', 'to', 'be'],
       correctIndex: 1,
     },
+  },
+  {
+    id: 'ai-softmax',
+    difficulty: 'ai',
+    number: 9,
+    topic: 'Softmax & temperature',
+    goal: 'Turn logits into probabilities and compare sharp versus flat distributions.',
+    tasks: [
+      'Normalize every exponential weight by the total',
+      'Compare the same logits at temperatures 0.5 and 2.0',
+    ],
+    code: `# AI 9 — Softmax & temperature
+# Goal: Convert model scores into probabilities and see temperature reshape them.
+
+import math
+
+def softmax(logits, temperature=1.0):
+    scaled = [logit / temperature for logit in logits]
+    weights = [math.exp(value) for value in scaled]
+    total = sum(weights)
+    return [round(weight / ???, 3) for weight in weights]
+
+logits = [3.0, 1.0, 0.0]
+print("low temperature:", softmax(logits, 0.5))
+print("high temperature:", softmax(logits, 2.0))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def softmax', 'temperature', 'math.exp'],
+      printPatterns: ['low temperature', 'high temperature'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['logits', 'scale', 'softmax', 'probabilities'],
+    hints: ['Divide each weight by total so all probabilities add to 1.'],
+    predict: {
+      prompt: 'A lower temperature usually makes the largest probability…',
+      choices: ['more dominant', 'smaller than every other value', 'exactly zero'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Softmax normalizes positive weights into a distribution that sums to 1.',
+      wrong: 'return weights  # not probabilities yet',
+      fixed: 'return [weight / total for weight in weights]',
+    },
+    stretch: 'Stretch: verify each probability list sums to approximately 1.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Explain in two short sentences how temperature changes next-token probabilities.',
+  },
+  {
+    id: 'ai-data-splits',
+    difficulty: 'ai',
+    number: 10,
+    topic: 'Train, validation & test',
+    goal: 'Split examples into separate training, tuning, and final evaluation sets.',
+    tasks: [
+      'End the validation slice at index 8',
+      'Print the three non-overlapping sets and their sizes',
+    ],
+    code: `# AI 10 — Train, validation & test
+# Goal: Keep model fitting, tuning, and final evaluation on separate examples.
+
+examples = ["e0", "e1", "e2", "e3", "e4", "e5", "e6", "e7", "e8", "e9"]
+
+train = examples[:6]
+validation = examples[6:???]
+test = examples[8:]
+
+print({"train": train, "validation": validation, "test": test})
+print({"sizes": [len(train), len(validation), len(test)]})
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['train =', 'validation =', 'test ='],
+      printPatterns: ['e6', 'e9', '6, 2, 2'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['collect', 'train', 'validate', 'test'],
+    hints: ['Use examples[6:8] so validation receives e6 and e7 only.'],
+    predict: {
+      prompt: 'Which split should report the final unbiased score?',
+      choices: ['test', 'train', 'validation'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Tune on validation; save test for the final honest measurement.',
+      wrong: 'train = validation = test = examples',
+      fixed: 'train = examples[:6]\nvalidation = examples[6:8]\ntest = examples[8:]',
+    },
+    stretch: 'Stretch: compute and print each split as a percentage of all examples.',
+  },
+  {
+    id: 'ai-classifier-metrics',
+    difficulty: 'ai',
+    number: 11,
+    topic: 'Precision, recall & F1',
+    goal: 'Calculate three classifier metrics from true and false prediction counts.',
+    tasks: [
+      'Calculate precision and recall from tp, fp, and fn',
+      'Finish the harmonic-mean denominator for F1',
+    ],
+    code: `# AI 11 — Precision, recall & F1
+# Goal: Measure false-positive and false-negative trade-offs explicitly.
+
+tp = 8
+fp = 2
+fn = 4
+
+precision = tp / (tp + fp)
+recall = tp / (tp + fn)
+f1 = 2 * precision * recall / ???
+
+print({
+    "precision": round(precision, 3),
+    "recall": round(recall, 3),
+    "f1": round(f1, 3),
+})
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['precision =', 'recall =', 'f1 ='],
+      printPatterns: ['0.8', '0.667', '0.727'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['confusion counts', 'precision', 'recall', 'F1'],
+    hints: ['The F1 denominator is precision + recall.'],
+    predict: {
+      prompt: 'Recall focuses on how many actual positives were…',
+      choices: ['found', 'predicted negative', 'placed in the test split'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'F1 uses a harmonic mean, so one weak metric pulls the score down.',
+      wrong: 'f1 = (precision + recall) / 2',
+      fixed: 'f1 = 2 * precision * recall / (precision + recall)',
+    },
+    stretch: 'Stretch: change fp and fn to see which metric moves first.',
+  },
+  {
+    id: 'ai-next-token',
+    difficulty: 'ai',
+    number: 12,
+    topic: 'Next-token generation',
+    goal: 'Generate a short sequence by choosing one token, appending it, and repeating.',
+    tasks: [
+      'Choose the token with the highest probability',
+      'Follow the transition table until no next-token options remain',
+    ],
+    code: `# AI 12 — Next-token generation
+# Goal: See autoregressive generation as a small choose → append → repeat loop.
+
+transitions = {
+    "Python": {"is": 0.7, "can": 0.3},
+    "is": {"clear": 0.6, "fun": 0.4},
+}
+
+def choose_next(options):
+    return max(options, key=???)
+
+tokens = ["Python"]
+while tokens[-1] in transitions:
+    options = transitions[tokens[-1]]
+    tokens.append(choose_next(options))
+
+print(" ".join(tokens))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def choose_next', 'tokens.append', 'transitions'],
+      printPatterns: ['Python is clear'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['context', 'probabilities', 'choose', 'append'],
+    hints: ['max(options, key=options.get) returns the key with the largest probability.'],
+    predict: {
+      prompt: 'A decoder-only language model emits text…',
+      choices: ['one token at a time', 'one whole paragraph at a time', 'without using prior tokens'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'The chosen token becomes part of the context for the following step.',
+      wrong: 'return max(options)  # compares token spelling',
+      fixed: 'return max(options, key=options.get)',
+    },
+    stretch: 'Stretch: choose the second-best option once and compare the sentence.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Describe autoregressive next-token generation as a four-step loop.',
+  },
+  {
+    id: 'ai-attention',
+    difficulty: 'ai',
+    number: 13,
+    topic: 'Attention & causal masks',
+    goal: 'Score allowed tokens against a query and keep future tokens masked.',
+    tasks: [
+      'Calculate dot-product scores only for allowed tokens',
+      'Choose the highest-scoring token with scores.get',
+    ],
+    code: `# AI 13 — Attention & causal masks
+# Goal: Compare a query with keys while preventing access to future positions.
+
+tokens = ["the", "cat", "sat", "there"]
+query_position = 2
+query = [1.0, 0.0]
+keys = {
+    "the": [0.2, 0.8],
+    "cat": [0.9, 0.1],
+    "sat": [0.6, 0.4],
+    "there": [1.0, 0.0],
+}
+
+allowed = tokens[:query_position + 1]
+scores = {
+    token: sum(q * k for q, k in zip(query, keys[token]))
+    for token in allowed
+}
+focus = max(scores, key=???)
+
+print({"allowed": allowed, "scores": scores, "focus": focus})
+print({"future_masked": tokens[query_position + 1:]})
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['query', 'keys', 'allowed', 'scores'],
+      printPatterns: ['cat', 'future_masked', 'there'],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['query & keys', 'mask future', 'score', 'focus'],
+    hints: ['Use scores.get as max’s key function.'],
+    predict: {
+      prompt: 'Why is “there” excluded even though its key would score highest?',
+      choices: ['It is a future token', 'Its vector is too long', 'It is not text'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'A causal decoder may attend to the current and earlier positions, never future ones.',
+      wrong: 'allowed = tokens  # future leaks in',
+      fixed: 'allowed = tokens[:query_position + 1]',
+    },
+    stretch: 'Stretch: move query_position and observe how the allowed context changes.',
+  },
+  {
+    id: 'ai-retrieval',
+    difficulty: 'ai',
+    number: 14,
+    topic: 'Retrieval & top-k',
+    goal: 'Rank documents for a query, return the top results, and abstain when evidence is weak.',
+    tasks: [
+      'Slice the ranked candidates to the requested k',
+      'Print one confident retrieval and one abstention',
+    ],
+    code: `# AI 14 — Retrieval & top-k
+# Goal: Rank evidence before generation and say “I don't know” when scores are weak.
+
+documents = [
+    {"title": "Python lists", "vector": [0.9, 0.1]},
+    {"title": "For loops", "vector": [0.75, 0.25]},
+    {"title": "Cake recipe", "vector": [0.1, 0.9]},
+]
+
+def dot(a, b):
+    return sum(x * y for x, y in zip(a, b))
+
+def retrieve(query, k=2, threshold=0.6):
+    ranked = sorted(
+        ((doc["title"], dot(query, doc["vector"])) for doc in documents),
+        key=lambda item: item[1],
+        reverse=True,
+    )
+    top = ranked[:???]
+    if not top or top[0][1] < threshold:
+        return {"answer": "I don't know", "evidence": top}
+    return {"answer": top[0][0], "evidence": top}
+
+print(retrieve([1.0, 0.0]))
+print(retrieve([0.3, 0.3]))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['def retrieve', 'ranked', 'threshold'],
+      printPatterns: ['Python lists', "I don't know"],
+      minNonEmptyPrints: 2,
+    },
+    pipeline: ['query', 'score', 'top-k', 'answer or abstain'],
+    hints: ['Use ranked[:k] so the function respects its top-k argument.'],
+    predict: {
+      prompt: 'When the best evidence score is below the threshold, the safest result is…',
+      choices: ["I don't know", 'the first document anyway', 'a random document'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Retrieval should expose evidence and an explicit no-answer path.',
+      wrong: 'return ranked[0][0]  # always answer',
+      fixed: 'if best_score < threshold:\n    return "I don\'t know"',
+    },
+    stretch: 'Stretch: add a category field and filter documents before ranking.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Explain why a RAG system should abstain when retrieved evidence is weak.',
+  },
+  {
+    id: 'ai-evals',
+    difficulty: 'ai',
+    number: 15,
+    topic: 'Evals & regressions',
+    goal: 'Score answer correctness and citation support as separate quality signals.',
+    tasks: [
+      'Compare each actual answer with its expected answer',
+      'Calculate and print correctness and citation-support rates',
+    ],
+    code: `# AI 15 — Evals & regressions
+# Goal: Measure a system on a fixed set instead of judging a few examples by feel.
+
+cases = [
+    {"expected": "Paris", "actual": "Paris", "citation_supported": True},
+    {"expected": "4", "actual": "5", "citation_supported": False},
+    {"expected": "blue", "actual": "blue", "citation_supported": False},
+]
+
+correct = sum(case["actual"] == ??? for case in cases)
+supported = sum(case["citation_supported"] for case in cases)
+
+print({
+    "answer_correctness": round(correct / len(cases), 3),
+    "citation_support": round(supported / len(cases), 3),
+})
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['expected', 'actual', 'citation_supported'],
+      printPatterns: ['0.667', '0.333'],
+      minNonEmptyPrints: 1,
+    },
+    pipeline: ['fixed cases', 'run', 'score', 'inspect failures'],
+    hints: ['Compare case["actual"] with case["expected"].'],
+    predict: {
+      prompt: 'Why score citations separately from answer correctness?',
+      choices: ['A correct answer can still have unsupported evidence', 'Citations are always correct', 'The two metrics are identical'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'A repeatable eval set makes changes comparable and catches regressions.',
+      wrong: 'quality = "looks good to me"',
+      fixed: 'quality = correct / len(cases)',
+    },
+    stretch: 'Stretch: add a latency number to each case and report the average.',
+    runWithModel: true,
+    modelPromptFallback:
+      'List three metrics for evaluating a RAG answer, with one short phrase each.',
+  },
+  {
+    id: 'ai-safe-tools',
+    difficulty: 'ai',
+    number: 16,
+    topic: 'Safe tool calls',
+    goal: 'Validate tool names and arguments, then require approval for destructive actions.',
+    tasks: [
+      'Reject unknown tools and calls with missing arguments',
+      'Block destructive tools with an approval-required result',
+    ],
+    code: `# AI 16 — Safe tool calls
+# Goal: Put deterministic validation between a model decision and a real action.
+
+TOOLS = {
+    "search": {"required": ["query"], "destructive": False},
+    "delete_file": {"required": ["path"], "destructive": True},
+}
+
+def validate_tool_call(call):
+    spec = TOOLS.get(call.get("name"))
+    if spec is None:
+        return {"ok": False, "reason": "unknown tool"}
+
+    arguments = call.get("arguments") or {}
+    missing = [key for key in spec["required"] if key not in arguments]
+    if missing:
+        return {"ok": False, "reason": f"missing: {missing}"}
+
+    if ???:
+        return {"ok": False, "reason": "human approval required"}
+    return {"ok": True, "reason": "validated"}
+
+print(validate_tool_call({"name": "search", "arguments": {"query": "Python"}}))
+print(validate_tool_call({"name": "delete_file", "arguments": {"path": "notes.txt"}}))
+print(validate_tool_call({"name": "email", "arguments": {}}))
+`,
+    goalCheck: {
+      requireSuccess: true,
+      requireFreshRun: true,
+      mustEditStarter: true,
+      noBlanks: true,
+      codeIncludes: ['validate_tool_call', 'missing', 'human approval required'],
+      printPatterns: ['validated', 'approval required', 'unknown tool'],
+      minNonEmptyPrints: 3,
+    },
+    pipeline: ['propose', 'validate schema', 'check permission', 'execute or stop'],
+    hints: ['Check spec["destructive"] before allowing the call.'],
+    predict: {
+      prompt: 'A destructive tool call with valid arguments should next…',
+      choices: ['wait for human approval', 'run automatically', 'rewrite its own permissions'],
+      correctIndex: 0,
+    },
+    compare: {
+      note: 'Models propose calls; deterministic code owns validation, permissions, and side effects.',
+      wrong: 'return tool(**arguments)  # trust and execute',
+      fixed: 'validate name, schema, and permission first',
+    },
+    stretch: 'Stretch: add an allow-list of paths the delete tool may touch.',
+    runWithModel: true,
+    modelPromptFallback:
+      'Give a four-step checklist for validating an AI tool call safely.',
   },
 
   // ── Web APIs (browser-local FastAPI mental model, no real server) ──
@@ -2228,6 +2954,139 @@ print(authorize({
     },
   },
 ]
+
+/**
+ * One quiet bridge from the exercise to the larger skill. Keeping this copy
+ * separate makes the runnable lesson drafts easy to scan and lets tests ensure
+ * every topic has learner-facing context.
+ */
+const LESSON_WHY: Record<string, string> = {
+  printing:
+    'Visible output is the fastest way to inspect what a program did and to test a small idea.',
+  variables:
+    'Variables give meaningful names to values so code can reuse and change them without repetition.',
+  types:
+    'A value’s type determines which operations are valid and explains many beginner errors.',
+  expressions:
+    'Expressions are the value-producing building blocks inside assignments, conditions, and function calls.',
+  strings:
+    'Real programs constantly format, slice, clean, and combine text from users and data sources.',
+  booleans:
+    'Boolean comparisons turn facts into True or False so a program can make decisions.',
+  conditionals:
+    'if, elif, and else let one program choose different behavior for different situations.',
+  lists:
+    'Lists keep ordered groups of values together, which makes iteration and aggregation possible.',
+  'for-loops':
+    'A for loop repeats the same operation over a collection without duplicating code.',
+  'while-loops':
+    'A while loop is useful when repetition ends because a condition changes, not after a fixed collection.',
+  dicts:
+    'Dictionaries model labeled data and provide fast lookups by meaningful keys.',
+  functions:
+    'Functions package a behavior behind a name so it can be reused, tested, and combined.',
+  errors:
+    'Reading the exception type and failing line turns an error into a focused debugging clue.',
+  'python-for':
+    'Python loops iterate over values directly; learning that shape avoids habits copied from other languages.',
+  infinite:
+    'Every loop needs a believable exit path, and knowing how to stop one keeps experiments safe.',
+  capstone:
+    'Combining collections, loops, decisions, and arithmetic is the first step from syntax to useful programs.',
+
+  'mid-enumerate-zip':
+    'enumerate adds positions and zip aligns related sequences without manual index bookkeeping.',
+  'mid-nested-loops':
+    'Nested loops express grids and pairwise combinations, but also make work grow quickly.',
+  'mid-list-methods':
+    'List methods and membership checks are the everyday tools for building and querying sequences.',
+  'mid-comprehensions':
+    'Comprehensions describe a transformation and optional filter in one readable expression.',
+  'mid-dict-loops':
+    'Iterating key–value pairs is central to reshaping records, counts, and configuration data.',
+  'mid-sets':
+    'Sets remove duplicates and make membership, union, and intersection operations direct.',
+  'mid-tuples':
+    'Tuples represent fixed groups and make unpacking multiple values concise and explicit.',
+  'mid-fn-defaults':
+    'Defaults keep common calls simple while still allowing callers to customize behavior.',
+  'mid-sorting':
+    'A key function separates what to compare from how the surrounding records are structured.',
+  'mid-try-except':
+    'Specific exception handling lets expected bad input become a clear result instead of a crash.',
+  'mid-classes':
+    'Classes keep state and the operations that change it together behind a small interface.',
+  'mid-stdlib':
+    'The standard library provides tested building blocks so common work does not need to be reinvented.',
+  'mid-json':
+    'JSON is the common boundary format between Python programs, web APIs, and AI services.',
+  'mid-capstone':
+    'A small data transformation pipeline connects sorting, functions, slicing, and comprehensions.',
+  'mid-counter-defaultdict':
+    'Specialized collection types make counting and grouping clearer than repeated missing-key checks.',
+  'mid-generators':
+    'Generators yield one value at a time, keeping memory nearly flat for large streams of data.',
+  'mid-heapq':
+    'A heap keeps the next highest-priority item ready without repeatedly sorting the entire collection.',
+  'mid-dataclasses':
+    'Dataclasses remove boilerplate for data records, while frozen records can safely become keys.',
+  'mid-decorators-cache':
+    'Decorators add reusable behavior around functions; caching trades memory for less repeated work.',
+  'mid-context-managers':
+    'Context managers guarantee cleanup for files, connections, and locks even when work fails.',
+
+  'ai-tokens':
+    'Language models operate on token ids rather than raw sentences, so tokenization defines their input pieces.',
+  'ai-bag-of-words':
+    'Token counts are a simple feature representation and a useful baseline before more complex models.',
+  'ai-vocab':
+    'Models need a stable mapping from text pieces to integers before those ids can become vectors.',
+  'ai-dot-product':
+    'Dot products are the core arithmetic behind similarity scores, linear layers, and attention.',
+  'ai-cosine':
+    'Cosine similarity compares vector direction, making it useful when magnitude should not dominate meaning.',
+  'ai-prompt-template':
+    'Templates make instructions repeatable and keep system context separate from changing user input.',
+  'ai-json-contract':
+    'Structured model output is only dependable after ordinary code validates its required shape and values.',
+  'ai-pipeline':
+    'Most AI features are pipelines whose intermediate stages need to be inspectable and testable separately.',
+  'ai-softmax':
+    'Softmax turns logits into probabilities; temperature changes how concentrated the choices become.',
+  'ai-data-splits':
+    'Separate data splits prevent tuning decisions from leaking into the final evaluation.',
+  'ai-classifier-metrics':
+    'Precision and recall expose different failure costs, while F1 summarizes their balance.',
+  'ai-next-token':
+    'Decoder language models generate autoregressively: predict one token, append it, then repeat with new context.',
+  'ai-attention':
+    'Attention scores route information between tokens, while a causal mask prevents a decoder from seeing the future.',
+  'ai-retrieval':
+    'Retrieval narrows a large knowledge source to relevant evidence before generation and needs a no-answer path.',
+  'ai-evals':
+    'A fixed eval set makes prompt, model, and retrieval changes comparable instead of relying on impressions.',
+  'ai-safe-tools':
+    'An AI system may propose actions, but deterministic validation and permission checks must control execution.',
+
+  'api-request':
+    'A consistent request shape keeps transport details separate from the function that handles the work.',
+  'api-response':
+    'Status, headers, and body form a predictable response contract that clients can interpret.',
+  'api-status':
+    'Status codes communicate success and failure without forcing clients to guess from response text.',
+  'api-routing':
+    'Routing connects a method and path to one handler while giving unknown paths a clear outcome.',
+  'api-query':
+    'Query parameters carry optional URL inputs, and defaults keep missing values from becoming crashes.',
+  'api-json-body':
+    'Request bodies are untrusted input, so method checks and validation must happen before creating data.',
+  'api-middleware':
+    'Middleware wraps every handler consistently for concerns such as request ids, logging, and authentication.',
+  'api-mini-app':
+    'A tiny dispatcher shows how routing, lookup, validation, and responses fit into one service flow.',
+  'api-auth':
+    'Authentication must reject missing or invalid credentials before protected data is returned.',
+}
 
 export const LESSONS: Lesson[] = LESSON_DRAFTS.map(finalizeLesson)
 

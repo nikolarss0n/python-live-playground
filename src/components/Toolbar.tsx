@@ -15,14 +15,8 @@ type ToolbarProps = {
   activeLessonId: string
   activeLesson: Lesson
   onSelectLesson: (id: string) => void
-  onRun: () => void
-  onStop: () => void
-  isRunning: boolean
-  isBooting: boolean
   theme: ThemeMode
   onToggleTheme: () => void
-  onShare?: () => void
-  shareBusy?: boolean
   onOpenSettings?: () => void
 }
 
@@ -33,19 +27,17 @@ export function Toolbar({
   activeLessonId,
   activeLesson,
   onSelectLesson,
-  onRun,
-  onStop,
-  isRunning,
-  isBooting,
   theme,
   onToggleTheme,
-  onShare,
-  shareBusy,
   onOpenSettings,
 }: ToolbarProps) {
   const chapters = lessonsByChapter(difficulty)
-  // Keep select valid if lessons prop is a flat list
-  void lessons
+  const lessonIndex = lessons.findIndex((l) => l.id === activeLessonId)
+  const prevLesson = lessonIndex > 0 ? lessons[lessonIndex - 1] : null
+  const nextLesson =
+    lessonIndex >= 0 && lessonIndex < lessons.length - 1
+      ? lessons[lessonIndex + 1]
+      : null
 
   return (
     <header className="toolbar">
@@ -105,38 +97,6 @@ export function Toolbar({
           </select>
         </label>
 
-        <button
-          type="button"
-          className="btn btn-primary"
-          onClick={onRun}
-          disabled={isBooting}
-          title="Run now (also runs automatically as you type)"
-        >
-          Run
-        </button>
-
-        <button
-          type="button"
-          className="btn btn-ghost"
-          onClick={onStop}
-          disabled={!isRunning && !isBooting}
-          title="Stop execution and reset the runner"
-        >
-          Stop
-        </button>
-
-        {onShare && (
-          <button
-            type="button"
-            className="btn btn-ghost"
-            onClick={onShare}
-            disabled={shareBusy}
-            title="Copy a link with this lesson and your code"
-          >
-            Share
-          </button>
-        )}
-
         {onOpenSettings && (
           <button
             type="button"
@@ -160,6 +120,45 @@ export function Toolbar({
         >
           {theme === 'dark' ? '☀' : '☾'}
         </button>
+
+        <div className="lesson-nav" role="group" aria-label="Lesson navigation">
+          <button
+            type="button"
+            className="btn btn-ghost lesson-nav-btn"
+            onClick={() => prevLesson && onSelectLesson(prevLesson.id)}
+            disabled={!prevLesson}
+            title={
+              prevLesson
+                ? `Previous: ${lessonLabel(prevLesson)}`
+                : 'No previous lesson'
+            }
+            aria-label={
+              prevLesson
+                ? `Previous lesson: ${lessonLabel(prevLesson)}`
+                : 'Previous lesson (unavailable)'
+            }
+          >
+            Prev
+          </button>
+          <button
+            type="button"
+            className="btn btn-ghost lesson-nav-btn"
+            onClick={() => nextLesson && onSelectLesson(nextLesson.id)}
+            disabled={!nextLesson}
+            title={
+              nextLesson
+                ? `Next: ${lessonLabel(nextLesson)}`
+                : 'No next lesson'
+            }
+            aria-label={
+              nextLesson
+                ? `Next lesson: ${lessonLabel(nextLesson)}`
+                : 'Next lesson (unavailable)'
+            }
+          >
+            Next
+          </button>
+        </div>
       </div>
     </header>
   )

@@ -9,7 +9,7 @@ import type { ExecutionStatus, ResultEvent } from './execution/protocol'
 export type TaskStatus = 'todo' | 'done'
 
 export type LessonProgressView = {
-  tasks: { text: string; status: TaskStatus }[]
+  tasks: { text: string; instruction: string | null; status: TaskStatus }[]
   /** Primary next step (first missing). */
   next: string | null
   /** Extra hint after the learner is stuck (second missing or lesson.hints). */
@@ -74,8 +74,9 @@ export function buildLessonProgress(
     incompleteRunCount: number
   },
 ): LessonProgressView {
-  const tasks = lesson.tasks.map((text) => ({
+  const tasks = lesson.tasks.map((text, index) => ({
     text,
+    instruction: lesson.taskInstructions?.[index] ?? null,
     status: taskLooksDone(text, lesson, code, progress, status, events)
       ? ('done' as const)
       : ('todo' as const),

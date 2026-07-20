@@ -24,10 +24,7 @@ import {
 } from './lessonProgress'
 import { updatedEventIndices } from './resultDiff'
 import type { ResultEvent } from './execution/protocol'
-import {
-  copyShareUrl,
-  readSnapshotFromLocation,
-} from './shareSnapshot'
+import { readSnapshotFromLocation } from './shareSnapshot'
 import { LocalApiStrip } from './components/LocalApiStrip'
 import { SettingsModal } from './components/SettingsModal'
 import { ModelRunBar } from './components/ModelRunBar'
@@ -115,8 +112,6 @@ export default function App() {
   const [previousEvents, setPreviousEvents] = useState<ResultEvent[] | null>(
     null,
   )
-  const [shareNote, setShareNote] = useState<string | null>(null)
-  const [shareBusy, setShareBusy] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [appSettings, setAppSettings] = useState<AppSettings>(() =>
     loadSettings(),
@@ -130,8 +125,7 @@ export default function App() {
   const prevEventsRef = useRef<ResultEvent[]>([])
   const isWide = useWideLayout()
 
-  const { snapshot, runNow, stop, isBooting, isRunning } =
-    usePythonExecution(code)
+  const { snapshot, runNow, stop } = usePythonExecution(code)
 
   const trackLessons = useMemo(
     () => lessonsForDifficulty(difficulty),
@@ -308,25 +302,6 @@ export default function App() {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))
   }, [])
 
-  const onShare = useCallback(async () => {
-    setShareBusy(true)
-    try {
-      await copyShareUrl({
-        v: 1,
-        lessonId,
-        difficulty,
-        code,
-      })
-      setShareNote('Link copied — lesson and code are in the URL.')
-      window.setTimeout(() => setShareNote(null), 2800)
-    } catch {
-      setShareNote('Could not copy — try again.')
-      window.setTimeout(() => setShareNote(null), 2800)
-    } finally {
-      setShareBusy(false)
-    }
-  }, [lessonId, difficulty, code])
-
   const onGeometryChange = useCallback(() => {
     setGeometryKey((k) => k + 1)
   }, [])
@@ -363,22 +338,10 @@ export default function App() {
         activeLessonId={lessonId}
         activeLesson={activeLesson}
         onSelectLesson={onSelectLesson}
-        onRun={() => void runNow()}
-        onStop={stop}
-        isRunning={isRunning}
-        isBooting={isBooting}
         theme={theme}
         onToggleTheme={toggleTheme}
-        onShare={() => void onShare()}
-        shareBusy={shareBusy}
         onOpenSettings={() => setSettingsOpen(true)}
       />
-
-      {shareNote ? (
-        <p className="share-toast" role="status">
-          {shareNote}
-        </p>
-      ) : null}
 
       <SettingsModal
         open={settingsOpen}
@@ -391,7 +354,6 @@ export default function App() {
         progress={goalProgress}
         view={lessonView}
         onRevealStuck={() => setStuckRevealed(true)}
-        onSelectLesson={onSelectLesson}
         code={code}
       />
 
@@ -475,8 +437,9 @@ export default function App() {
       <footer className="app-footer">
         <span>Runs entirely in your browser · no account · no setup</span>
         <span className="footer-hint">
-          Code runs automatically after a short pause · <kbd>Run</kbd> anytime ·{' '}
-          <kbd>Stop</kbd> cancels loops · press <kbd>?</kbd> for shortcuts
+          Code runs automatically after a short pause ·{' '}
+          <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> run · <kbd>Esc</kbd>{' '}
+          stop · <kbd>?</kbd> shortcuts
         </span>
       </footer>
 

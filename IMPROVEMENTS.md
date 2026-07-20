@@ -6,7 +6,10 @@ Quiet, RunJS-like visual and interaction upgrades.
 
 ### Core playground + curriculum
 - [x] Four tracks with predict + compare on every lesson
-- [x] Live results UX, Settings, Run with model, share URL
+- [x] Study-book-informed Python and AI expansion, with “why it matters” context on every lesson
+- [x] Lesson-specific “How” guidance for the current unfinished task
+- [x] Live results UX, Settings, Run with model, optional share-URL restore
+- [x] Toolbar Prev/Next lesson navigation (auto-run; keyboard Run/Stop)
 - [x] FastAPI companion (local + **public HTTPS demo** ready)
 - [x] `VITE_COMPANION_URL` for zero-install demos
 - [x] Deploy configs: `companion/Dockerfile`, `fly.toml`, `render.yaml`
