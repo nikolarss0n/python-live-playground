@@ -34,6 +34,28 @@ export function collectionLabel(node: CollectionNode): string {
   return `${node.kind}(${node.length})`
 }
 
+const COUNT_NOUN: Record<'list' | 'tuple' | 'set' | 'dict', [string, string]> = {
+  list: ['item', 'items'],
+  tuple: ['item', 'items'],
+  set: ['unique item', 'unique items'],
+  dict: ['key', 'keys'],
+}
+
+/** Friendly count for a collection header: "3 keys", "1 item", "empty" */
+export function collectionCount(node: Exclude<CollectionNode, { kind: 'atom' }>): string {
+  if (node.length === 0) return 'empty'
+  const [one, many] = COUNT_NOUN[node.kind]
+  return `${node.length} ${node.length === 1 ? one : many}`
+}
+
+/** The brackets that spell each collection in Python */
+export const COLLECTION_GLYPH: Record<'list' | 'tuple' | 'set' | 'dict', string> = {
+  list: '[ ]',
+  tuple: '( )',
+  set: '{ }',
+  dict: '{:}',
+}
+
 /** One-line collapsed preview of a few children. */
 export function collectionSummary(node: CollectionNode, maxParts = 4): string {
   if (node.kind === 'atom') return node.preview

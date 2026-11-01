@@ -29,7 +29,8 @@ export function defaultSettings(): AppSettings {
     companionBaseUrl: defaultCompanionBaseUrl(),
     apiKey: '',
     llmBaseUrl: '',
-    llmModel: 'gpt-4o-mini',
+    /** Prefer SpaceXAI / xAI; any OpenAI-compatible id works. */
+    llmModel: 'grok-4.5',
   }
 }
 
@@ -38,7 +39,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   companionBaseUrl: LOCAL_COMPANION_BASE,
   apiKey: '',
   llmBaseUrl: '',
-  llmModel: 'gpt-4o-mini',
+  llmModel: 'grok-4.5',
 }
 
 export function loadSettings(): AppSettings {

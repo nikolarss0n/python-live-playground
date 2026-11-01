@@ -5,6 +5,10 @@
 import { BLANK, type GoalProgress } from './goalCheck'
 import type { Lesson } from './examples'
 import type { ExecutionStatus, ResultEvent } from './execution/protocol'
+import {
+  evaluateEssentialsTasks,
+  type TaskEvidence,
+} from './taskEvidence'
 
 export type TaskStatus = 'todo' | 'done'
 
@@ -17,6 +21,8 @@ export type LessonProgressView = {
   showStuckControl: boolean
   allTasksDone: boolean
   goalMet: boolean
+  /** Python basics: current-task evidence from the latest finished run. */
+  currentEvidence?: TaskEvidence | null
 }
 
 function taskLooksDone(
@@ -72,12 +78,28 @@ export function buildLessonProgress(
   opts: {
     stuckRevealed: boolean
     incompleteRunCount: number
+    executedCode?: string | null
   },
 ): LessonProgressView {
+  const run = {
+    code,
+    executedCode: opts.executedCode ?? null,
+    status,
+    events,
+  }
+  const essentials =
+    lesson.difficulty === 'beginner'
+      ? evaluateEssentialsTasks(lesson, run)
+      : null
+
   const tasks = lesson.tasks.map((text, index) => ({
     text,
     instruction: lesson.taskInstructions?.[index] ?? null,
-    status: taskLooksDone(text, lesson, code, progress, status, events)
+    status: (
+      essentials
+        ? essentials[index]?.done
+        : taskLooksDone(text, lesson, code, progress, status, events)
+    )
       ? ('done' as const)
       : ('todo' as const),
   }))
@@ -104,8 +126,11 @@ export function buildLessonProgress(
     next,
     extraHint,
     showStuckControl,
-    allTasksDone: allTasksDone || progress.met,
+    allTasksDone: allTasksDone || (essentials ? false : progress.met),
     goalMet: progress.met,
+    currentEvidence: essentials
+      ? essentials.find((task) => !task.done) ?? essentials[essentials.length - 1]
+      : null,
   }
 }
 

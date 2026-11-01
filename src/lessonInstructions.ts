@@ -86,7 +86,7 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
     'Replace the filter blank with n % 2 == 0 so only numbers with zero remainder are kept.',
   ],
   'mid-dict-loops': [
-    'Keep scores.items() so each iteration receives both name and score; check the three printed pairs first.',
+    'Replace ??? in the print with score: .items() hands each round both the name and its score. Check the three printed pairs.',
     'Replace ??? with score + 5 in the dict comprehension. Each original name should map to its boosted number.',
   ],
   'mid-sets': [
@@ -103,7 +103,7 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
   ],
   'mid-sorting': [
     'Pass a key function that reads each record’s "year" field so sorted compares years rather than whole dictionaries.',
-    'Keep reverse=True only for the newest-first result, then compare the first person in each ordering.',
+    'Run the loop and verify Results lists Ada, Grace, then Alan, proving the records were ordered from oldest year to newest year.',
   ],
   'mid-try-except': [
     'Keep int(raw) inside try so valid strings are converted and printed normally.',
@@ -182,10 +182,6 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
     'Implement top_token with max(counts, key=counts.get) so dictionary values decide the winning key.',
     'Pass tokens into count_tokens, then print tokens, counts, and winner in stage order. The winner should be "to".',
   ],
-  'ai-softmax': [
-    'Divide every exponential weight by total in the returned list. The probabilities should add to about 1.',
-    'Compare both printed distributions: temperature 0.5 should concentrate more probability on the largest logit.',
-  ],
   'ai-data-splits': [
     'End the validation slice at 8 so it contains e6 and e7 but does not overlap the test slice.',
     'Inspect the printed dictionary and sizes. Train, validation, and test should contain 6, 2, and 2 examples.',
@@ -197,10 +193,6 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
   'ai-next-token': [
     'Use options.get as max’s key function so probabilities, not alphabetical token order, choose the result.',
     'Follow the loop after each append. The final joined sequence should read “Python is clear”.',
-  ],
-  'ai-attention': [
-    'Keep allowed sliced through query_position + 1 so the current token is included and future tokens stay excluded.',
-    'Use scores.get to choose focus. "cat" should win among allowed tokens while "there" remains listed as masked.',
   ],
   'ai-retrieval': [
     'Replace ??? with k in ranked[:k]. Keep reverse=True so the highest-scoring evidence appears first.',
@@ -216,11 +208,11 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
   ],
 
   'api-request': [
-    'Set method to "GET" and path to a string beginning with /. Keep headers and query as dictionaries.',
+    'Replace ??? with "GET" while keeping path as "/hello" and leaving headers and query as dictionaries.',
     'Print request["method"] and request["path"] and confirm Results shows both values from the same request object.',
   ],
   'api-response': [
-    'Replace the status blank with 200 while keeping headers and body as separate response fields.',
+    'Replace the status blank with 200; the message argument already flows into the body, so keep status, headers, and body as separate fields.',
     'Print ok("hello from the browser") and inspect the rendered HTTP card for status 200 and the message body.',
   ],
   'api-status': [

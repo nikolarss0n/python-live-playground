@@ -17,6 +17,19 @@ describe('looksLikeTokenList', () => {
     expect(looksLikeTokenList(tokens)).toBe(true)
   })
 
+  it('rejects numbers and mixed lists', () => {
+    expect(
+      looksLikeTokenList({
+        kind: 'tuple',
+        length: 2,
+        items: [
+          { kind: 'atom', type: 'int', preview: '1' },
+          { kind: 'atom', type: 'str', preview: "'a'" },
+        ],
+      }),
+    ).toBe(false)
+  })
+
   it('rejects mixed or nested collections', () => {
     expect(
       looksLikeTokenList({

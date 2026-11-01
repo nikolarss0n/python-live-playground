@@ -91,7 +91,7 @@ export function pulseSourceLines(
 }
 
 export function linesFromEvents(
-  events: readonly { line?: number }[],
+  events: readonly { line?: number | undefined }[],
 ): number[] {
   const out: number[] = []
   const seen = new Set<number>()

@@ -1,0 +1,5 @@
+[
+  {"tool": "search", "duration_ms": 12, "ok": true},
+  {"tool": "summarize", "duration_ms": 25, "ok": false}
+]
+

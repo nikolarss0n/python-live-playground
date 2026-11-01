@@ -27,6 +27,32 @@ class MockWorker {
         this.onmessage?.({ data: { type: 'ready' } } as MessageEvent)
       })
     }
+    if (msg.type === 'invoke') {
+      const invoke = data as { id: string; method: string; path: string }
+      queueMicrotask(() => {
+        if (this.terminated) return
+        this.onmessage?.({
+          data: {
+            type: 'result',
+            id: invoke.id,
+            events: [
+              {
+                kind: 'http',
+                method: invoke.method,
+                path: invoke.path,
+                status: 200,
+                body: '{"message":"hi"}',
+                simulated: true,
+              },
+            ],
+            durationMs: 2,
+            routes: [
+              { method: 'GET', path: '/hello', callPath: '/hello' },
+            ],
+          },
+        } as MessageEvent)
+      })
+    }
     if (msg.type === 'run') {
       const run = data as { id: string; code: string }
       queueMicrotask(() => {
@@ -54,6 +80,7 @@ class MockWorker {
           } as MessageEvent)
           return
         }
+        const isFastApi = run.code.includes('FastAPI')
         this.onmessage?.({
           data: {
             type: 'result',
@@ -63,6 +90,9 @@ class MockWorker {
               { kind: 'expr', value: '4', line: 2 },
             ],
             durationMs: 5,
+            routes: isFastApi
+              ? [{ method: 'GET', path: '/hello', callPath: '/hello' }]
+              : [],
           },
         } as MessageEvent)
       })
@@ -80,6 +110,41 @@ class MockWorker {
 }
 
 describe('PythonRunner', () => {
+  it('terminates an active worker when the editor is cleared', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    await runner.run('__HANG__')
+    const busy = MockWorker.instances.at(-1)
+    await runner.run('')
+    expect(busy?.terminated).toBe(true)
+    expect(runner.getSnapshot().events).toEqual([])
+    await runner.run('print("recovered")')
+    await Promise.resolve()
+    expect(runner.getSnapshot().status).toBe('success')
+    runner.dispose()
+  })
+
+  it('announces initial readiness after an empty edit during boot', async () => {
+    const runner = new PythonRunner()
+    const started = runner.start()
+    await runner.run('')
+    await started
+    expect(runner.getSnapshot().status).toBe('ready')
+    runner.dispose()
+  })
+
+  it('discards checks from a different mock requirement or study phase', async () => {
+    const runner = new PythonRunner()
+    await runner.start()
+    await runner.run('__HANG__', 'refresher-13', { context: { variant: 'a', followUp: true }, contextKey: 'a-follow-up' })
+    const worker = MockWorker.instances.at(-1)
+    const id = runner.getSnapshot().runId
+    if (!worker || !id) throw new Error('Expected active worker')
+    worker.emit({ type: 'result', id, exerciseId: 'refresher-13', contextKey: 'a-initial', durationMs: 1, events: [],
+      checks: [{ id: 'check', label: 'Old context', passed: true, detail: 'Passed' }] })
+    expect(runner.getSnapshot()).toMatchObject({ contextKey: 'a-follow-up', checks: [] })
+    runner.dispose()
+  })
   beforeEach(() => {
     MockWorker.instances = []
     vi.stubGlobal(
@@ -163,6 +228,21 @@ describe('PythonRunner', () => {
     runner.dispose()
   })
 
+  it('keeps the last results on screen while the next run is running', async () => {
+    const runner = new PythonRunner(5000)
+    await runner.start()
+    await runner.run('print("hello")')
+    await vi.waitFor(() => expect(runner.getSnapshot().status).toBe('success'))
+    const finished = runner.getSnapshot()
+    await runner.run('__HANG__')
+    const running = runner.getSnapshot()
+    expect(running.status).toBe('running')
+    expect(running.events).toBe(finished.events)
+    expect(running.durationMs).toBe(finished.durationMs)
+    expect(running.executedCode).toBeNull()
+    runner.dispose()
+  })
+
   it('kills a busy worker before starting a new run', async () => {
     const runner = new PythonRunner(5000)
     await runner.start()
@@ -182,6 +262,149 @@ describe('PythonRunner', () => {
     await runner.run('   \n  ')
     expect(runner.getSnapshot().status).toBe('idle')
     expect(runner.getSnapshot().events).toEqual([])
+    expect(runner.getSnapshot().routes).toEqual([])
+    runner.dispose()
+  })
+
+  it('keeps exercise checks tied to the run and clears them when the source changes', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    await runner.run('__HANG__', 'service-validation')
+    const worker = MockWorker.instances.at(-1)
+    const runId = runner.getSnapshot().runId
+    if (!worker || !runId) throw new Error('Expected an active worker run')
+    expect(worker.posted).toContainEqual({ type: 'run', id: runId, code: '__HANG__', exerciseId: 'service-validation' })
+    const checks = [{ id: 'valid-question', label: 'Return a trimmed question', passed: true, detail: 'Passed' }]
+    worker.emit({ type: 'result', id: runId, events: [], durationMs: 2, exerciseId: 'service-validation', checks })
+    expect(runner.getSnapshot()).toMatchObject({ exerciseId: 'service-validation', checks, executedCode: '__HANG__' })
+    await runner.run('__HANG__ edited', 'service-endpoint')
+    expect(runner.getSnapshot().checks).toBeUndefined()
+    expect(runner.getSnapshot().exerciseId).toBeUndefined()
+    worker.emit({ type: 'result', id: runId, events: [], durationMs: 2, exerciseId: 'service-validation', checks })
+    expect(runner.getSnapshot().status).toBe('running')
+    expect(runner.getSnapshot().checks).toBeUndefined()
+    runner.dispose()
+  })
+
+  it('stops or times out exercise probes through the same replaceable worker', async () => {
+    vi.useFakeTimers()
+    const runner = new PythonRunner(50)
+    await runner.start()
+    await runner.run('__HANG__', 'service-tests')
+    const first = MockWorker.instances.at(-1)
+    await vi.advanceTimersByTimeAsync(60)
+    expect(first?.terminated).toBe(true)
+    expect(runner.getSnapshot().status).toBe('timeout')
+    expect(runner.getSnapshot()).toMatchObject({
+      exerciseId: 'service-tests', executedCode: '__HANG__', checks: [],
+    })
+    await runner.run('__HANG__ again', 'service-tests')
+    const second = MockWorker.instances.at(-1)
+    runner.stop()
+    expect(second?.terminated).toBe(true)
+    expect(runner.getSnapshot()).toMatchObject({
+      status: 'stopped', exerciseId: 'service-tests', executedCode: '__HANG__ again', checks: [],
+    })
+    await vi.advanceTimersByTimeAsync(1)
+    expect(runner.getSnapshot().status).toBe('stopped')
+    runner.dispose()
+  })
+
+  it('binds failed worker replies and worker errors to the active exercise', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    for (const kind of ['failed', 'error']) {
+      await runner.run('__HANG__', 'service-validation')
+      const worker = MockWorker.instances.at(-1)
+      const runId = runner.getSnapshot().runId
+      if (!worker || !runId) throw new Error('Expected an active worker run')
+      if (kind === 'failed') worker.emit({ type: 'failed', id: runId, error: 'Unexpected failure' })
+      else worker.onerror?.(new ErrorEvent('error', { message: 'Worker crashed' }))
+      expect(runner.getSnapshot()).toMatchObject({
+        status: 'error', exerciseId: 'service-validation', executedCode: '__HANG__', checks: [],
+      })
+    }
+    runner.dispose()
+  })
+
+  it('discards mismatched exercise checks and late errors from replaced workers', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    await runner.run('__HANG__', 'service-validation')
+    const oldWorker = MockWorker.instances.at(-1)
+    await runner.run('__HANG__ next', 'service-endpoint')
+    oldWorker?.onerror?.(new ErrorEvent('error', { message: 'Old worker crashed' }))
+    expect(runner.getSnapshot().status).toBe('running')
+    const worker = MockWorker.instances.at(-1)
+    const runId = runner.getSnapshot().runId
+    if (!worker || !runId) throw new Error('Expected an active worker run')
+    worker.emit({
+      type: 'result', id: runId, events: [], durationMs: 1, exerciseId: 'service-validation',
+      checks: [{ id: 'valid-question', label: 'Return a trimmed question', passed: true, detail: 'Passed' }],
+    })
+    expect(runner.getSnapshot()).toMatchObject({ exerciseId: 'service-endpoint', checks: [] })
+    runner.dispose()
+  })
+
+  it('stores discovered routes from a FastAPI run', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    const done = new Promise<void>((resolve) => {
+      runner.subscribe((s) => {
+        if (s.status === 'success') resolve()
+      })
+    })
+    await runner.run('from fastapi import FastAPI\napp = FastAPI()')
+    await done
+    expect(runner.getSnapshot().routes).toEqual([
+      { method: 'GET', path: '/hello', callPath: '/hello' },
+    ])
+    runner.dispose()
+  })
+
+  it('invoke posts Call to the same worker and keeps routes', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    const done = new Promise<void>((resolve) => {
+      runner.subscribe((s) => {
+        if (s.status === 'success' && s.routes.length) resolve()
+      })
+    })
+    await runner.run('from fastapi import FastAPI\napp = FastAPI()')
+    await done
+    const worker = MockWorker.instances[MockWorker.instances.length - 1]
+    const invokeDone = new Promise<void>((resolve) => {
+      runner.subscribe((s) => {
+        if (s.events.some((e) => e.kind === 'http')) resolve()
+      })
+    })
+    await runner.invoke({
+      method: 'POST',
+      path: '/users',
+      query: { verbose: '1' },
+      body: { name: 'Ada' },
+      headers: { Authorization: 'Bearer secret' },
+    })
+    await invokeDone
+    expect(
+      worker?.posted.some(
+        (m) =>
+          typeof m === 'object' &&
+          m !== null &&
+          (m as { type?: string }).type === 'invoke' &&
+          (m as { headers?: { Authorization?: string } }).headers
+            ?.Authorization === 'Bearer secret' &&
+          (m as { body?: { name?: string } }).body?.name === 'Ada',
+      ),
+    ).toBe(true)
+    expect(
+      worker?.posted.some((m) => (m as { type?: string }).type === 'run'),
+    ).toBe(true)
+    const snap = runner.getSnapshot()
+    expect(snap.routes).toHaveLength(1)
+    const http = snap.events.find((e) => e.kind === 'http')
+    expect(http?.kind === 'http' && http.status).toBe(200)
+    expect(http?.kind === 'http' && http.path).toBe('/users')
     runner.dispose()
   })
 })

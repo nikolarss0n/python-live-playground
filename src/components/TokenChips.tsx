@@ -7,12 +7,8 @@ export function looksLikeTokenList(node: CollectionNode | undefined | null): boo
   if (node.kind !== 'list' && node.kind !== 'tuple') return false
   if (node.length === 0 || node.length > 48) return false
   if (node.items.length === 0) return false
-  return node.items.every((item) => {
-    if (item.kind !== 'atom') return false
-    if (item.type === 'str') return item.preview.length <= 40
-    // also allow bare short symbols if typed oddly
-    return item.preview.length > 0 && item.preview.length <= 24
-  })
+  // Only text tokens: numbers and mixed lists read better as the collection card alone.
+  return node.items.every((item) => item.kind === 'atom' && item.type === 'str' && item.preview.length <= 40)
 }
 
 function stripQuotes(preview: string): string {

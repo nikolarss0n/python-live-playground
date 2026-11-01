@@ -1,4 +1,5 @@
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 import type { Lesson } from '../examples'
 import type { LessonProgressView } from '../lessonProgress'
@@ -20,7 +21,11 @@ const lesson: Lesson = {
   code: 'print(1)',
 }
 
-function renderGoal(tasks: LessonProgressView['tasks']) {
+function renderGoal(
+  tasks: LessonProgressView['tasks'],
+  expanded = true,
+  onToggleExpanded = vi.fn(),
+) {
   const view: LessonProgressView = {
     tasks,
     next: 'Run the code',
@@ -37,6 +42,8 @@ function renderGoal(tasks: LessonProgressView['tasks']) {
       view={view}
       onRevealStuck={vi.fn()}
       code={lesson.code}
+      expanded={expanded}
+      onToggleExpanded={onToggleExpanded}
     />,
   )
 }
@@ -65,5 +72,40 @@ describe('LessonGoal task guidance', () => {
     )
     expect(screen.getByText('How')).toBeInTheDocument()
     expect(screen.queryByText('Then')).not.toBeInTheDocument()
+  })
+
+  it('keeps the default summary compact and exposes an accessible toggle', async () => {
+    const onToggleExpanded = vi.fn()
+    const user = userEvent.setup()
+
+    renderGoal(
+      [
+        {
+          text: lesson.tasks[0],
+          instruction: lesson.taskInstructions?.[0] ?? null,
+          status: 'done',
+        },
+        {
+          text: lesson.tasks[1],
+          instruction: lesson.taskInstructions?.[1] ?? null,
+          status: 'todo',
+        },
+      ],
+      false,
+      onToggleExpanded,
+    )
+
+    const toggle = screen.getByRole('button', { name: /show lesson/i })
+    expect(toggle).toHaveAttribute('aria-expanded', 'false')
+    for (const text of screen.getAllByText('Check the second result')) expect(text).not.toBeVisible()
+    expect(screen.getByLabelText('1 of 2 tasks complete')).toHaveTextContent(
+      '1/2',
+    )
+    expect(
+      screen.queryByRole('group', { name: /lesson details/i }),
+    ).not.toBeInTheDocument()
+
+    await user.click(toggle)
+    expect(onToggleExpanded).toHaveBeenCalledOnce()
   })
 })

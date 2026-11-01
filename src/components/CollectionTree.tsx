@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import type { CollectionNode } from '../execution/collectionStructure'
 import {
-  collectionLabel,
+  COLLECTION_GLYPH,
+  collectionCount,
   collectionSummary,
   isCollectionRoot,
 } from '../execution/collectionStructure'
@@ -14,8 +15,8 @@ type CollectionTreeProps = {
 }
 
 /**
- * Quiet monospace indent tree for list / dict / set / tuple results.
- * Root starts open; nested collections start collapsed.
+ * List / dict / set / tuple results as framed cards: a header pill with the Python brackets and a count, then one row
+ * per item with its index or key. Root starts open; nested collections start collapsed and open as smaller cards.
  */
 export function CollectionTree({
   node,
@@ -46,12 +47,14 @@ function CollectionBranch({
   depth: number
 }) {
   const [open, setOpen] = useState(depth === 0)
-  const label = collectionLabel(node)
   const summary = collectionSummary(node)
   const empty = node.length === 0
 
   return (
-    <div className={`coll-tree coll-tone-${tone}`} data-depth={depth}>
+    <div
+      className={`coll-tree coll-kind-${node.kind} coll-tone-${tone}${open && !empty ? ' is-open' : ''}`}
+      data-depth={depth}
+    >
       <button
         type="button"
         className="coll-toggle"
@@ -59,10 +62,18 @@ function CollectionBranch({
         aria-expanded={open}
         disabled={empty}
       >
-        <span className="coll-chevron" aria-hidden="true">
-          {empty ? '·' : open ? '▾' : '▸'}
+        <span className="coll-pill">
+          <span className="coll-glyph" aria-hidden="true">
+            {COLLECTION_GLYPH[node.kind]}
+          </span>
+          <span className="coll-label">{node.kind}</span>
+          <span className="coll-count">{collectionCount(node)}</span>
+          {empty ? null : (
+            <svg className="coll-chevron" viewBox="0 0 10 10" width="9" height="9" aria-hidden="true">
+              <path d="M3 2l3.5 3L3 8" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          )}
         </span>
-        <span className="coll-label">{label}</span>
         {(!open || empty) && (
           <span className="coll-summary">{summary}</span>
         )}
@@ -95,7 +106,9 @@ function CollectionBranch({
             : node.items.map((item, i) => (
                 <li key={i} className="coll-row">
                   {node.kind !== 'set' ? (
-                    <span className="coll-index">{i}</span>
+                    <span className="coll-index" title={`Index ${i}`}>
+                      {i}
+                    </span>
                   ) : (
                     <span
                       className="coll-index coll-index-set"

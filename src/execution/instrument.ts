@@ -250,6 +250,7 @@ def _plp_friendly(exc):
         "ImportError": "That import could not be completed in this browser playground.",
         "RecursionError": "The function called itself too many times. Check the base case.",
         "TimeoutError": "This code ran too long and was stopped to protect the browser.",
+        "SimFastAPIError": "This playground simulates FastAPI in the browser. Use TestClient or Call on a registered route instead of uvicorn, Depends, or /docs.",
     }
     tip = tips.get(name, "Something went wrong while running this code.")
     return f"{name}: {msg}\\n\\n{tip}"
@@ -273,9 +274,35 @@ def _plp_transform(source: str) -> str:
     tree.body = new_body
     tree = _PlpLimitLoops().visit(tree)
     ast.fix_missing_locations(tree)
-    return compile(tree, "<playground>", "exec")
+    # Top-level await works like a notebook: the async runner awaits the module's coroutine.
+    return compile(tree, "<playground>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 
-def _plp_run(source: str):
+def _plp_sim_routes():
+    try:
+        import fastapi_sim
+        return fastapi_sim.list_routes()
+    except Exception:
+        return []
+
+def _plp_sim_install():
+    try:
+        import fastapi_sim
+        fastapi_sim.install()
+        fastapi_sim.reset()
+    except Exception:
+        pass
+
+def _plp_run(source: str, exercise_id=None, include_namespace=False):
+    """Run without an event loop. Source with a top-level await needs _plp_run_async."""
+    coro = _plp_run_core(source, exercise_id, include_namespace)
+    try:
+        coro.send(None)
+    except StopIteration as done:
+        return done.value
+    coro.close()
+    raise RuntimeError("top-level await needs the async runner")
+
+async def _plp_run_core(source: str, exercise_id=None, include_namespace=False):
     global _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
     _plp_print_line = None
@@ -290,6 +317,7 @@ def _plp_run(source: str):
     builtins.print = _plp_print
     old_show = warnings.showwarning
     warnings.showwarning = _plp_showwarning
+    _plp_sim_install()
     try:
         code_obj = _plp_transform(source)
         globals_dict = {
@@ -298,28 +326,184 @@ def _plp_run(source: str):
             "_plp_check_limit": _plp_check_limit,
             "print": _plp_print,
         }
-        exec(code_obj, globals_dict)
+        pending = eval(code_obj, globals_dict)
+        if pending is not None:
+            await pending
         out.flush()
-        return {"ok": True, "events": list(_plp_events)}
+        events = list(_plp_events)
+        checks = []
+        if exercise_id:
+            from service_checks import check_service
+            checks = check_service(globals_dict, exercise_id)
+        result = {"ok": True, "events": events, "routes": _plp_sim_routes(), "checks": checks}
+        if include_namespace:
+            result["namespace"] = globals_dict
+        return result
     except Exception as exc:
         out.flush()
         tb = traceback.format_exc()
         line = None
+        column = None
+        end_column = None
+        frames = []
         if isinstance(exc, SyntaxError) and exc.lineno is not None:
             line = exc.lineno
+            if exc.offset:
+                column = exc.offset - 1
+                if exc.end_offset and (exc.end_lineno in (None, exc.lineno)) and exc.end_offset > exc.offset:
+                    end_column = exc.end_offset - 1
         else:
             for frame in traceback.extract_tb(exc.__traceback__):
                 if frame.filename == "<playground>":
                     line = frame.lineno
+                    column = getattr(frame, "colno", None)
+                    end_column = getattr(frame, "end_colno", None)
+                    if getattr(frame, "end_lineno", frame.lineno) != frame.lineno:
+                        end_column = None
+                    frames.append({"line": frame.lineno, "name": frame.name,
+                                   "column": column, "endColumn": end_column})
+        events = list(_plp_events)
+        error_event = {
+            "kind": "error",
+            "message": f"{type(exc).__name__}: {exc}",
+            "friendly": _plp_friendly(exc),
+            "traceback": tb,
+            "line": line,
+            "frames": frames[-12:],
+        }
+        if column is not None:
+            error_event["column"] = column
+        if end_column is not None:
+            error_event["endColumn"] = end_column
+        events.append(error_event)
+        return {"ok": False, "events": events, "routes": _plp_sim_routes()}
+    finally:
+        sys.stdout = old_out
+        sys.stderr = old_err
+        builtins.print = old_print
+        warnings.showwarning = old_show
+        _plp_print_line = None
+        _plp_pending_structure = None
+
+def _plp_fullstack_after(request):
+    """Data and API tabs: each requested route called on the last app, then the shared database's tables."""
+    import json as _json
+    import playdb
+    calls = []
+    for spec in (request.get("calls") or [])[:8]:
+        spec = spec.strip()
+        method, rest = spec.split(" ", 1) if spec[:1] != "/" and " " in spec else ("GET", spec)
+        path, _, raw = rest.strip().partition(" ")
+        try:
+            import fastapi_sim
+            body = _json.loads(raw) if raw.strip() else None
+            response = fastapi_sim.dispatch_last(method.upper(), path, body=body)
+            calls.append({"method": response["method"], "path": path, "status": response["status"], "body": response["body"]})
+        except Exception as exc:
+            calls.append({"method": method.upper(), "path": path, "status": 500, "body": {"detail": f"{type(exc).__name__}: {exc}"}})
+    return {"tables": playdb.snapshot(), "calls": calls}
+
+async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None):
+    import asyncio
+    prior_tasks = asyncio.all_tasks()
+    old_out, old_err, old_print = sys.stdout, sys.stderr, builtins.print
+    if fullstack is not None:
+        import playdb
+        playdb.configure(fullstack.get("seed", 1))
+        for name in fullstack.get("datasets") or []:
+            if name in playdb.COLUMNS:
+                playdb.load(playdb.connect(), name)
+    try:
+        genai = isinstance(exercise_id, str) and exercise_id.startswith("genai-")
+        refresher = isinstance(exercise_id, str) and exercise_id.startswith("refresher-")
+        checked = genai or refresher
+        result = await _plp_run_core(source, None if checked else exercise_id, include_namespace=checked)
+        if fullstack is not None:
+            result["fullstack"] = _plp_fullstack_after(fullstack)
+        namespace = result.pop("namespace", None)
+        if not checked or not result["ok"] or namespace is None:
+            return result
+        sys.stdout = sys.stderr = _PlpStdout()
+        builtins.print = _plp_print
+        if refresher:
+            from refresher_checks import check_refresher
+            checks = await check_refresher(namespace, exercise_id, context)
+        else:
+            from genai_python_checks import check_genai_python
+            from genai_security_checks import check_genai_security
+            checks = await check_genai_python(namespace, exercise_id)
+            if not checks:
+                checks = check_genai_security(namespace, exercise_id)
+        result["checks"] = checks
+        return result
+    finally:
+        # Include tasks created by the learner source, not only tasks created by probes.
+        sys.stdout = sys.stderr = _PlpStdout()
+        builtins.print = _plp_print
+        try:
+            while True:
+                pending = [task for task in asyncio.all_tasks() - prior_tasks if not task.done()]
+                if not pending:
+                    break
+                for task in pending:
+                    task.cancel()
+                # A task that refuses cancellation is contained by the worker's hard timeout.
+                await asyncio.gather(*pending, return_exceptions=True)
+        finally:
+            sys.stdout, sys.stderr, builtins.print = old_out, old_err, old_print
+
+def _plp_invoke(req):
+    """Call one registered simulated-FastAPI route without re-running the editor."""
+    import json as _json
+    global _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
+    _plp_events = []
+    _plp_print_line = None
+    _plp_pending_structure = None
+    _plp_ticks = 0
+    _plp_deadline = time.time() + _PLP_SOFT_LIMIT_S
+    if isinstance(req, str):
+        req = _json.loads(req)
+    method = req.get("method") or "GET"
+    path = req.get("path") or "/"
+    old_out, old_err = sys.stdout, sys.stderr
+    old_print = builtins.print
+    out = _PlpStdout()
+    sys.stdout = out
+    sys.stderr = out
+    builtins.print = _plp_print
+    old_show = warnings.showwarning
+    warnings.showwarning = _plp_showwarning
+    try:
+        import fastapi_sim
+        result = fastapi_sim.dispatch_last(
+            method,
+            path,
+            query=req.get("query"),
+            body=req.get("body"),
+            headers=req.get("headers"),
+        )
+        out.flush()
+        events = list(_plp_events)
+        events.append({
+            "kind": "http",
+            "method": result.get("method") or method,
+            "path": result.get("path") or path,
+            "status": int(result.get("status") or 500),
+            "body": _json.dumps(result.get("body"), default=str),
+            "simulated": True,
+        })
+        return {"ok": True, "events": events, "routes": fastapi_sim.list_routes()}
+    except Exception as exc:
+        out.flush()
+        tb = traceback.format_exc()
         events = list(_plp_events)
         events.append({
             "kind": "error",
             "message": f"{type(exc).__name__}: {exc}",
             "friendly": _plp_friendly(exc),
             "traceback": tb,
-            "line": line,
         })
-        return {"ok": False, "events": events}
+        return {"ok": False, "events": events, "routes": _plp_sim_routes()}
     finally:
         sys.stdout = old_out
         sys.stderr = old_err

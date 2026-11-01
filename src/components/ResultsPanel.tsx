@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { ExecutionStatus, ResultEvent } from '../execution/protocol'
-import { explainError } from '../execution/errorExplain'
+import { cleanErrorDetail, explainError } from '../execution/errorExplain'
+import { loopSlots, type LoopSlot } from './loopSlots'
 import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
 import {
@@ -13,9 +14,14 @@ import { CollectionTree } from './CollectionTree'
 import { looksLikeTokenList, TokenChips } from './TokenChips'
 import { HttpResponseCard } from './HttpResponseCard'
 import {
+  httpResponseFromHttpEvent,
   httpResponseFromStructure,
   httpResponseFromText,
 } from '../httpResponse'
+import type { CoachUiMessage } from '../lessonCoach'
+import { ErrorHelp, type ErrorHelpContext } from './ErrorHelp'
+import { GoalChecks } from './GoalChecks'
+import type { GoalChecks as GoalChecksView } from '../jev/useJevGoalCheck'
 
 type ResultsPanelProps = {
   events: ResultEvent[]
@@ -27,6 +33,8 @@ type ResultsPanelProps = {
   onGeometryChange?: () => void
   /** First-run coaching until the learner has seen success once. */
   showCoaching?: boolean
+  /** Replaces the empty-state text, e.g. while an untouched starter waits for its blanks. */
+  placeholder?: string
   /** Align rows beside source lines. */
   editorView?: EditorView | null
   geometryKey?: number
@@ -39,6 +47,42 @@ type ResultsPanelProps = {
   /** Show previous-run ghost layer. */
   showPrevious?: boolean
   onTogglePrevious?: () => void
+  /** Quiet lesson coach trail — print-like lines under results. */
+  coachMessages?: readonly CoachUiMessage[]
+  coachBusy?: boolean
+  coachConfigured?: boolean
+  onCoachAsk?: (text: string) => void
+  onOpenSettings?: () => void
+  /** Python basics: whether the current task advanced, citing this run. */
+  taskEvidence?: string | null
+  /** Per-task and goal checks for the latest clean run; replaces the evidence line. */
+  goalChecks?: GoalChecksView | null
+  errorHelp?: ErrorHelpContext
+}
+
+function eventContent(event: ResultEvent): string {
+  switch (event.kind) {
+    case 'print':
+    case 'warning':
+      return event.text
+    case 'expr':
+      return event.value
+    case 'error':
+      return event.message
+    case 'http':
+      return `${event.method}:${event.path}:${event.status}:${event.body}`
+  }
+}
+
+/** Keys from content and occurrence, not position, so rows that did not change keep their DOM across re-runs. */
+function stableRowKeys(events: readonly ResultEvent[]): string[] {
+  const seen = new Map<string, number>()
+  return events.map((event) => {
+    const base = `${event.kind}|${eventContent(event)}`
+    const count = seen.get(base) ?? 0
+    seen.set(base, count + 1)
+    return `${base}|${count}`
+  })
 }
 
 /** Only surface states that need attention — skip success/ready noise. */
@@ -92,6 +136,10 @@ function EventRow({
   dimmed,
   updated,
   ghost,
+  errorHelp,
+  loop,
+  focused,
+  onToggleFocus,
 }: {
   event: ResultEvent
   index: number
@@ -101,12 +149,15 @@ function EventRow({
   dimmed?: boolean
   updated?: boolean
   ghost?: boolean
+  errorHelp?: ErrorHelpContext
+  loop?: LoopSlot | null
+  focused?: boolean
+  onToggleFocus?: () => void
 }) {
   const [showTrace, setShowTrace] = useState(false)
   const [showExample, setShowExample] = useState(false)
-  const [showExplain, setShowExplain] = useState(
-    event.kind === 'error' && !ghost,
-  )
+  // Collapsed by default — tip is always visible; explanation is opt-in.
+  const [showExplain, setShowExplain] = useState(false)
   const linked = !ghost && event.line != null && event.line > 0
   const className = [
     'result-row',
@@ -116,6 +167,10 @@ function EventRow({
     dimmed ? 'is-dimmed' : '',
     updated ? 'is-updated' : '',
     ghost ? 'is-ghost' : '',
+    loop ? 'in-loop' : '',
+    loop?.iteration === 1 ? 'loop-first' : '',
+    loop && loop.iteration === loop.total ? 'loop-last' : '',
+    focused ? 'is-focused' : '',
   ]
     .filter(Boolean)
     .join(' ')
@@ -124,15 +179,50 @@ function EventRow({
     if (!ghost) onLayout?.()
   }, [showExplain, showTrace, showExample, onLayout, ghost])
 
-  const hoverProps =
-    linked && onHover
+  const hoverProps = {
+    ...(linked && onHover
       ? {
           onMouseEnter: () => onHover(index),
           onMouseLeave: () => onHover(null),
         }
-      : {}
+      : {}),
+    ...(onToggleFocus
+      ? {
+          onClick: (event: MouseEvent) => {
+            if ((event.target as HTMLElement).closest('button, a, summary, input, select, textarea')) return
+            onToggleFocus()
+          },
+        }
+      : {}),
+  }
 
-  const lineSpan = (
+  const lineSpan = loop ? (
+    <>
+      <span className="result-line" aria-hidden="true">
+        {loop.iteration === 1 ? (
+          <span className="loop-head">
+            <span className="loop-head-line">{loop.line}</span>
+            <span className="loop-badge">
+              <LoopIcon />
+              loop · {loop.total}×
+            </span>
+          </span>
+        ) : null}
+      </span>
+      <span className="loop-iteration">
+        <button
+          type="button"
+          className="loop-iteration-num"
+          aria-pressed={focused ?? false}
+          aria-label={`Focus loop round ${loop.iteration} of ${loop.total} from line ${loop.line}`}
+          title={focused ? 'Show all rounds' : 'Show only this round'}
+          onClick={onToggleFocus}
+        >
+          {loop.iteration}
+        </button>
+      </span>
+    </>
+  ) : (
     <span className="result-line" aria-hidden="true">
       {event.line ?? ''}
     </span>
@@ -146,16 +236,13 @@ function EventRow({
       <div
         className={className}
         data-result-index={ghost ? undefined : index}
-        data-source-line={event.line ?? undefined}
+        data-source-line={http ? undefined : event.line ?? undefined}
         {...hoverProps}
       >
         {lineSpan}
         {http ? (
           <div className="result-collection">
             <HttpResponseCard view={http} />
-            {isCollectionRoot(event.structure) ? (
-              <CollectionTree node={event.structure} tone="print" />
-            ) : null}
           </div>
         ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
@@ -179,16 +266,13 @@ function EventRow({
       <div
         className={className}
         data-result-index={ghost ? undefined : index}
-        data-source-line={event.line}
+        data-source-line={http ? undefined : event.line}
         {...hoverProps}
       >
         {lineSpan}
         {http ? (
           <div className="result-collection">
             <HttpResponseCard view={http} />
-            {isCollectionRoot(event.structure) ? (
-              <CollectionTree node={event.structure} tone="expr" />
-            ) : null}
           </div>
         ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
@@ -200,6 +284,19 @@ function EventRow({
         ) : (
           <PlainValue text={event.value} tone="expr" />
         )}
+      </div>
+    )
+  }
+
+  if (event.kind === 'http') {
+    const http = httpResponseFromHttpEvent(event)
+    return (
+      <div
+        className={className}
+        data-result-index={ghost ? undefined : index}
+      >
+        {lineSpan}
+        <HttpResponseCard view={http} />
       </div>
     )
   }
@@ -219,6 +316,9 @@ function EventRow({
   }
 
   const explanation = event.explanation ?? explainError(event.message)
+  const displayDetail = cleanErrorDetail(
+    explanation.detail || event.message || explanation.name,
+  )
   const rawMessage =
     event.message || `${explanation.name}: ${explanation.detail}`
 
@@ -240,18 +340,26 @@ function EventRow({
     >
       {lineSpan}
       <div className="result-error-body">
-        <div className={`error-card${showExplain ? ' is-expanded' : ''}`}>
-          <pre className="error-card-raw" data-error-anchor>
-            {rawMessage}
-          </pre>
-          {event.line != null && (
-            <p className="error-card-meta">line {event.line}</p>
-          )}
+        <div
+          className={`error-card${showExplain ? ' is-expanded' : ''}${showTrace ? ' is-trace-open' : ''}`}
+          role="group"
+          aria-label={`${explanation.name} error`}
+        >
+          <div className="error-card-header">
+            <span className="error-card-type">{explanation.name}</span>
+            {event.line != null && (
+              <span className="error-card-line">Line {event.line}</span>
+            )}
+          </div>
 
-          <p className="error-card-tip-inline">
-            <span className="error-card-tip-label">What to fix</span>
-            {explanation.tip}
+          <p className="error-card-detail error-card-raw" data-error-anchor>
+            {displayDetail}
           </p>
+
+          <div className="error-card-tip">
+            <span className="error-card-tip-label">What to fix</span>
+            <p className="error-card-tip-text">{explanation.tip}</p>
+          </div>
 
           <div className="error-card-actions">
             <button
@@ -265,7 +373,7 @@ function EventRow({
             {event.traceback && (
               <button
                 type="button"
-                className="linkish"
+                className="linkish error-card-trace-btn"
                 onClick={() => setShowTrace((v) => !v)}
                 aria-expanded={showTrace}
               >
@@ -274,13 +382,12 @@ function EventRow({
             )}
           </div>
 
+          {errorHelp ? <ErrorHelp key={`${errorHelp.contextId}/${errorHelp.fresh}/${errorHelp.allowed}`} error={event} context={errorHelp} /> : null}
+
           {showExplain && (
             <div className="error-card-explain">
               <p className="error-card-plain-title">{explanation.title}</p>
-              <p className="error-card-summary">
-                <span className="error-card-section-label">What this means</span>
-                {explanation.summary}
-              </p>
+              <p className="error-card-summary">{explanation.summary}</p>
 
               {explanation.example && (
                 <div className="error-card-example-wrap">
@@ -311,14 +418,32 @@ function EventRow({
   )
 }
 
-function useLoopTrace(events: ResultEvent[]) {
-  return useMemo(() => {
-    const prints = events
-      .map((e, index) => ({ e, index }))
-      .filter(({ e }) => e.kind === 'print')
-    if (prints.length < 3) return null
-    return prints
-  }, [events])
+
+
+function isHttpShaped(event: ResultEvent): boolean {
+  if (event.kind === 'http') return true
+  if (event.kind === 'print') {
+    return Boolean(
+      httpResponseFromStructure(event.structure) ??
+        httpResponseFromText(event.text),
+    )
+  }
+  if (event.kind === 'expr') {
+    return Boolean(
+      httpResponseFromStructure(event.structure) ??
+        httpResponseFromText(event.value),
+    )
+  }
+  return false
+}
+
+function LoopIcon() {
+  return (
+    <svg className="loop-icon" viewBox="0 0 16 16" width="12" height="12" aria-hidden="true" focusable="false">
+      <path d="M3 7.5A4.5 4.5 0 0 1 11.6 5.6M13 8.5a4.5 4.5 0 0 1-8.6 1.9" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M11.9 2.6v3.2H8.7M4.1 13.4v-3.2h3.2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
 }
 
 export function ResultsPanel({
@@ -329,6 +454,7 @@ export function ResultsPanel({
   onHoverResult,
   onGeometryChange,
   showCoaching = false,
+  placeholder,
   editorView = null,
   geometryKey = 0,
   alignMode = 'off',
@@ -336,7 +462,16 @@ export function ResultsPanel({
   updatedIndices,
   showPrevious = false,
   onTogglePrevious,
+  coachMessages = [],
+  coachBusy = false,
+  coachConfigured = false,
+  onCoachAsk,
+  onOpenSettings,
+  taskEvidence = null,
+  goalChecks = null,
+  errorHelp,
 }: ResultsPanelProps) {
+  const [ask, setAsk] = useState('')
   const bodyRef = useRef<HTMLDivElement>(null)
   const empty =
     events.length === 0 &&
@@ -344,14 +479,12 @@ export function ResultsPanel({
 
   const label = statusLabel(status)
   const showStatus = label != null
-  const showDuration =
-    durationMs != null && status !== 'running' && status !== 'booting'
+  const showDuration = durationMs != null && status !== 'booting'
 
-  const loopTrace = useLoopTrace(events)
-  const [step, setStep] = useState<number | 'all'>('all')
+  const [focusIndex, setFocusIndex] = useState<number | null>(null)
 
   useEffect(() => {
-    setStep('all')
+    setFocusIndex(null)
   }, [events])
 
   useEffect(() => {
@@ -362,6 +495,13 @@ export function ResultsPanel({
     ro.observe(body)
     return () => ro.disconnect()
   }, [onGeometryChange])
+
+  useEffect(() => {
+    if (!coachMessages.length && !coachBusy) return
+    const body = bodyRef.current
+    if (!body) return
+    body.scrollTop = body.scrollHeight
+  }, [coachMessages, coachBusy])
 
   // Align each result row with the source line that produced it.
   useLayoutEffect(() => {
@@ -377,19 +517,30 @@ export function ResultsPanel({
       return
     }
 
+    // Side by side, the results body scrolls with the editor, so rows are placed where their line sits unscrolled.
+    const scroller = alignMode === 'full' ? editorView.scrollDOM : null
     const applyAlignment = () => {
       const measured = rows()
       if (measured.length !== events.length) return
       for (const row of measured) row.style.marginTop = ''
+      body.style.paddingBottom = ''
+      const editorScroll = scroller?.scrollTop ?? 0
 
       const bodyRect = body.getBoundingClientRect()
-      const targets = events.map((event) => {
+      // A loop's badge sits just above its card, so the row before the card makes room for it.
+      const badgeSpace = measured.map((row) => {
+        const badge = row.querySelector('.loop-badge')
+        return badge ? row.getBoundingClientRect().top - badge.getBoundingClientRect().top + 2 : 0
+      })
+      const targets = events.map((event, index) => {
+        if (isHttpShaped(event)) return null
         if (event.line == null || event.line < 1) return null
         try {
           const line = editorView.state.doc.line(event.line)
           const coords = editorView.coordsAtPos(line.from)
           if (!coords) return null
-          return coords.top - bodyRect.top + body.scrollTop
+          const top = coords.top + editorScroll - bodyRect.top + body.scrollTop
+          return index === 0 ? Math.max(top, badgeSpace[0]) : top
         } catch {
           return null
         }
@@ -398,7 +549,7 @@ export function ResultsPanel({
         (row) =>
           row.getBoundingClientRect().top - bodyRect.top + body.scrollTop,
       )
-      const heights = measured.map((row) => row.getBoundingClientRect().height)
+      const heights = measured.map((row, i) => row.getBoundingClientRect().height + (badgeSpace[i + 1] ?? 0))
       const stacked = computeStackedTops(targets, heights, 2, stackOpts)
       measured.forEach((row, i) => {
         const naturalGap =
@@ -408,6 +559,15 @@ export function ResultsPanel({
         const next = margin > 0.5 ? `${margin.toFixed(1)}px` : ''
         if (row.style.marginTop !== next) row.style.marginTop = next
       })
+      if (scroller) {
+        // Room to follow the editor all the way down, even when the last result sits above the last line.
+        const last = body.lastElementChild?.getBoundingClientRect().bottom ?? bodyRect.top
+        const contentBottom = last - bodyRect.top + body.scrollTop
+        const basePadding = parseFloat(getComputedStyle(body).paddingBottom) || 0
+        const shortBy = body.clientHeight + scroller.scrollHeight - scroller.clientHeight - contentBottom - basePadding
+        if (shortBy > 0) body.style.paddingBottom = `${Math.ceil(basePadding + shortBy)}px`
+        body.scrollTop = scroller.scrollTop
+      }
     }
 
     const raf = requestAnimationFrame(applyAlignment)
@@ -418,16 +578,33 @@ export function ResultsPanel({
           })
         : null
     ro?.observe(body)
+    let following: 'editor' | 'results' | null = null
+    const follow = (from: HTMLElement, to: HTMLElement, source: 'editor' | 'results') => () => {
+      if (following && following !== source) return
+      following = source
+      if (Math.abs(to.scrollTop - from.scrollTop) >= 1) to.scrollTop = from.scrollTop
+      requestAnimationFrame(() => { following = null })
+    }
+    const onEditorScroll = scroller ? follow(scroller, body, 'editor') : null
+    const onResultsScroll = scroller ? follow(body, scroller, 'results') : null
+    if (scroller && onEditorScroll && onResultsScroll) {
+      scroller.addEventListener('scroll', onEditorScroll, { passive: true })
+      body.addEventListener('scroll', onResultsScroll, { passive: true })
+    }
     return () => {
       cancelAnimationFrame(raf)
       ro?.disconnect()
+      if (scroller && onEditorScroll && onResultsScroll) {
+        scroller.removeEventListener('scroll', onEditorScroll)
+        body.removeEventListener('scroll', onResultsScroll)
+      }
+      body.style.paddingBottom = ''
     }
   }, [alignMode, editorView, events, geometryKey])
 
-  const focusIndex =
-    step === 'all' || !loopTrace ? null : (loopTrace[step]?.index ?? null)
-
   const hasPrevious = (previousEvents?.length ?? 0) > 0
+  const rowKeys = useMemo(() => stableRowKeys(events), [events])
+  const loops = useMemo(() => loopSlots(events), [events])
 
   return (
     <section className="results-panel" aria-label="Results" aria-live="polite">
@@ -440,7 +617,7 @@ export function ResultsPanel({
                 className={`status-dot status-${status}`}
                 aria-hidden="true"
               />
-              <span className="status-label">{label}</span>
+              <span className={`status-label status-label-${status}`}>{label}</span>
             </>
           )}
           {showDuration && (
@@ -460,39 +637,19 @@ export function ResultsPanel({
         </span>
       </header>
 
-      {loopTrace && (
-        <div className="loop-trace" role="group" aria-label="Loop steps">
-          <span className="loop-trace-label">Steps</span>
-          <button
-            type="button"
-            className={`loop-trace-btn${step === 'all' ? ' is-active' : ''}`}
-            onClick={() => setStep('all')}
-          >
-            All
-          </button>
-          {loopTrace.map(({ e }, i) => {
-            const preview =
-              e.kind === 'print'
-                ? e.text.trim().slice(0, 14) || `·${i + 1}`
-                : `${i + 1}`
-            const label =
-              preview.length >= 14 ? `${preview.slice(0, 13)}…` : preview
-            return (
-              <button
-                key={i}
-                type="button"
-                className={`loop-trace-btn${step === i ? ' is-active' : ''}`}
-                onClick={() => setStep(i)}
-                aria-label={`Step ${i + 1}: ${e.kind === 'print' ? e.text : ''}`}
-                title={e.kind === 'print' ? e.text : `Step ${i + 1}`}
-              >
-                <span className="loop-trace-num">{i + 1}</span>
-                <span className="loop-trace-preview">{label}</span>
-              </button>
-            )
-          })}
-        </div>
-      )}
+      {goalChecks ? (
+        <GoalChecks checks={goalChecks} />
+      ) : taskEvidence ? (
+        <p
+          className={`results-task-evidence${
+            /advanced/i.test(taskEvidence) ? ' is-advanced' : ''
+          }`}
+          role="status"
+          aria-label="Task evidence"
+        >
+          {taskEvidence}
+        </p>
+      ) : null}
 
       <div
         className={`results-body${
@@ -504,9 +661,9 @@ export function ResultsPanel({
           <p className="results-placeholder">
             {status === 'booting'
               ? 'Starting the in-browser Python engine…'
-              : showCoaching
+              : placeholder ?? (showCoaching
                 ? 'Edit a print — output appears here next to that line.'
-                : 'Results will appear here as you write code.'}
+                : 'Results will appear here as you write code.')}
           </p>
         )}
 
@@ -523,15 +680,7 @@ export function ResultsPanel({
 
         {events.map((event, index) => (
           <EventRow
-            key={`${event.kind}-${index}-${event.line ?? 0}-${
-              event.kind === 'print'
-                ? event.text
-                : event.kind === 'expr'
-                  ? event.value
-                  : event.kind === 'error'
-                    ? event.message
-                    : event.text
-            }`}
+            key={rowKeys[index]}
             event={event}
             index={index}
             active={activeIndex === index}
@@ -539,9 +688,71 @@ export function ResultsPanel({
             onLayout={onGeometryChange}
             dimmed={focusIndex != null && index !== focusIndex}
             updated={updatedIndices?.has(index)}
+            errorHelp={errorHelp}
+            loop={loops[index]}
+            focused={focusIndex === index}
+            onToggleFocus={loops[index] ? () => setFocusIndex((current) => (current === index ? null : index)) : undefined}
           />
         ))}
+
+        {coachMessages.map((msg) => (
+          <div
+            key={msg.id}
+            className={`coach-line coach-${msg.role}`}
+            role={msg.role === 'note' ? 'status' : undefined}
+          >
+            <span className="coach-gutter" aria-hidden="true">
+              {msg.role === 'user' ? '?' : msg.role === 'assistant' ? '›' : '·'}
+            </span>
+            <pre className="coach-text">{msg.text}</pre>
+          </div>
+        ))}
+
+        {coachBusy ? (
+          <div className="coach-line coach-note" role="status">
+            <span className="coach-gutter" aria-hidden="true">
+              ›
+            </span>
+            <pre className="coach-text">thinking…</pre>
+          </div>
+        ) : null}
       </div>
+
+      {onCoachAsk ? (
+        <form
+          className="coach-ask"
+          onSubmit={(e) => {
+            e.preventDefault()
+            const text = ask.trim()
+            if (!text || coachBusy) return
+            if (!coachConfigured) {
+              onOpenSettings?.()
+              return
+            }
+            onCoachAsk(text)
+            setAsk('')
+          }}
+        >
+          <label className="sr-only" htmlFor="lesson-coach-ask">
+            Ask about this lesson
+          </label>
+          <input
+            id="lesson-coach-ask"
+            className="coach-ask-input"
+            type="text"
+            value={ask}
+            onChange={(e) => setAsk(e.target.value)}
+            placeholder={
+              coachConfigured
+                ? 'Ask about this lesson…'
+                : 'Add API key in Settings to ask…'
+            }
+            disabled={coachBusy}
+            autoComplete="off"
+            enterKeyHint="send"
+          />
+        </form>
+      ) : null}
     </section>
   )
 }

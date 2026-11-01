@@ -4,12 +4,18 @@ import type { LessonPredict } from '../examples'
 type PredictPromptProps = {
   predict: LessonPredict
   onResolved: (correct: boolean) => void
+  /** First print/expression from the latest finished run, for reconcile. */
+  actualOutput?: string | null
 }
 
 /**
  * Quiet “predict then run” moment — one question before first run of a lesson.
  */
-export function PredictPrompt({ predict, onResolved }: PredictPromptProps) {
+export function PredictPrompt({
+  predict,
+  onResolved,
+  actualOutput = null,
+}: PredictPromptProps) {
   const [picked, setPicked] = useState<number | null>(null)
   const answered = picked != null
   const correct = answered && picked === predict.correctIndex
@@ -44,9 +50,11 @@ export function PredictPrompt({ predict, onResolved }: PredictPromptProps) {
       </div>
       {answered && (
         <p className="predict-feedback">
-          {correct
-            ? 'Nice — now run the code and match it on the right.'
-            : 'Not quite — run the code and compare with the results.'}
+          {actualOutput
+            ? `You predicted ${predict.choices[picked!]}. Results showed ${actualOutput}.`
+            : correct
+              ? 'Nice — now run the code and match it on the right.'
+              : 'Not quite — run the code and compare with the results.'}
         </p>
       )}
     </div>

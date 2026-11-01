@@ -17,6 +17,12 @@ describe('computeStackedTops', () => {
     expect(computeStackedTops([null, null], [10, 10], 2)).toEqual([0, 12])
   })
 
+  it('packs HTTP cards from the top when source targets are skipped', () => {
+    expect(computeStackedTops([null, null, null], [40, 40, 40], 8)).toEqual([
+      0, 48, 96,
+    ])
+  })
+
   it('never goes negative', () => {
     expect(computeStackedTops([-20, 5], [8, 8], 2)).toEqual([0, 10])
   })

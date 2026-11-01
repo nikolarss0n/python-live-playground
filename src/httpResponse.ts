@@ -10,11 +10,27 @@ export type HttpResponseView = {
   statusLabel: string
   bodyPreview: string
   headersPreview?: string
+  method?: string
+  path?: string
+  simulated?: boolean
 }
 
 function atomText(node: CollectionNode | undefined): string | null {
   if (!node || node.kind !== 'atom') return null
   return node.preview
+}
+
+function unquote(raw: string | null): string | null {
+  if (raw == null) return null
+  return raw.replace(/^['"]|['"]$/g, '')
+}
+
+function atomBool(node: CollectionNode | undefined): boolean | undefined {
+  const text = unquote(atomText(node))
+  if (text == null) return undefined
+  if (text === 'True' || text === 'true') return true
+  if (text === 'False' || text === 'false') return false
+  return undefined
 }
 
 function parseStatus(preview: string | null): number | null {
@@ -34,31 +50,45 @@ function statusLabel(code: number): string {
     403: 'Forbidden',
     404: 'Not Found',
     405: 'Method Not Allowed',
+    422: 'Unprocessable',
     500: 'Server Error',
   }
   return map[code] ?? 'HTTP'
 }
 
-function nodePreview(node: CollectionNode | undefined, max = 120): string {
-  if (!node) return ''
-  if (node.kind === 'atom') {
-    const p = node.preview
-    return p.length > max ? `${p.slice(0, max - 1)}…` : p
+function jsonFromAtom(node: Extract<CollectionNode, { kind: 'atom' }>): unknown {
+  const { type, preview } = node
+  if (type === 'NoneType' || preview === 'None') return null
+  if (type === 'bool' || preview === 'True' || preview === 'False') {
+    return preview === 'True'
   }
+  if (type === 'int' && /^-?\d+$/.test(preview)) return Number(preview)
+  if (type === 'float' && Number.isFinite(Number(preview))) return Number(preview)
+  if (type === 'str') return unquote(preview) ?? preview
+  const unquoted = unquote(preview)
+  if (unquoted !== preview) return unquoted
+  if (/^-?\d+$/.test(preview)) return Number(preview)
+  return preview
+}
+
+export function jsonFromNode(node: CollectionNode): unknown {
+  if (node.kind === 'atom') return jsonFromAtom(node)
   if (node.kind === 'dict') {
-    const parts = node.entries.slice(0, 4).map((e) => {
-      const k = atomText(e.key) ?? '…'
-      const v =
-        e.value.kind === 'atom' ? e.value.preview : `${e.value.kind}(…)`
-      return `${k}: ${v}`
-    })
-    const more = node.length > parts.length ? ', …' : ''
-    return `{${parts.join(', ')}${more}}`
+    const out: Record<string, unknown> = {}
+    for (const entry of node.entries) {
+      const key =
+        entry.key.kind === 'atom'
+          ? String(jsonFromAtom(entry.key))
+          : JSON.stringify(jsonFromNode(entry.key))
+      out[key] = jsonFromNode(entry.value)
+    }
+    return out
   }
-  if (node.kind === 'list' || node.kind === 'tuple' || node.kind === 'set') {
-    return `${node.kind}(${node.length})`
-  }
-  return ''
+  return node.items.map(jsonFromNode)
+}
+
+export function prettyJson(value: unknown): string {
+  return JSON.stringify(value, null, 2)
 }
 
 /** Structure from worker for a dict that looks like an HTTP response. */
@@ -69,19 +99,54 @@ export function httpResponseFromStructure(
   let statusNode: CollectionNode | undefined
   let bodyNode: CollectionNode | undefined
   let headersNode: CollectionNode | undefined
+  let methodNode: CollectionNode | undefined
+  let pathNode: CollectionNode | undefined
+  let simulatedNode: CollectionNode | undefined
   for (const entry of node.entries) {
     const key = atomText(entry.key)?.replace(/^['"]|['"]$/g, '')
     if (key === 'status') statusNode = entry.value
     if (key === 'body') bodyNode = entry.value
     if (key === 'headers') headersNode = entry.value
+    if (key === 'method') methodNode = entry.value
+    if (key === 'path') pathNode = entry.value
+    if (key === 'simulated') simulatedNode = entry.value
   }
   const status = parseStatus(atomText(statusNode))
   if (status == null || !bodyNode) return null
   return {
     status,
     statusLabel: statusLabel(status),
-    bodyPreview: nodePreview(bodyNode),
-    headersPreview: headersNode ? nodePreview(headersNode) : undefined,
+    bodyPreview: prettyJson(jsonFromNode(bodyNode)),
+    headersPreview: headersNode
+      ? prettyJson(jsonFromNode(headersNode))
+      : undefined,
+    method: unquote(atomText(methodNode)) ?? undefined,
+    path: unquote(atomText(pathNode)) ?? undefined,
+    simulated: atomBool(simulatedNode),
+  }
+}
+
+/** Simulated FastAPI Call event from the worker. */
+export function httpResponseFromHttpEvent(event: {
+  method: string
+  path: string
+  status: number
+  body: string
+  simulated?: boolean
+}): HttpResponseView {
+  let bodyPreview = event.body
+  try {
+    bodyPreview = prettyJson(JSON.parse(event.body) as unknown)
+  } catch {
+    // keep raw
+  }
+  return {
+    status: event.status,
+    statusLabel: statusLabel(event.status),
+    bodyPreview,
+    method: event.method,
+    path: event.path,
+    simulated: event.simulated ?? true,
   }
 }
 

@@ -36,7 +36,7 @@ describe('CollectionTree', () => {
         }}
       />,
     )
-    expect(screen.getByText('list(2)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /list\s*2 items/ })).toBeInTheDocument()
     expect(screen.getByText("'hi'")).toBeInTheDocument()
     expect(document.querySelectorAll('.coll-atom')).toHaveLength(2)
     expect(
@@ -48,19 +48,19 @@ describe('CollectionTree', () => {
   it('collapses and expands nested collections', async () => {
     const user = userEvent.setup()
     render(<CollectionTree node={nested} />)
-    expect(screen.getByText('dict(1)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /dict\s*1 key/ })).toBeInTheDocument()
     // Nested list starts collapsed — summary visible, items not.
-    expect(screen.getByText('list(2)')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /list\s*2 items/ })).toHaveAttribute('aria-expanded', 'false')
     expect(screen.queryByText('10')).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /list\(2\)/i }))
+    await user.click(screen.getByRole('button', { name: /list\s*2 items/ }))
     expect(screen.getByText('10')).toBeInTheDocument()
     expect(screen.getByText('20')).toBeInTheDocument()
   })
 
   it('renders empty collections without a toggle action', () => {
     render(<CollectionTree node={{ kind: 'list', length: 0, items: [] }} />)
-    const btn = screen.getByRole('button', { name: /list\(0\)/i })
+    const btn = screen.getByRole('button', { name: /list\s*empty/ })
     expect(btn).toBeDisabled()
     expect(screen.getByText('[]')).toBeInTheDocument()
   })

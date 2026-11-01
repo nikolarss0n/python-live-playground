@@ -11,9 +11,20 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify:browser": "node scripts/verify-execution.mjs",
-    "companion": "cd companion && uvicorn main:app --reload --host 127.0.0.1 --port 8000"
+    "verify:service": "node scripts/verify-service.mjs",
+    "verify:genai": "node scripts/verify-genai.mjs",
+    "verify:refresher": "node scripts/verify-refresher.mjs",
+    "verify:error-help": "node scripts/verify-error-help.mjs",
+    "companion": "cd companion && uvicorn main:app --reload --host 127.0.0.1 --port 8000",
+    "verify:jev": "npx tsx scripts/verify-jev.mts",
+    "verify:jev-goal": "npx tsx scripts/verify-jev-goal.mts",
+    "verify:apply-fix": "node scripts/verify-apply-fix.mjs",
+    "verify:goal-checks": "node scripts/verify-goal-checks.mjs",
+    "verify:no-flicker": "node scripts/verify-no-flicker.mjs",
+    "verify:pyodide-errors": "npx tsx scripts/verify-pyodide-errors.mts"
   },
   "dependencies": {
+    "@codemirror/autocomplete": "^6.20.4",
     "@codemirror/commands": "^6.10.4",
     "@codemirror/lang-python": "^6.2.1",
     "@codemirror/language": "^6.12.4",

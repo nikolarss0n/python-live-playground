@@ -1,0 +1,1194 @@
+{
+ "defz": {
+  "code": "a = 5\nb = 7\n\ndefz sumy(a, b):\n  print(\"test\" + \"be\")\n\nsumy(a, b)\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 4)",
+  "line": 4,
+  "frames": [],
+  "column": 5,
+  "endColumn": 9
+ },
+ "function_keyword": {
+  "code": "function sumy(a, b):\n    return a + b\nprint(sumy(1, 2))\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 9,
+  "endColumn": 13
+ },
+ "retrun": {
+  "code": "def f(x):\n    retrun x * 2\nprint(f(2))\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 11,
+  "endColumn": 12
+ },
+ "whlie": {
+  "code": "n = 0\nwhlie n < 3:\n    n += 1\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 6,
+  "endColumn": 7
+ },
+ "missing_colon_for": {
+  "code": "total = 0\nfor i in range(3)\n    total += i\nprint(total)\n",
+  "message": "SyntaxError: expected ':' (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 17,
+  "endColumn": 18
+ },
+ "missing_colon_def": {
+  "code": "def greet(name)\n    return \"hi \" + name\n",
+  "message": "SyntaxError: expected ':' (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 15,
+  "endColumn": 16
+ },
+ "missing_colon_if": {
+  "code": "x = 3\nif x > 2\n    print(x)\n",
+  "message": "SyntaxError: expected ':' (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 8,
+  "endColumn": 9
+ },
+ "brace_block": {
+  "code": "x = 3\nif x > 2 {\n    print(x)\n",
+  "message": "SyntaxError: '{' was never closed (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 9
+ },
+ "unclosed_paren": {
+  "code": "items = [1, 2, 3]\nprint(len(items)\nprint(\"done\")\n",
+  "message": "SyntaxError: '(' was never closed (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 5
+ },
+ "unclosed_list": {
+  "code": "nums = [1, 2, 3\nprint(nums)\n",
+  "message": "SyntaxError: '[' was never closed (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 7
+ },
+ "unclosed_string": {
+  "code": "name = \"Ada\nprint(name)\n",
+  "message": "SyntaxError: unterminated string literal (detected at line 1) (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 7
+ },
+ "unmatched_paren": {
+  "code": "print(\"hi\"))\n",
+  "message": "SyntaxError: unmatched ')' (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 11
+ },
+ "mismatched_bracket": {
+  "code": "nums = [1, 2, 3)\n",
+  "message": "SyntaxError: closing parenthesis ')' does not match opening parenthesis '[' (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 15
+ },
+ "missing_comma": {
+  "code": "nums = [1, 2 3]\nprint(nums)\n",
+  "message": "SyntaxError: invalid syntax. Perhaps you forgot a comma? (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 11,
+  "endColumn": 14
+ },
+ "eq_in_if": {
+  "code": "x = 3\nif x = 3:\n    print(\"three\")\n",
+  "message": "SyntaxError: invalid syntax. Maybe you meant '==' or ':=' instead of '='? (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 3,
+  "endColumn": 8
+ },
+ "and_and": {
+  "code": "a = 1\nb = 2\nif a > 0 && b > 0:\n    print(\"both\")\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 3)",
+  "line": 3,
+  "frames": [],
+  "column": 10,
+  "endColumn": 11
+ },
+ "or_or": {
+  "code": "a = 1\nif a < 0 || a > 5:\n    print(\"out\")\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 10,
+  "endColumn": 11
+ },
+ "triple_equals": {
+  "code": "a = 1\nif a === 1:\n    print(\"one\")\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 7,
+  "endColumn": 8
+ },
+ "plus_plus": {
+  "code": "i = 0\ni++\nprint(i)\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 3,
+  "endColumn": 4
+ },
+ "elseif": {
+  "code": "x = 2\nif x > 3:\n    print(\"big\")\nelse if x > 1:\n    print(\"mid\")\n",
+  "message": "SyntaxError: expected ':' (<playground>, line 4)",
+  "line": 4,
+  "frames": [],
+  "column": 5,
+  "endColumn": 7
+ },
+ "print_statement": {
+  "code": "name = \"Ada\"\nprint name\n",
+  "message": "SyntaxError: Missing parentheses in call to 'print'. Did you mean print(...)? (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 0,
+  "endColumn": 10
+ },
+ "smart_quotes": {
+  "code": "print(“hello”)\n",
+  "message": "SyntaxError: invalid character '“' (U+201C) (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 6
+ },
+ "digit_name": {
+  "code": "2nd = 5\n",
+  "message": "SyntaxError: invalid decimal literal (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 0
+ },
+ "assign_to_call": {
+  "code": "def f():\n    return 1\nf() = 3\n",
+  "message": "SyntaxError: cannot assign to function call here. Maybe you meant '==' instead of '='? (<playground>, line 3)",
+  "line": 3,
+  "frames": [],
+  "column": 0,
+  "endColumn": 3
+ },
+ "return_outside": {
+  "code": "x = 1\nreturn x\n",
+  "message": "SyntaxError: 'return' outside function (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 0,
+  "endColumn": 8
+ },
+ "break_outside": {
+  "code": "x = 1\nbreak\n",
+  "message": "SyntaxError: 'break' outside loop (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 0,
+  "endColumn": 5
+ },
+ "let_keyword": {
+  "code": "let total = 5\nprint(total)\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 4,
+  "endColumn": 9
+ },
+ "semicolon_brace": {
+  "code": "x = 1\nif x == 1:\n    print(x)\n}\n",
+  "message": "SyntaxError: unmatched '}' (<playground>, line 4)",
+  "line": 4,
+  "frames": [],
+  "column": 0
+ },
+ "default_param_order": {
+  "code": "def f(a=1, b):\n    return a + b\n",
+  "message": "SyntaxError: parameter without a default follows parameter with a default (<playground>, line 1)",
+  "line": 1,
+  "frames": [],
+  "column": 11,
+  "endColumn": 12
+ },
+ "try_without_except": {
+  "code": "try:\n    x = 1\nprint(x)\n",
+  "message": "SyntaxError: expected 'except' or 'finally' block (<playground>, line 3)",
+  "line": 3,
+  "frames": [],
+  "column": 0,
+  "endColumn": 5
+ },
+ "indent_missing": {
+  "code": "def f():\nreturn 1\nprint(f())\n",
+  "message": "IndentationError: expected an indented block after function definition on line 1 (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 0,
+  "endColumn": 6
+ },
+ "indent_unexpected": {
+  "code": "x = 1\n    y = 2\nprint(x + y)\n",
+  "message": "IndentationError: unexpected indent (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 3
+ },
+ "indent_unindent": {
+  "code": "def f():\n    if True:\n        x = 1\n      return x\n",
+  "message": "IndentationError: unindent does not match any outer indentation level (<playground>, line 4)",
+  "line": 4,
+  "frames": [],
+  "column": 14
+ },
+ "indent_for_body": {
+  "code": "for i in range(3):\nprint(i)\n",
+  "message": "IndentationError: expected an indented block after 'for' statement on line 1 (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 0,
+  "endColumn": 5
+ },
+ "tab_error": {
+  "code": "def f():\n    x = 1\n\treturn x\n",
+  "message": "TabError: inconsistent use of tabs and spaces in indentation (<playground>, line 3)",
+  "line": 3,
+  "frames": [],
+  "column": 0
+ },
+ "print_caps": {
+  "code": "count = 2\nPrint(count)\n",
+  "message": "NameError: name 'Print' is not defined",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 5
+   }
+  ],
+  "column": 0,
+  "endColumn": 5
+ },
+ "misspelled_var": {
+  "code": "items = [1, 2]\nprint(len(itms))\n",
+  "message": "NameError: name 'itms' is not defined",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 10,
+    "endColumn": 14
+   }
+  ],
+  "column": 10,
+  "endColumn": 14
+ },
+ "true_lower": {
+  "code": "done = true\nprint(done)\n",
+  "message": "NameError: name 'true' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 7,
+    "endColumn": 11
+   }
+  ],
+  "column": 7,
+  "endColumn": 11
+ },
+ "null_value": {
+  "code": "value = null\n",
+  "message": "NameError: name 'null' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 8,
+    "endColumn": 12
+   }
+  ],
+  "column": 8,
+  "endColumn": 12
+ },
+ "used_before_defined": {
+  "code": "print(total)\ntotal = 5\n",
+  "message": "NameError: name 'total' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 11
+   }
+  ],
+  "column": 6,
+  "endColumn": 11
+ },
+ "undefined": {
+  "code": "print(total)\n",
+  "message": "NameError: name 'total' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 11
+   }
+  ],
+  "column": 6,
+  "endColumn": 11
+ },
+ "missing_import": {
+  "code": "print(math.sqrt(16))\n",
+  "message": "NameError: name 'math' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 10
+   }
+  ],
+  "column": 6,
+  "endColumn": 10
+ },
+ "string_without_quotes": {
+  "code": "print(hello)\n",
+  "message": "NameError: name 'hello' is not defined",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 11
+   }
+  ],
+  "column": 6,
+  "endColumn": 11
+ },
+ "unbound_local": {
+  "code": "count = 0\ndef add():\n    count += 1\nadd()\n",
+  "message": "UnboundLocalError: cannot access local variable 'count' where it is not associated with a value",
+  "line": 3,
+  "frames": [
+   {
+    "line": 4,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 5
+   },
+   {
+    "line": 3,
+    "name": "add",
+    "column": 4,
+    "endColumn": 9
+   }
+  ],
+  "column": 4,
+  "endColumn": 9
+ },
+ "list_push": {
+  "code": "items = []\nitems.push(4)\nprint(items)\n",
+  "message": "AttributeError: 'list' object has no attribute 'push'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 10
+   }
+  ],
+  "column": 0,
+  "endColumn": 10
+ },
+ "str_upper_js": {
+  "code": "name = \"ada\"\nprint(name.toUpperCase())\n",
+  "message": "AttributeError: 'str' object has no attribute 'toUpperCase'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 22
+   }
+  ],
+  "column": 6,
+  "endColumn": 22
+ },
+ "list_length": {
+  "code": "items = [1, 2]\nprint(items.length)\n",
+  "message": "AttributeError: 'list' object has no attribute 'length'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 18
+   }
+  ],
+  "column": 6,
+  "endColumn": 18
+ },
+ "sort_returns_none": {
+  "code": "items = [3, 1]\nitems = items.sort()\nprint(items[0])\n",
+  "message": "TypeError: 'NoneType' object is not subscriptable",
+  "line": 3,
+  "frames": [
+   {
+    "line": 3,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 14
+   }
+  ],
+  "column": 6,
+  "endColumn": 14
+ },
+ "append_returns_none": {
+  "code": "items = []\nitems = items.append(1)\nitems.append(2)\n",
+  "message": "AttributeError: 'NoneType' object has no attribute 'append'",
+  "line": 3,
+  "frames": [
+   {
+    "line": 3,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 12
+   }
+  ],
+  "column": 0,
+  "endColumn": 12
+ },
+ "print_not_return": {
+  "code": "def double(x):\n    print(x * 2)\n\nresult = double(4)\nprint(result + 1)\n",
+  "message": "TypeError: unsupported operand type(s) for +: 'NoneType' and 'int'",
+  "line": 5,
+  "frames": [
+   {
+    "line": 5,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 16
+   }
+  ],
+  "column": 6,
+  "endColumn": 16
+ },
+ "none_subscript": {
+  "code": "def first(items):\n    print(items[0])\n\nvalue = first([1, 2])\nprint(value[0])\n",
+  "message": "TypeError: 'NoneType' object is not subscriptable",
+  "line": 5,
+  "frames": [
+   {
+    "line": 5,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 14
+   }
+  ],
+  "column": 6,
+  "endColumn": 14
+ },
+ "dict_attr_typo": {
+  "code": "d = {\"a\": 1}\nprint(d.itmes())\n",
+  "message": "AttributeError: 'dict' object has no attribute 'itmes'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 13
+   }
+  ],
+  "column": 6,
+  "endColumn": 13
+ },
+ "str_plus_int": {
+  "code": "count = 3\nprint(\"Total: \" + count)\n",
+  "message": "TypeError: can only concatenate str (not \"int\") to str",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 23
+   }
+  ],
+  "column": 6,
+  "endColumn": 23
+ },
+ "int_plus_str_input": {
+  "code": "age = \"30\"\nprint(age + 1)\n",
+  "message": "TypeError: can only concatenate str (not \"int\") to str",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 13
+   }
+  ],
+  "column": 6,
+  "endColumn": 13
+ },
+ "missing_argument": {
+  "code": "def add(a, b):\n    return a + b\n\nprint(add(1))\n",
+  "message": "TypeError: add() missing 1 required positional argument: 'b'",
+  "line": 4,
+  "frames": [
+   {
+    "line": 4,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 12
+   }
+  ],
+  "column": 6,
+  "endColumn": 12
+ },
+ "too_many_arguments": {
+  "code": "def add(a, b):\n    return a + b\n\nprint(add(1, 2, 3))\n",
+  "message": "TypeError: add() takes 2 positional arguments but 3 were given",
+  "line": 4,
+  "frames": [
+   {
+    "line": 4,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 18
+   }
+  ],
+  "column": 6,
+  "endColumn": 18
+ },
+ "missing_self": {
+  "code": "class Dog:\n    def bark():\n        return \"woof\"\n\nprint(Dog().bark())\n",
+  "message": "TypeError: Dog.bark() takes 0 positional arguments but 1 was given",
+  "line": 5,
+  "frames": [
+   {
+    "line": 5,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 18
+   }
+  ],
+  "column": 6,
+  "endColumn": 18
+ },
+ "unexpected_keyword": {
+  "code": "def greet(name):\n    return name\n\ngreet(nmae=\"Ada\")\n",
+  "message": "TypeError: greet() got an unexpected keyword argument 'nmae'",
+  "line": 4,
+  "frames": [
+   {
+    "line": 4,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 17
+   }
+  ],
+  "column": 0,
+  "endColumn": 17
+ },
+ "shadowed_builtin": {
+  "code": "sum = 0\nprint(sum([1, 2]))\n",
+  "message": "TypeError: 'int' object is not callable",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 17
+   }
+  ],
+  "column": 6,
+  "endColumn": 17
+ },
+ "int_not_subscriptable": {
+  "code": "n = 5\nprint(n[0])\n",
+  "message": "TypeError: 'int' object is not subscriptable",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 10
+   }
+  ],
+  "column": 6,
+  "endColumn": 10
+ },
+ "str_item_assignment": {
+  "code": "word = \"cat\"\nword[0] = \"b\"\n",
+  "message": "TypeError: 'str' object does not support item assignment",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 7
+   }
+  ],
+  "column": 0,
+  "endColumn": 7
+ },
+ "len_of_int": {
+  "code": "n = 5\nprint(len(n))\n",
+  "message": "TypeError: object of type 'int' has no len()",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 12
+   }
+  ],
+  "column": 6,
+  "endColumn": 12
+ },
+ "loop_over_int": {
+  "code": "n = 3\nfor i in n:\n    print(i)\n",
+  "message": "TypeError: 'int' object is not iterable",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 9,
+    "endColumn": 10
+   }
+  ],
+  "column": 9,
+  "endColumn": 10
+ },
+ "unhashable": {
+  "code": "d = {[1, 2]: \"x\"}\n",
+  "message": "TypeError: unhashable type: 'list'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 4,
+    "endColumn": 17
+   }
+  ],
+  "column": 4,
+  "endColumn": 17
+ },
+ "index_len": {
+  "code": "items = [1, 2, 3]\nprint(items[len(items)])\n",
+  "message": "IndexError: list index out of range",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 23
+   }
+  ],
+  "column": 6,
+  "endColumn": 23
+ },
+ "index_range_plus_one": {
+  "code": "items = [1, 2, 3]\nfor i in range(len(items) + 1):\n    print(items[i])\n",
+  "message": "IndexError: list index out of range",
+  "line": 3,
+  "frames": [
+   {
+    "line": 3,
+    "name": "<module>",
+    "column": 10,
+    "endColumn": 18
+   }
+  ],
+  "column": 10,
+  "endColumn": 18
+ },
+ "index_empty": {
+  "code": "items = []\nprint(items[0])\n",
+  "message": "IndexError: list index out of range",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 14
+   }
+  ],
+  "column": 6,
+  "endColumn": 14
+ },
+ "index_past_end": {
+  "code": "items = [1, 2, 3]\nprint(items[5])\n",
+  "message": "IndexError: list index out of range",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 14
+   }
+  ],
+  "column": 6,
+  "endColumn": 14
+ },
+ "key_typo": {
+  "code": "person = {\"name\": \"Ada\", \"age\": 36}\nprint(person[\"nmae\"])\n",
+  "message": "KeyError: 'nmae'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 20
+   }
+  ],
+  "column": 6,
+  "endColumn": 20
+ },
+ "key_missing": {
+  "code": "person = {\"name\": \"Ada\"}\nage = person[\"age\"]\nprint(age)\n",
+  "message": "KeyError: 'age'",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 19
+   }
+  ],
+  "column": 6,
+  "endColumn": 19
+ },
+ "zero_division": {
+  "code": "a = 10\nb = 0\nprint(a / b)\n",
+  "message": "ZeroDivisionError: division by zero",
+  "line": 3,
+  "frames": [
+   {
+    "line": 3,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 11
+   }
+  ],
+  "column": 6,
+  "endColumn": 11
+ },
+ "zero_division_len": {
+  "code": "items = []\naverage = sum(items) / len(items)\n",
+  "message": "ZeroDivisionError: division by zero",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 10,
+    "endColumn": 33
+   }
+  ],
+  "column": 10,
+  "endColumn": 33
+ },
+ "int_of_text": {
+  "code": "value = int(\"abc\")\nprint(value)\n",
+  "message": "ValueError: invalid literal for int() with base 10: 'abc'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 8,
+    "endColumn": 18
+   }
+  ],
+  "column": 8,
+  "endColumn": 18
+ },
+ "int_of_decimal": {
+  "code": "value = int(\"3.5\")\n",
+  "message": "ValueError: invalid literal for int() with base 10: '3.5'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 8,
+    "endColumn": 18
+   }
+  ],
+  "column": 8,
+  "endColumn": 18
+ },
+ "float_of_text": {
+  "code": "value = float(\"abc\")\n",
+  "message": "ValueError: could not convert string to float: 'abc'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 8,
+    "endColumn": 20
+   }
+  ],
+  "column": 8,
+  "endColumn": 20
+ },
+ "unpack_too_few": {
+  "code": "a, b, c = [1, 2]\n",
+  "message": "ValueError: not enough values to unpack (expected 3, got 2)",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 7
+   }
+  ],
+  "column": 0,
+  "endColumn": 7
+ },
+ "unpack_too_many": {
+  "code": "a, b = [1, 2, 3]\n",
+  "message": "ValueError: too many values to unpack (expected 2)",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 4
+   }
+  ],
+  "column": 0,
+  "endColumn": 4
+ },
+ "math_domain": {
+  "code": "import math\nprint(math.sqrt(-1))\n",
+  "message": "ValueError: math domain error",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 6,
+    "endColumn": 19
+   }
+  ],
+  "column": 6,
+  "endColumn": 19
+ },
+ "remove_missing": {
+  "code": "items = [1, 2]\nitems.remove(5)\n",
+  "message": "ValueError: list.remove(x): x not in list",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 15
+   }
+  ],
+  "column": 0,
+  "endColumn": 15
+ },
+ "module_typo": {
+  "code": "import maths\n",
+  "message": "ModuleNotFoundError: No module named 'maths'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 12
+   }
+  ],
+  "column": 0,
+  "endColumn": 12
+ },
+ "module_missing": {
+  "code": "import flask\n",
+  "message": "ModuleNotFoundError: No module named 'flask'",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 12
+   }
+  ],
+  "column": 0,
+  "endColumn": 12
+ },
+ "import_name_typo": {
+  "code": "from math import sqrtt\n",
+  "message": "ImportError: cannot import name 'sqrtt' from 'math' (/opt/homebrew/Cellar/python@3.13/3.13.4/Frameworks/Python.framework/Versions/3.13/lib/python3.13/lib-dynload/math.cpython-313-darwin.so)",
+  "line": 1,
+  "frames": [
+   {
+    "line": 1,
+    "name": "<module>",
+    "column": 0,
+    "endColumn": 22
+   }
+  ],
+  "column": 0,
+  "endColumn": 22
+ },
+ "assert_false": {
+  "code": "total = 3\nassert total == 4\n",
+  "message": "AssertionError: ",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "<module>",
+    "column": 7,
+    "endColumn": 17
+   }
+  ],
+  "column": 7,
+  "endColumn": 17
+ },
+ "recursion_same_arg": {
+  "code": "def count(n):\n    if n == 0:\n        return 0\n    return 1 + count(n)\n\nprint(count(3))\n",
+  "message": "RecursionError: maximum recursion depth exceeded",
+  "line": 4,
+  "frames": [
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   },
+   {
+    "line": 4,
+    "name": "count",
+    "column": 15,
+    "endColumn": 23
+   }
+  ],
+  "column": 15,
+  "endColumn": 23
+ },
+ "recursion_no_base": {
+  "code": "def down(n):\n    return down(n - 1)\n\ndown(3)\n",
+  "message": "RecursionError: maximum recursion depth exceeded",
+  "line": 2,
+  "frames": [
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   },
+   {
+    "line": 2,
+    "name": "down",
+    "column": 11,
+    "endColumn": 22
+   }
+  ],
+  "column": 11,
+  "endColumn": 22
+ },
+ "loop_no_increment": {
+  "code": "i = 0\nwhile i < 10:\n    print(i)\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 2,
+  "frames": []
+ },
+ "loop_wrong_direction": {
+  "code": "i = 0\nwhile i < 10:\n    i -= 1\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 2,
+  "frames": []
+ },
+ "loop_wrong_direction_down": {
+  "code": "i = 10\nwhile i > 0:\n    i += 1\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 2,
+  "frames": []
+ },
+ "loop_while_true": {
+  "code": "while True:\n    print(\"x\")\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 1,
+  "frames": []
+ },
+ "loop_grows_list": {
+  "code": "items = [1]\nfor x in items:\n    items.append(x)\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 2,
+  "frames": []
+ },
+ "loop_condition_unchanged": {
+  "code": "items = [1, 2]\nwhile items:\n    print(items[0])\n",
+  "message": "TimeoutError: possible infinite loop — stopped to protect the browser",
+  "line": 2,
+  "frames": []
+ }
+}

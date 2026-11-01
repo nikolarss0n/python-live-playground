@@ -1,0 +1,12 @@
+[
+  { "id": "genai-typed", "marker": "def parse_request(payload)", "replacements": ["isinstance(value, str)", "not value.strip()", "AskRequest(**clean)"] },
+  { "id": "genai-async", "marker": "def collect_answers()", "replacements": ["asyncio.gather", "asyncio.wait_for", "TimeoutError"] },
+  { "id": "genai-pytest", "marker": "def run_cases()", "replacements": ["expected", "AssertionError"] },
+  { "id": "genai-prompts", "marker": "def build_prompt(question, context, max_chars)", "replacements": ["len(user_content) > max_chars", "PROMPT_VERSION", "\"user\""] },
+  { "id": "genai-structured", "marker": "def parse_answer(raw_json)", "replacements": ["isinstance(citations, list)", "data"] },
+  { "id": "genai-bedrock", "marker": "def ask_bedrock(client, model_id, question)", "replacements": ["question.strip()", "128"] },
+  { "id": "genai-retries", "marker": "def call_with_retry(operation, sleep, max_attempts=3)", "replacements": ["TRANSIENT_STATUSES", "0.1 * 2 ** attempt"] },
+  { "id": "genai-tools", "marker": "def run_tools(model, tools, max_steps=3)", "replacements": ["max_steps", "\"lookup_status\""] },
+  { "id": "genai-authorization", "marker": "def read_record(principal, proposal, records)", "replacements": ["\"records:read\"", "tenant"] },
+  { "id": "genai-audit", "marker": "def audit_event(request_id, event)", "replacements": ["\"[EMAIL]\"", "{\"kind\", \"outcome\", \"latency_ms\", \"input_tokens\", \"output_tokens\"}", "allowed"] }
+]

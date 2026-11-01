@@ -8,7 +8,7 @@ import {
 describe('lesson task instructions', () => {
   it('provides specific guidance for every task in every lesson', () => {
     for (const lesson of LESSONS) {
-      const instructions = TASK_INSTRUCTIONS[lesson.id]
+      const instructions = lesson.taskInstructions
       expect(instructions, lesson.id).toBeDefined()
       expect(instructions, lesson.id).toHaveLength(lesson.tasks.length)
 
@@ -24,5 +24,13 @@ describe('lesson task instructions', () => {
     expect(taskInstructionsFor('not-in-the-curriculum', ['Print one value'])).toEqual([
       expect.stringMatching(/smallest code change.*Results pane/i),
     ])
+  })
+
+  it('keeps the legacy instruction catalog aligned with core lessons', () => {
+    for (const [lessonId, instructions] of Object.entries(TASK_INSTRUCTIONS)) {
+      const lesson = LESSONS.find((candidate) => candidate.id === lessonId)
+      expect(lesson, lessonId).toBeDefined()
+      expect(instructions, lessonId).toHaveLength(lesson?.tasks.length)
+    }
   })
 })

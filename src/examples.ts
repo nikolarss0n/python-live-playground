@@ -3,18 +3,51 @@
  * small, guided edits, not full demos or hard puzzles.
  */
 
+import { REFRESHER_LESSON_DRAFTS } from './refresher/catalog'
 import type { GoalCheck } from './goalCheck'
+import type { ChartKind } from './fullstack'
 import { taskInstructionsFor } from './lessonInstructions'
+import { ML_LLM_LESSON_DRAFTS } from './curriculum/mlLlmLessons'
+import { PRODUCTION_AI_LESSON_DRAFTS } from './curriculum/productionAiLessons'
+import { PYTHON_ENGINEER_LESSON_DRAFTS } from './curriculum/pythonEngineerLessons'
+import { STUDY_BOOK_DEEP_DIVE_AI_LESSON_DRAFTS } from './curriculum/studyBookDeepDiveAiLessons'
+import { STUDY_BOOK_DEEP_DIVE_PRODUCTION_LESSON_DRAFTS } from './curriculum/studyBookDeepDiveProductionLessons'
+import { STUDY_BOOK_DEEP_DIVE_PYTHON_LESSON_DRAFTS } from './curriculum/studyBookDeepDivePythonLessons'
+import { STUDY_BOOK_AI_LESSON_DRAFTS } from './curriculum/studyBookAiLessons'
+import { STUDY_BOOK_PRODUCTION_LESSON_DRAFTS } from './curriculum/studyBookProductionLessons'
+import { STUDY_BOOK_PYTHON_LESSON_DRAFTS } from './curriculum/studyBookPythonLessons'
+import { STUDY_BOOK_PRACTICE_LESSON_DRAFTS } from './curriculum/studyBookPracticeLessons'
+import { INTERVIEW_PATTERN_LESSON_DRAFTS } from './curriculum/interviewPatternLessons'
+import { ALGORITHM_PRACTICE_LESSON_DRAFTS } from './curriculum/algorithmPracticeLessons'
+import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './curriculum/fastapiEssentialsLessons'
+import { SUPPORT_AUTOMATION_LESSON_DRAFTS } from './curriculum/supportAutomationLessons'
+import { FULLSTACK_LESSON_DRAFTS } from './curriculum/fullstackLessons'
+import { PLAYGROUND_DRAFTS } from './curriculum/playgroundLessons'
+import { HARNESS_LESSON_DRAFTS } from './curriculum/harnessInterviewLessons'
+import { FOUNDATION_LESSON_DRAFTS } from './curriculum/foundationLessons'
+import { BEGINNER_PATH } from './curriculum/beginnerPath'
+import { trackChapter } from './curriculum/trackChapters'
+import { SECTIONS, type Section } from './curriculum/sections'
+
+export { SECTIONS, isSection, type Section } from './curriculum/sections'
+import { SERVICE_LESSON_DRAFTS } from './curriculum/serviceLessons'
+import { GENAI_PYTHON_LESSON_DRAFTS } from './curriculum/genaiPythonLessons'
+import { GENAI_SECURITY_LESSON_DRAFTS } from './curriculum/genaiSecurityLessons'
 export type { GoalCheck, GoalProgress } from './goalCheck'
 export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
 
-export type Difficulty = 'beginner' | 'intermediate' | 'ai' | 'api'
+export type Difficulty = 'beginner' | 'intermediate' | 'ai' | 'api' | 'service' | 'genai' | 'refresher' | 'harness' | 'playground'
 
 export const DIFFICULTIES: Difficulty[] = [
+  'refresher',
   'beginner',
   'intermediate',
   'ai',
   'api',
+  'service',
+  'genai',
+  'harness',
+  'playground',
 ]
 
 export function isDifficulty(value: string): value is Difficulty {
@@ -36,9 +69,19 @@ export type LessonCompare = {
   note?: string
 }
 
+/** Full-stack lessons: requests sent to the user's FastAPI app after each run, and the chart the View tab starts on. */
+export type LessonFullstack = {
+  calls: string[]
+  view?: { call?: number; x?: string; y?: string; kind?: ChartKind }
+  /** Practice datasets loaded before the code runs; shows the Project data picker so learners choose their own. */
+  datasets?: string[]
+}
+
 export type Lesson = {
   id: string
   difficulty: Difficulty
+  /** Menu section; number counts from 1 within it */
+  section: Section
   number: number
   topic: string
   /** Book-style section for the lesson menu */
@@ -69,74 +112,65 @@ export type Lesson = {
   runWithModel?: boolean
   /** Used when Results has no long print yet */
   modelPromptFallback?: string
+  /** Study-book chapter id (dsa-sql, fastapi, …) for the reverse link */
+  bookChapter?: string
+  /** Adds the Data · API · View tabs next to Results */
+  fullstack?: LessonFullstack
 }
 
-type LessonDraft = Omit<Lesson, 'chapter' | 'stretch'> & {
+export type LessonDraft = Omit<Lesson, 'chapter' | 'stretch' | 'section'> & {
   chapter?: string
   stretch?: string
 }
 
-function chapterFor(lesson: Pick<LessonDraft, 'difficulty' | 'number'>): string {
+function stretchFor(
+  lesson: Pick<LessonDraft, 'difficulty' | 'goal' | 'topic' | 'stretch'>,
+): string {
+  if (lesson.stretch) return lesson.stretch
   if (lesson.difficulty === 'beginner') {
-    if (lesson.number <= 4) return 'Basics'
-    if (lesson.number <= 7) return 'Text & decisions'
-    if (lesson.number <= 11) return 'Collections & loops'
-    return 'Functions & pitfalls'
+    return `Stretch: add one empty or boundary input to “${lesson.topic}”, predict the result, and print evidence that your code handles it.`
   }
   if (lesson.difficulty === 'intermediate') {
-    if (lesson.number <= 4) return 'Sequences'
-    if (lesson.number <= 8) return 'Structure'
-    if (lesson.number <= 14) return 'Patterns & libraries'
-    if (lesson.number <= 17) return 'Idiomatic Python'
-    return 'Python data model'
+    return `Stretch: turn one edge case from this ${lesson.topic.toLowerCase()} exercise into an assertion so a future regression fails visibly.`
   }
   if (lesson.difficulty === 'ai') {
-    if (lesson.number <= 3) return 'Tokens & text'
-    if (lesson.number <= 6) return 'Vectors & similarity'
-    if (lesson.number <= 8) return 'Contracts & pipelines'
-    if (lesson.number <= 11) return 'Learning & metrics'
-    if (lesson.number <= 13) return 'LLM internals'
-    return 'Retrieval & agents'
+    return `Stretch: vary one ${lesson.topic.toLowerCase()} parameter, compare both outputs, and explain the quality or reliability trade-off.`
   }
-  // Web APIs — FastAPI-shaped thinking, still in-browser (no real server)
-  if (lesson.number <= 3) return 'HTTP basics'
-  if (lesson.number <= 6) return 'Routing & bodies'
-  return 'Middleware & apps'
+  return `Stretch: send one malformed or unauthorized input through this ${lesson.topic.toLowerCase()} flow and preserve a consistent error response.`
 }
 
-function stretchFor(lesson: Pick<LessonDraft, 'topic' | 'stretch'>): string {
-  return (
-    lesson.stretch ??
-    `Stretch: try one more small variation on “${lesson.topic}” once the goal works.`
-  )
-}
-
-function finalizeLesson(draft: LessonDraft): Lesson {
+function finalizeLesson(draft: LessonDraft): Omit<Lesson, 'section'> {
   return {
     ...draft,
-    chapter: draft.chapter ?? chapterFor(draft),
+    chapter: trackChapter(draft.difficulty, draft.number) ?? draft.chapter ?? difficultyLabel(draft.difficulty),
     stretch: stretchFor(draft),
     why:
       draft.why ??
       LESSON_WHY[draft.id] ??
       `This exercise builds a reusable ${draft.topic.toLowerCase()} skill through one small, visible result.`,
-    taskInstructions: taskInstructionsFor(draft.id, draft.tasks),
+    taskInstructions:
+      draft.taskInstructions ?? taskInstructionsFor(draft.id, draft.tasks),
   }
 }
 
 /** @deprecated use Lesson */
 export type Example = Lesson
 
-export const DEFAULT_DIFFICULTY: Difficulty = 'beginner'
-export const DEFAULT_LESSON_ID = 'printing'
+export const DEFAULT_SECTION: Section = 'interview'
+export const DEFAULT_LESSON_ID = 'refresher-01'
 /** @deprecated use DEFAULT_LESSON_ID */
 export const DEFAULT_EXAMPLE_ID = DEFAULT_LESSON_ID
 
 export const DIFFICULTY_OPTIONS: { id: Difficulty; label: string }[] = [
-  { id: 'beginner', label: 'Beginner' },
-  { id: 'intermediate', label: 'Intermediate' },
-  { id: 'ai', label: 'AI foundations' },
-  { id: 'api', label: 'Web APIs' },
+  { id: 'refresher', label: '14-day Python refresher' },
+  { id: 'beginner', label: 'Python basics' },
+  { id: 'intermediate', label: 'Python in depth' },
+  { id: 'ai', label: 'Machine learning & LLMs' },
+  { id: 'api', label: 'APIs & production AI' },
+  { id: 'service', label: 'Project: build an AI service' },
+  { id: 'genai', label: 'GenAI services' },
+  { id: 'harness', label: 'Agent harness interview' },
+  { id: 'playground', label: 'Playground' },
 ]
 
 export function difficultyLabel(d: Difficulty): string {
@@ -144,14 +178,20 @@ export function difficultyLabel(d: Difficulty): string {
 }
 
 export function lessonLabel(lesson: Lesson): string {
-  return `Lesson ${lesson.number} · ${lesson.topic}`
+  if (lesson.difficulty === 'playground') return lesson.topic
+  return `${lesson.difficulty === 'refresher' ? 'Day' : 'Lesson'} ${lesson.number} · ${lesson.topic}`
+}
+
+export function sectionLabel(section: Section): string {
+  return SECTIONS.find((entry) => entry.id === section)?.label ?? section
 }
 
 export function lessonHeading(lesson: Lesson): string {
-  return `${difficultyLabel(lesson.difficulty)} · ${lessonLabel(lesson)}`
+  if (lesson.difficulty === 'playground') return lesson.topic
+  return `${sectionLabel(lesson.section)} · ${lessonLabel(lesson)}`
 }
 
-const LESSON_DRAFTS: LessonDraft[] = [
+const CORE_LESSON_DRAFTS: LessonDraft[] = [
   // ── Beginner ──────────────────────────────────────────
   {
     id: 'printing',
@@ -202,7 +242,7 @@ print(???)
       'Set name to your name (replace ???)',
       'Run and check the greeting on the right',
     ],
-    code: `# Lesson 2 — Variables
+    code: `# Lesson 3 — Variables
 # Goal: Store your name and print a greeting that uses it.
 # Your turn: put your name in the variable.
 
@@ -239,7 +279,7 @@ print(f"Hello, {name}!")
       'Fill age (int), price (float), label (str), ready (bool)',
       'Make number = int("42") work (fix ???)',
     ],
-    code: `# Lesson 3 — Types
+    code: `# Lesson 4 — Types
 # Goal: Create one value of each type and convert a string to an int.
 # Your turn: finish each assignment.
 
@@ -285,7 +325,7 @@ number
       'Change 2 + 2 into a different calculation',
       'Add one more expression on its own line (no print)',
     ],
-    code: `# Lesson 4 — Expressions
+    code: `# Lesson 5 — Expressions
 # Goal: Write two expressions that show values without using print.
 # Your turn: edit these lines and watch the orange values on the right.
 
@@ -323,15 +363,12 @@ number
       'Set word to any word of 4+ letters',
       'Change the slice and the f-string name',
     ],
-    code: `# Lesson 5 — Strings
+    code: `# Lesson 7 — Strings
 # Goal: Slice a word and print an f-string with your own name.
 # Your turn: explore one word of text.
 
 word = "Python"
-len(word)
-word[0]
 word[0:3]       # try a different slice
-word.upper()
 
 name = ???
 print(f"{name} loves {word}")
@@ -365,7 +402,7 @@ print(f"{name} loves {word}")
       'Change score so score >= 60 is True',
       'Add one more comparison line that is False',
     ],
-    code: `# Lesson 6 — Booleans
+    code: `# Lesson 9 — Booleans
 # Goal: Get both True and False to appear by changing score and comparisons.
 # Your turn: tweak score and the comparisons.
 
@@ -402,9 +439,9 @@ score == 100
     goal: 'Make the program print "Passed" for your score.',
     tasks: [
       'Set score so the Passed branch runs (60–89)',
-      'Then try a score that prints Excellent',
+      'Then change score to 90 or more so it prints Excellent',
     ],
-    code: `# Lesson 7 — If decisions
+    code: `# Lesson 10 — If decisions
 # Goal: Make the program print "Passed" for your score.
 # Your turn: choose a score that prints "Passed".
 
@@ -446,13 +483,11 @@ else:
       'Fill scores with four numbers of your choice',
       'Run and check the average on the right',
     ],
-    code: `# Lesson 8 — Lists
+    code: `# Lesson 12 — Lists
 # Goal: Put four numbers in a list and show their average.
 # Your turn: use your own four scores.
 
 scores = [???, ???, ???, ???]
-scores[0]
-len(scores)
 average = sum(scores) / len(scores)
 average
 print(f"Average score: {average}")
@@ -486,7 +521,7 @@ print(f"Average score: {average}")
       'Fix range so n goes 1, 2, 3, 4, 5',
       'Print each n (the print line is ready)',
     ],
-    code: `# Lesson 9 — For loops
+    code: `# Lesson 13 — For loops
 # Goal: Loop with range and print each number from 1 through 5.
 # Your turn: finish the range so you see 1 through 5.
 
@@ -522,7 +557,7 @@ for n in range(???):
       'Complete the condition so the loop stops',
       'Increase n each time (replace ???)',
     ],
-    code: `# Lesson 10 — While loops
+    code: `# Lesson 14 — While loops
 # Goal: Count with while and stop at the right time (print 0, 1, 2).
 # Your turn: print 0, 1, 2 then stop.
 
@@ -561,7 +596,7 @@ while n < ???:
       'Fill name and year in the dict',
       'Print the city using .get("city", "unknown")',
     ],
-    code: `# Lesson 11 — Dictionaries
+    code: `# Lesson 15 — Dictionaries
 # Goal: Build a person dict and print their city with .get().
 # Your turn: finish the dict and the print.
 
@@ -602,14 +637,9 @@ print(person.get(???))
       'Complete the return line inside square',
       'Call square with a number you choose',
     ],
-    code: `# Lesson 12 — Functions
+    code: `# Lesson 16 — Functions
 # Goal: Write square(n) that returns n * n and call it.
 # Your turn: finish square and call it.
-
-def greet(name):
-    return f"Hello, {name}!"
-
-print(greet("Ada"))
 
 def square(n):
     return ???
@@ -645,7 +675,7 @@ square(???)
       'Open “What does this mean?” on the error',
       'Change b so a / b works, then run cleanly',
     ],
-    code: `# Lesson 13 — Reading errors
+    code: `# Lesson 19 — Reading errors
 # Goal: Read the error, open “What does this mean?”, then make the code run.
 # Your turn: fix the bug after reading the explanation.
 
@@ -683,7 +713,7 @@ a / b
       'Open “What does this mean?” if you are stuck',
       'Replace the header with Python’s for + range',
     ],
-    code: `# Lesson 14 — Python for-loops (repair lab)
+    code: `# Lesson 21 — Python for-loops (repair lab)
 # Goal: Rewrite the C-style loop as for i in range(10): and print i.
 # Your turn: rewrite this in real Python.
 
@@ -720,7 +750,7 @@ for(i = 0; i < 10; i++):
       'Run once and see the safety timeout',
       'Change it so it prints 0, 1, 2 and finishes',
     ],
-    code: `# Lesson 15 — Infinite loops (safety lab)
+    code: `# Lesson 22 — Infinite loops (safety lab)
 # Goal: Stop the infinite loop by giving while a real end condition.
 # Your turn: after you see the stop, fix the loop.
 
@@ -757,7 +787,7 @@ while True:
       'Complete the if condition (pass if score >= passing)',
       'Keep the average print at the end',
     ],
-    code: `# Lesson 16 — Capstone
+    code: `# Lesson 23 — Capstone
 # Goal: For each score, print pass or retry; then print the average.
 # Your turn: finish the decision inside the loop.
 
@@ -971,7 +1001,7 @@ evens
 scores = {"Ada": 92, "Grace": 88, "Alan": 75}
 
 for name, score in scores.items():
-    print(f"{name}: {score}")
+    print(f"{name}: {???}")
 
 boosted = {name: ??? for name, score in scores.items()}
 boosted
@@ -1124,7 +1154,7 @@ greet("Ada", "Hi")
     goal: 'Sort people by year using sorted(..., key=...).',
     tasks: [
       'Pass key= so sorting uses the year field',
-      'Print each person after sorting',
+      'Verify the oldest-to-newest order in Results',
     ],
     code: `# Intermediate 9 — Sorting
 # Goal: Sort people by year using sorted(..., key=...).
@@ -1916,6 +1946,7 @@ print(round(cosine(a, b), 3))
     difficulty: 'ai',
     number: 6,
     topic: 'Prompt templates',
+    chapter: 'LLM application contracts',
     goal: 'Fill a prompt template with variables and print the final prompt.',
     tasks: [
       'Replace ??? in the f-string template',
@@ -1969,7 +2000,7 @@ print(prompt)
     topic: 'JSON contracts',
     goal: 'Validate a model-style JSON object has the required keys.',
     tasks: [
-      'Finish required list and the missing-key check',
+      'Finish the missing-key check against the parsed payload',
       'Print ok True only when the payload is valid',
     ],
     code: `# AI 7 — JSON contracts
@@ -2088,46 +2119,55 @@ print(winner)
     difficulty: 'ai',
     number: 9,
     topic: 'Softmax & temperature',
-    goal: 'Turn logits into probabilities and compare sharp versus flat distributions.',
+    goal: 'Implement numerically stable softmax, verify its probabilities sum to one, and compare two temperatures.',
     tasks: [
-      'Normalize every exponential weight by the total',
-      'Compare the same logits at temperatures 0.5 and 2.0',
+      'Subtract the largest scaled logit before exponentiating',
+      'Normalize weights without rounding inside softmax',
+      'Verify both distributions sum to one and compare their peaks',
+    ],
+    taskInstructions: [
+      'Replace ??? with max(scaled). Subtracting this offset leaves the probabilities unchanged but prevents large logits from overflowing math.exp.',
+      'Return every weight divided by total and keep full precision inside the function; round only the values prepared for display.',
+      'Run both temperatures and inspect the printed sums and peaks: both sums should be 1.0, while temperature 0.5 should have the larger peak.',
     ],
     code: `# AI 9 — Softmax & temperature
-# Goal: Convert model scores into probabilities and see temperature reshape them.
+# Goal: Compute stable probabilities and see temperature reshape them.
 
 import math
 
 def softmax(logits, temperature=1.0):
     scaled = [logit / temperature for logit in logits]
-    weights = [math.exp(value) for value in scaled]
+    offset = ???
+    weights = [math.exp(value - offset) for value in scaled]
     total = sum(weights)
-    return [round(weight / ???, 3) for weight in weights]
+    return [weight / total for weight in weights]
 
 logits = [3.0, 1.0, 0.0]
-print("low temperature:", softmax(logits, 0.5))
-print("high temperature:", softmax(logits, 2.0))
+low = softmax(logits, 0.5)
+high = softmax(logits, 2.0)
+print("low temperature:", [round(p, 3) for p in low], "sum:", round(sum(low), 6))
+print("high temperature:", [round(p, 3) for p in high], "sum:", round(sum(high), 6))
 `,
     goalCheck: {
       requireSuccess: true,
       requireFreshRun: true,
       mustEditStarter: true,
       noBlanks: true,
-      codeIncludes: ['def softmax', 'temperature', 'math.exp'],
-      printPatterns: ['low temperature', 'high temperature'],
+      codeIncludes: ['def softmax', 'temperature', 'math.exp', 'max(scaled)'],
+      printPatterns: ['low temperature.*sum: 1', 'high temperature.*sum: 1'],
       minNonEmptyPrints: 2,
     },
     pipeline: ['logits', 'scale', 'softmax', 'probabilities'],
-    hints: ['Divide each weight by total so all probabilities add to 1.'],
+    hints: ['Use max(scaled) as the offset; the largest exponent then becomes exp(0).'],
     predict: {
       prompt: 'A lower temperature usually makes the largest probability…',
       choices: ['more dominant', 'smaller than every other value', 'exactly zero'],
       correctIndex: 0,
     },
     compare: {
-      note: 'Softmax normalizes positive weights into a distribution that sums to 1.',
-      wrong: 'return weights  # not probabilities yet',
-      fixed: 'return [weight / total for weight in weights]',
+      note: 'Subtracting the maximum is the standard numerical-stability step before normalization.',
+      wrong: 'weights = [math.exp(value) for value in scaled]',
+      fixed: 'offset = max(scaled)\nweights = [math.exp(value - offset) for value in scaled]',
     },
     stretch: 'Stretch: verify each probability list sums to approximately 1.',
     runWithModel: true,
@@ -2288,32 +2328,46 @@ print(" ".join(tokens))
     difficulty: 'ai',
     number: 13,
     topic: 'Attention & causal masks',
-    goal: 'Score allowed tokens against a query and keep future tokens masked.',
+    goal: 'Compute scaled, position-aware attention weights, preserve repeated tokens, and exclude every future position.',
     tasks: [
-      'Calculate dot-product scores only for allowed tokens',
-      'Choose the highest-scoring token with scores.get',
+      'Fill the square-root scale used for dot-product scores',
+      'Turn allowed-position scores into stable softmax weights',
+      'Inspect the weighted value vector and confirm the future position is absent',
+    ],
+    taskInstructions: [
+      'Replace ??? with len(query), making the divisor sqrt(d_k); scaling prevents dot products from growing only because the key dimension is larger.',
+      'Keep keys and values in lists indexed by position, then normalize only scores through query_position so repeated token text never collapses a position.',
+      'Run the lesson and confirm weights sum to 1, positions contains 0 through 2, and the token at position 3 appears only under future_masked.',
     ],
     code: `# AI 13 — Attention & causal masks
-# Goal: Compare a query with keys while preventing access to future positions.
+# Goal: Compute scaled attention over positions while masking the future.
 
-tokens = ["the", "cat", "sat", "there"]
+import math
+
+tokens = ["the", "cat", "cat", "there"]
 query_position = 2
 query = [1.0, 0.0]
-keys = {
-    "the": [0.2, 0.8],
-    "cat": [0.9, 0.1],
-    "sat": [0.6, 0.4],
-    "there": [1.0, 0.0],
-}
+keys = [[0.2, 0.8], [0.9, 0.1], [0.6, 0.4], [1.0, 0.0]]
+values = [[1.0, 0.0], [0.0, 1.0], [0.5, 0.5], [9.0, 9.0]]
 
-allowed = tokens[:query_position + 1]
-scores = {
-    token: sum(q * k for q, k in zip(query, keys[token]))
-    for token in allowed
-}
-focus = max(scores, key=???)
+allowed_positions = list(range(query_position + 1))
+scale = math.sqrt(???)
+scores = [
+    sum(q * k for q, k in zip(query, keys[position])) / scale
+    for position in allowed_positions
+]
+offset = max(scores)
+raw_weights = [math.exp(score - offset) for score in scores]
+total = sum(raw_weights)
+weights = [weight / total for weight in raw_weights]
+context = [
+    sum(weight * values[position][dimension] for weight, position in zip(weights, allowed_positions))
+    for dimension in range(len(values[0]))
+]
 
-print({"allowed": allowed, "scores": scores, "focus": focus})
+print({"positions": allowed_positions, "tokens": tokens[:query_position + 1]})
+print({"weights": [round(weight, 3) for weight in weights], "sum": round(sum(weights), 6)})
+print({"context": [round(value, 3) for value in context]})
 print({"future_masked": tokens[query_position + 1:]})
 `,
     goalCheck: {
@@ -2321,21 +2375,21 @@ print({"future_masked": tokens[query_position + 1:]})
       requireFreshRun: true,
       mustEditStarter: true,
       noBlanks: true,
-      codeIncludes: ['query', 'keys', 'allowed', 'scores'],
-      printPatterns: ['cat', 'future_masked', 'there'],
-      minNonEmptyPrints: 2,
+      codeIncludes: ['query', 'keys', 'values', 'math.sqrt', 'allowed_positions'],
+      printPatterns: ['positions.*0, 1, 2', 'sum.*1', 'future_masked.*there'],
+      minNonEmptyPrints: 4,
     },
-    pipeline: ['query & keys', 'mask future', 'score', 'focus'],
-    hints: ['Use scores.get as max’s key function.'],
+    pipeline: ['Q/K/V by position', 'causal mask', 'scaled scores', 'softmax', 'weighted values'],
+    hints: ['The attention scale is sqrt(len(query)); here the key dimension is 2.'],
     predict: {
       prompt: 'Why is “there” excluded even though its key would score highest?',
       choices: ['It is a future token', 'Its vector is too long', 'It is not text'],
       correctIndex: 0,
     },
     compare: {
-      note: 'A causal decoder may attend to the current and earlier positions, never future ones.',
-      wrong: 'allowed = tokens  # future leaks in',
-      fixed: 'allowed = tokens[:query_position + 1]',
+      note: 'Position-indexed arrays preserve repeated tokens and keep Keys separate from Values.',
+      wrong: 'keys = {token: vector for token, vector in rows}',
+      fixed: 'keys = [vector_for_position_0, vector_for_position_1, ...]',
     },
     stretch: 'Stretch: move query_position and observe how the allowed context changes.',
   },
@@ -2525,7 +2579,7 @@ print(validate_tool_call({"name": "email", "arguments": {}}))
     topic: 'Request dict',
     goal: 'Build a request dict and print method + path.',
     tasks: [
-      'Fill method and path on the request',
+      'Fill the request method while preserving the /hello path',
       'Print both fields',
     ],
     code: `# API 1 — Request dict
@@ -2572,7 +2626,7 @@ print(request["path"])
     topic: 'Response dict',
     goal: 'Return a response with status and JSON body.',
     tasks: [
-      'Set status to 200 and a message in body',
+      'Set status to 200 while the function supplies the message body',
       'Print the whole response dict',
     ],
     code: `# API 2 — Response dict
@@ -2946,7 +3000,7 @@ print(authorize({
       wrong: 'return {"status": 200, "body": {"ok": True}}',
       fixed: 'return {"status": 401, "body": {"error": "unauthorized"}}',
     },
-    stretch: 'Stretch: also accept a query token= as a second path (less secure, for comparison).',
+    stretch: 'Stretch: add a tenant claim and return 403 when an authenticated user requests another tenant’s record.',
     predict: {
       prompt: 'What status should a request without Authorization get?',
       choices: ['200', '401', '404'],
@@ -3088,7 +3142,64 @@ const LESSON_WHY: Record<string, string> = {
     'Authentication must reject missing or invalid credentials before protected data is returned.',
 }
 
-export const LESSONS: Lesson[] = LESSON_DRAFTS.map(finalizeLesson)
+const LESSON_DRAFTS: LessonDraft[] = [
+  ...REFRESHER_LESSON_DRAFTS,
+  ...CORE_LESSON_DRAFTS,
+  ...FOUNDATION_LESSON_DRAFTS,
+  ...PYTHON_ENGINEER_LESSON_DRAFTS,
+  ...ML_LLM_LESSON_DRAFTS,
+  ...PRODUCTION_AI_LESSON_DRAFTS,
+  ...STUDY_BOOK_PYTHON_LESSON_DRAFTS,
+  ...STUDY_BOOK_AI_LESSON_DRAFTS,
+  ...STUDY_BOOK_PRODUCTION_LESSON_DRAFTS,
+  ...STUDY_BOOK_DEEP_DIVE_PYTHON_LESSON_DRAFTS,
+  ...STUDY_BOOK_DEEP_DIVE_AI_LESSON_DRAFTS,
+  ...STUDY_BOOK_DEEP_DIVE_PRODUCTION_LESSON_DRAFTS,
+  ...STUDY_BOOK_PRACTICE_LESSON_DRAFTS,
+  ...INTERVIEW_PATTERN_LESSON_DRAFTS,
+  ...ALGORITHM_PRACTICE_LESSON_DRAFTS,
+  ...FASTAPI_ESSENTIALS_LESSON_DRAFTS,
+  ...SUPPORT_AUTOMATION_LESSON_DRAFTS,
+  ...FULLSTACK_LESSON_DRAFTS,
+  ...SERVICE_LESSON_DRAFTS,
+  ...GENAI_PYTHON_LESSON_DRAFTS,
+  ...GENAI_SECURITY_LESSON_DRAFTS,
+  ...HARNESS_LESSON_DRAFTS,
+  ...PLAYGROUND_DRAFTS,
+]
+
+/** Puts the beginner track in BEGINNER_PATH order and numbers it from there. */
+function orderBeginnerTrack(drafts: LessonDraft[]): LessonDraft[] {
+  const byId = new Map(drafts.filter((draft) => draft.difficulty === 'beginner').map((draft) => [draft.id, draft]))
+  const ordered = BEGINNER_PATH.flatMap(({ chapter, ids }) => ids.map((id) => {
+    const draft = byId.get(id)
+    if (!draft) throw new Error(`BEGINNER_PATH lists unknown lesson ${id}`)
+    byId.delete(id)
+    return { ...draft, chapter }
+  })).map((draft, index) => ({ ...draft, number: index + 1 }))
+  if (byId.size) throw new Error(`Beginner lessons missing from BEGINNER_PATH: ${[...byId.keys()].join(', ')}`)
+  const first = drafts.findIndex((draft) => draft.difficulty === 'beginner')
+  const rest = drafts.filter((draft) => draft.difficulty !== 'beginner')
+  return [...rest.slice(0, first), ...ordered, ...rest.slice(first)]
+}
+
+/** Strings the tracks into SECTIONS, numbering each section from 1 and keeping each starter's "# Lesson N —" header in step. */
+function numberBySection(lessons: Omit<Lesson, 'section'>[]): Lesson[] {
+  const placed = new Set<string>()
+  const numbered = SECTIONS.flatMap(({ id, parts }) => parts.flatMap(({ difficulty, from = 1, to = Infinity }) =>
+    lessons.filter((lesson) => lesson.difficulty === difficulty && lesson.number >= from && lesson.number <= to)
+      .sort((a, b) => a.number - b.number),
+  ).map((lesson, index): Lesson => {
+    placed.add(lesson.id)
+    const number = index + 1
+    return { ...lesson, section: id, number, code: lesson.code.replace(/^# Lesson \d+ — /, `# Lesson ${number} — `) }
+  }))
+  const missing = lessons.filter((lesson) => !placed.has(lesson.id))
+  if (missing.length) throw new Error(`Lessons outside every section: ${missing.map((lesson) => lesson.id).join(', ')}`)
+  return numbered
+}
+
+export const LESSONS: Lesson[] = numberBySection(orderBeginnerTrack(LESSON_DRAFTS).map(finalizeLesson))
 
 /** @deprecated use LESSONS */
 export const EXAMPLES = LESSONS
@@ -3097,11 +3208,15 @@ export function lessonsForDifficulty(difficulty: Difficulty): Lesson[] {
   return LESSONS.filter((l) => l.difficulty === difficulty)
 }
 
+export function lessonsForSection(section: Section): Lesson[] {
+  return LESSONS.filter((l) => l.section === section)
+}
+
 /** Lessons grouped by chapter for the toolbar menu. */
 export function lessonsByChapter(
-  difficulty: Difficulty,
+  section: Section,
 ): { chapter: string; lessons: Lesson[] }[] {
-  const track = lessonsForDifficulty(difficulty)
+  const track = lessonsForSection(section)
   const order: string[] = []
   const map = new Map<string, Lesson[]>()
   for (const lesson of track) {
@@ -3121,8 +3236,8 @@ export function getLesson(id: string): Lesson {
   return LESSONS.find((l) => l.id === id) ?? LESSONS[0]
 }
 
-export function firstLessonId(difficulty: Difficulty): string {
-  return lessonsForDifficulty(difficulty)[0]?.id ?? DEFAULT_LESSON_ID
+export function firstLessonId(section: Section): string {
+  return lessonsForSection(section)[0]?.id ?? DEFAULT_LESSON_ID
 }
 
 /** @deprecated use getLesson */

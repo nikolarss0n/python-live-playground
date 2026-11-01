@@ -53,6 +53,21 @@ describe('result event shapes', () => {
 })
 
 describe('worker messages', () => {
+  it('types inbound invoke messages', () => {
+    const msg: WorkerInboundMessage = {
+      type: 'invoke',
+      id: 'invoke-1',
+      method: 'POST',
+      path: '/users',
+      query: { verbose: '1' },
+      body: { name: 'Ada' },
+      headers: { Authorization: 'Bearer secret' },
+    }
+    expect(msg.type).toBe('invoke')
+    expect(msg.method).toBe('POST')
+    expect(msg.headers?.Authorization).toBe('Bearer secret')
+  })
+
   it('types inbound run messages', () => {
     const msg: WorkerInboundMessage = {
       type: 'run',
@@ -68,7 +83,23 @@ describe('worker messages', () => {
       id: 'run-1',
       events: [{ kind: 'print', text: '1' }],
       durationMs: 12,
+      routes: [{ method: 'GET', path: '/hello', callPath: '/hello' }],
     }
     expect(msg.events[0]?.kind).toBe('print')
+    expect(msg.routes?.[0]?.path).toBe('/hello')
+  })
+
+  it('types http result events', () => {
+    const events: ResultEvent[] = [
+      {
+        kind: 'http',
+        method: 'GET',
+        path: '/hello',
+        status: 200,
+        body: '{"message":"hi"}',
+        simulated: true,
+      },
+    ]
+    expect(events[0]?.kind).toBe('http')
   })
 })

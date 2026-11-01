@@ -1,15 +1,23 @@
 import CodeMirror, { type ReactCodeMirrorRef } from '@uiw/react-codemirror'
-import { python } from '@codemirror/lang-python'
-import { EditorView } from '@codemirror/view'
-import { HighlightStyle, syntaxHighlighting } from '@codemirror/language'
-import { tags as t } from '@lezer/highlight'
+import { python, pythonLanguage } from '@codemirror/lang-python'
+import { EditorView, keymap } from '@codemirror/view'
+import { Prec } from '@codemirror/state'
+import { acceptCompletion } from '@codemirror/autocomplete'
+import { HighlightStyle, LanguageSupport, syntaxHighlighting } from '@codemirror/language'
+import { styleTags, tags as t } from '@lezer/highlight'
 import { useEffect, useMemo, useRef } from 'react'
 import {
   setVariablePathNames,
   variablePathColors,
 } from '../editor/variableColors'
 import { blankHighlightExtension } from '../editor/blankHighlight'
+import { blankHintExtension } from '../editor/blankHint'
 import { runPulseExtension } from '../editor/runPulse'
+import { problemMarkExtension } from '../editor/problemMark'
+import { codeHoverExtension } from '../editor/codeHover'
+import { dotCompletionExtension } from '../editor/dotCompletion'
+import { docstringExtension } from '../editor/docstring'
+import { callParens } from '../editor/callParens'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -22,37 +30,50 @@ type CodeEditorProps = {
   onGeometryChange?: () => void
   /** Variable names to chip (from hovering a result on the right). */
   pathNames?: readonly string[]
+  readOnly?: boolean
 }
+
+/** Python plus the tags the stock grammar leaves out: parameters and type annotations. */
+const richPython = new LanguageSupport(
+  pythonLanguage.configure({
+    props: [styleTags({
+      'ParamList/VariableName': t.local(t.variableName),
+      'TypeDef/VariableName': t.typeName,
+    })],
+  }),
+  python().support,
+)
 
 const lightHighlight = HighlightStyle.define([
   { tag: t.comment, color: '#8A8478', fontStyle: 'italic' },
-  { tag: t.string, color: '#0B6E4F' },
-  { tag: t.number, color: '#B45309' },
-  { tag: t.keyword, color: '#7C3AED' },
-  { tag: t.operator, color: '#6B6560' },
-  { tag: t.definition(t.variableName), color: '#1C1B19' },
-  { tag: t.variableName, color: '#1C1B19' },
-  { tag: t.function(t.variableName), color: '#0D6E8C' },
-  { tag: t.className, color: '#0D6E8C' },
-  { tag: t.bool, color: '#B45309' },
-  { tag: t.null, color: '#B45309' },
-  { tag: t.meta, color: '#8A8478' },
+  { tag: t.string, color: '#9A6700' },
+  { tag: [t.escape, t.special(t.string)], color: '#0E7490' },
+  { tag: t.number, color: '#C2410C' },
+  { tag: [t.keyword, t.operatorKeyword, t.definitionOperator, t.arithmeticOperator, t.compareOperator, t.meta], color: '#C2185B' },
+  { tag: [t.separator, t.derefOperator, t.punctuation], color: '#6B6560' },
+  { tag: [t.paren, t.squareBracket], color: '#A16207' },
+  { tag: t.brace, color: '#A21CAF' },
+  { tag: [t.variableName, t.propertyName], color: '#1C1B19' },
+  { tag: t.local(t.variableName), color: '#B91C1C' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#047857' },
+  { tag: [t.typeName, t.className, t.definition(t.className)], color: '#0369A1' },
+  { tag: [t.bool, t.null], color: '#7C3AED' },
 ])
 
 const darkHighlight = HighlightStyle.define([
-  { tag: t.comment, color: '#8B8680', fontStyle: 'italic' },
-  { tag: t.string, color: '#6EE7B7' },
-  { tag: t.number, color: '#FBBF24' },
-  { tag: t.keyword, color: '#C4B5FD' },
-  { tag: t.operator, color: '#A8A29E' },
-  // Keep variable glyphs light; path identity is the chip background only.
-  { tag: t.definition(t.variableName), color: '#F5F2EB' },
-  { tag: t.variableName, color: '#F5F2EB' },
-  { tag: t.function(t.variableName), color: '#7DD3FC' },
-  { tag: t.className, color: '#7DD3FC' },
-  { tag: t.bool, color: '#FBBF24' },
-  { tag: t.null, color: '#FBBF24' },
-  { tag: t.meta, color: '#8B8680' },
+  { tag: t.comment, color: '#7A7F9A', fontStyle: 'italic' },
+  { tag: t.string, color: '#F6D98E' },
+  { tag: [t.escape, t.special(t.string)], color: '#7DCFFF' },
+  { tag: t.number, color: '#FAB387' },
+  { tag: [t.keyword, t.operatorKeyword, t.definitionOperator, t.arithmeticOperator, t.compareOperator, t.meta], color: '#F2709C' },
+  { tag: [t.separator, t.derefOperator, t.punctuation], color: '#C8CCD8' },
+  { tag: [t.paren, t.squareBracket], color: '#F6D06B' },
+  { tag: t.brace, color: '#D98BEB' },
+  { tag: [t.variableName, t.propertyName], color: '#E6EAF2' },
+  { tag: t.local(t.variableName), color: '#F38BA8' },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: '#7EE2B8' },
+  { tag: [t.typeName, t.className, t.definition(t.className)], color: '#7DCFFF' },
+  { tag: [t.bool, t.null], color: '#C4A1FF' },
 ])
 
 function buildTheme(mode: ThemeMode) {
@@ -121,6 +142,9 @@ function buildTheme(mode: ThemeMode) {
           ? 'rgba(61, 184, 168, 0.28)'
           : 'rgba(13, 122, 111, 0.18)',
       },
+      '.cm-docstring, .cm-docstring *': {
+        color: isDark ? '#8E95C2' : '#6366A0',
+      },
       '.cm-cursor': {
         borderLeftColor: isDark ? '#F5F2EB' : '#1C1B19',
       },
@@ -140,6 +164,7 @@ export function CodeEditor({
   onViewReady,
   onGeometryChange,
   pathNames = [],
+  readOnly = false,
 }: CodeEditorProps) {
   const ref = useRef<ReactCodeMirrorRef>(null)
   const onGeometryChangeRef = useRef(onGeometryChange)
@@ -147,12 +172,19 @@ export function CodeEditor({
 
   const extensions = useMemo(
     () => [
-      python(),
+      richPython,
+      dotCompletionExtension(),
+      docstringExtension,
+      callParens,
+      Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])),
       buildTheme(theme),
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
       ...variablePathColors(theme === 'dark'),
       blankHighlightExtension(),
+      ...blankHintExtension(),
       ...runPulseExtension(),
+      ...problemMarkExtension(),
+      codeHoverExtension(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (
@@ -183,6 +215,7 @@ export function CodeEditor({
       <CodeMirror
         ref={ref}
         value={value}
+        readOnly={readOnly}
         height="100%"
         theme="none"
         basicSetup={{
@@ -192,7 +225,7 @@ export function CodeEditor({
           highlightActiveLineGutter: true,
           bracketMatching: true,
           closeBrackets: true,
-          autocompletion: false,
+          autocompletion: true,
           searchKeymap: false,
         }}
         extensions={extensions}

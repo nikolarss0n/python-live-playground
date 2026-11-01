@@ -22,63 +22,42 @@ function eventLine(event: ResultEvent): number | null {
   return event.line
 }
 
-type Pt = { x: number; y: number }
+type Box = { x: number; y: number; w: number; h: number }
 
 /**
- * Constant-thickness band: source-line capsule → curved neck → result-row capsule.
- * Avoids the "flooded polygon" look when source and result sit at different heights.
+ * One soft shape: a rounded capsule around the source code, a smooth neck that tapers between the two heights, and a
+ * rounded capsule around the result's first line. Each end keeps its own height so the band hugs both texts.
  */
-function buildRibbonPath(
-  source: { x: number; y: number; w: number; h: number },
-  result: { x: number; y: number; w: number; h: number },
-): string {
+function buildRibbonPath(source: Box, result: Box): string {
   const f = (n: number) => n.toFixed(1)
+  const sL = source.x
+  const sR = source.x + source.w
+  const sT = source.y
+  const sB = source.y + source.h
+  const rL = result.x
+  const rR = result.x + result.w
+  const rT = result.y
+  const rB = result.y + result.h
+  const sr = Math.min(6, source.h / 2, source.w / 2)
+  const rr = Math.min(6, result.h / 2, result.w / 2)
+  const bend = Math.max(16, (rL - sR) * 0.5)
+  const c1 = sR + bend
+  const c2 = rL - bend
 
-  // Vertical half-thickness matches the shorter of the two rows so the band
-  // reads as a bent highlight, not a tall sheet.
-  const half = Math.max(8, Math.min(source.h, result.h) * 0.5 + 1)
-
-  const sLeft = source.x
-  const sRight = source.x + source.w
-  const sMidY = source.y + source.h / 2
-
-  const rLeft = result.x
-  const rRight = result.x + result.w
-  const rMidY = result.y + result.h / 2
-
-  // Exit / entry points (center of facing edges)
-  const a: Pt = { x: sRight, y: sMidY }
-  const b: Pt = { x: rLeft, y: rMidY }
-
-  const gap = Math.max(24, b.x - a.x)
-  const c1x = a.x + gap * 0.45
-  const c2x = b.x - gap * 0.45
-
-  // Approximate normals along the cubic by sampling ends.
-  // At endpoints the tangent is horizontal-ish; use vertical offset for thickness.
-  const topA = sMidY - half
-  const botA = sMidY + half
-  const topB = rMidY - half
-  const botB = rMidY + half
-
-  // Rounded source capsule + curved top/bottom + rounded result capsule
   return [
-    // Start top-left of source
-    `M ${f(sLeft)} ${f(topA)}`,
-    // Top of source bar
-    `L ${f(sRight)} ${f(topA)}`,
-    // Curve across gutter (top edge)
-    `C ${f(c1x)} ${f(topA)}, ${f(c2x)} ${f(topB)}, ${f(rLeft)} ${f(topB)}`,
-    // Top of result bar
-    `L ${f(rRight)} ${f(topB)}`,
-    // Right endcap of result
-    `L ${f(rRight)} ${f(botB)}`,
-    // Bottom of result bar
-    `L ${f(rLeft)} ${f(botB)}`,
-    // Curve back across gutter (bottom edge)
-    `C ${f(c2x)} ${f(botB)}, ${f(c1x)} ${f(botA)}, ${f(sRight)} ${f(botA)}`,
-    // Bottom of source bar
-    `L ${f(sLeft)} ${f(botA)}`,
+    `M ${f(sL + sr)} ${f(sT)}`,
+    `L ${f(sR)} ${f(sT)}`,
+    `C ${f(c1)} ${f(sT)}, ${f(c2)} ${f(rT)}, ${f(rL)} ${f(rT)}`,
+    `L ${f(rR - rr)} ${f(rT)}`,
+    `Q ${f(rR)} ${f(rT)}, ${f(rR)} ${f(rT + rr)}`,
+    `L ${f(rR)} ${f(rB - rr)}`,
+    `Q ${f(rR)} ${f(rB)}, ${f(rR - rr)} ${f(rB)}`,
+    `L ${f(rL)} ${f(rB)}`,
+    `C ${f(c2)} ${f(rB)}, ${f(c1)} ${f(sB)}, ${f(sR)} ${f(sB)}`,
+    `L ${f(sL + sr)} ${f(sB)}`,
+    `Q ${f(sL)} ${f(sB)}, ${f(sL)} ${f(sB - sr)}`,
+    `L ${f(sL)} ${f(sT + sr)}`,
+    `Q ${f(sL)} ${f(sT)}, ${f(sL + sr)} ${f(sT)}`,
     'Z',
   ].join(' ')
 }
@@ -166,8 +145,10 @@ export function ResultConnectors({
       return
     }
 
-    const startCoords = editorView.coordsAtPos(line.from)
-    const endCoords = editorView.coordsAtPos(Math.max(line.from, line.to - 1))
+    const indent = line.text.length - line.text.trimStart().length
+    const textFrom = line.from + Math.min(indent, Math.max(0, line.length - 1))
+    const startCoords = editorView.coordsAtPos(textFrom)
+    const endCoords = editorView.coordsAtPos(line.to, -1)
     if (!startCoords) {
       setRibbon(null)
       return
@@ -179,34 +160,26 @@ export function ResultConnectors({
       return
     }
 
-    const gutterLeft =
-      (editorView.dom.querySelector('.cm-gutters') as HTMLElement | null)
-        ?.getBoundingClientRect().right ?? startCoords.left - 8
-
-    const sourceLeft = Math.max(gutterLeft, startCoords.left - 4) - ws.left
+    const PAD_X = 6
+    const PAD_Y = 3
+    const sourceLeft = startCoords.left - PAD_X - ws.left
     const sourceRight = Math.min(
-      (editorPaneRect?.right ?? scrollerRect.right) - ws.left - 4,
-      (endCoords?.right ?? startCoords.right) - ws.left + 16,
+      (editorPaneRect?.right ?? scrollerRect.right) - ws.left - 8,
+      (endCoords?.right ?? startCoords.right) - ws.left + PAD_X,
     )
-    const sourceTop = startCoords.top - ws.top
-    const sourceH = Math.max(18, startCoords.bottom - startCoords.top)
+    const sourceTop = startCoords.top - ws.top - PAD_Y
+    const sourceH = startCoords.bottom - startCoords.top + PAD_Y * 2
 
-    const resultLeft = rowRect.left - ws.left
-    const resultRight = Math.min(
-      rowRect.right - ws.left + 4,
-      (resultsPaneRect?.right ?? rowRect.right) - ws.left - 10,
-    )
-    // Prefer the raw error line so tall explain panels don't inflate the band.
+    // Hug the result's first visible line: the error line, a collection's header pill, or the value text.
     const anchorEl = row.querySelector(
-      '[data-error-anchor], .error-card-raw',
+      '[data-error-anchor], .error-card-raw, .coll-toggle, .result-text, .result-value-wrap',
     ) as HTMLElement | null
-    const anchorRect = anchorEl?.getBoundingClientRect()
-    const resultTop = anchorRect
-      ? anchorRect.top - ws.top - 2
-      : rowRect.top - ws.top
-    const resultH = anchorRect
-      ? Math.max(20, Math.min(anchorRect.height + 6, 36))
-      : Math.max(18, Math.min(rowRect.height, 28))
+    const anchorRect = anchorEl?.getBoundingClientRect() ?? rowRect
+    const lineH = Math.min(anchorRect.height, sourceH - PAD_Y * 2 + 2)
+    const resultLeft = rowRect.left - ws.left
+    const resultRight = Math.min(rowRect.right, resultsPaneRect?.right ?? rowRect.right) - ws.left - 2
+    const resultTop = anchorRect.top - ws.top - PAD_Y
+    const resultH = Math.max(16, lineH) + PAD_Y * 2
 
     if (resultLeft <= sourceRight + 8) {
       setRibbon(null)
@@ -216,18 +189,8 @@ export function ResultConnectors({
     setRibbon({
       id: `ribbon-${activeIndex}-${lineNo}`,
       path: buildRibbonPath(
-        {
-          x: sourceLeft,
-          y: sourceTop,
-          w: Math.max(28, sourceRight - sourceLeft),
-          h: sourceH,
-        },
-        {
-          x: resultLeft,
-          y: resultTop,
-          w: Math.max(48, resultRight - resultLeft),
-          h: resultH,
-        },
+        { x: sourceLeft, y: sourceTop, w: Math.max(24, sourceRight - sourceLeft), h: sourceH },
+        { x: resultLeft, y: resultTop, w: Math.max(40, resultRight - resultLeft), h: resultH },
       ),
       kind: event.kind,
     })

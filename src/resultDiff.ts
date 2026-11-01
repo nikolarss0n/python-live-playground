@@ -15,6 +15,8 @@ export function eventFingerprint(event: ResultEvent): string {
       return `warning|${event.line ?? ''}|${event.text}`
     case 'error':
       return `error|${event.line ?? ''}|${event.message}`
+    case 'http':
+      return `http|${event.method}|${event.path}|${event.status}|${event.body}`
   }
 }
 

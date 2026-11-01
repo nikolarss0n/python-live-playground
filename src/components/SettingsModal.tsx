@@ -18,13 +18,14 @@ type SettingsModalProps = {
   open: boolean
   onClose: () => void
   onSaved?: (settings: AppSettings) => void
+  allowModelTest?: boolean
 }
 
 /**
  * Quiet settings: companion URL, API key, optional OpenAI-compatible LLM.
  * Keys stay in localStorage on this device only.
  */
-export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }: SettingsModalProps) {
   const [draft, setDraft] = useState<AppSettings>(() => defaultSettings())
   const [showKey, setShowKey] = useState(false)
   const [companionNote, setCompanionNote] = useState<string | null>(null)
@@ -80,6 +81,7 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
   }
 
   const testLlm = async () => {
+    if (!allowModelTest) return
     setBusy('llm')
     setLlmNote(null)
     try {
@@ -214,13 +216,15 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
           </section>
 
           <section className="settings-section">
-            <h3 className="settings-section-title">Optional LLM (OpenAI-compatible)</h3>
+            <h3 className="settings-section-title">
+              AI help (OpenAI-compatible)
+            </h3>
             <label className="settings-field">
               <span className="settings-label">Base URL</span>
               <input
                 type="url"
                 className="settings-input"
-                placeholder="https://api.openai.com/v1 or https://api.x.ai/v1"
+                placeholder="https://api.x.ai/v1"
                 value={draft.llmBaseUrl}
                 onChange={(e) => update('llmBaseUrl', e.target.value)}
                 aria-label="LLM base URL"
@@ -231,7 +235,7 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
               <input
                 type="text"
                 className="settings-input"
-                placeholder="gpt-4o-mini"
+                placeholder="grok-4.5"
                 value={draft.llmModel}
                 onChange={(e) => update('llmModel', e.target.value)}
                 aria-label="LLM model"
@@ -241,20 +245,21 @@ export function SettingsModal({ open, onClose, onSaved }: SettingsModalProps) {
               <button
                 type="button"
                 className="btn btn-ghost"
-                disabled={busy != null}
+                disabled={busy != null || !allowModelTest}
                 onClick={() => void testLlm()}
               >
                 {busy === 'llm' ? 'Testing…' : 'Test model'}
               </button>
             </div>
-            {llmNote ? (
+            {!allowModelTest ? <p className="settings-help">Model testing is disabled during mocks and independent practice.</p> : null}
+            {allowModelTest && llmNote ? (
               <p className="settings-note" role="status">
                 {llmNote}
               </p>
             ) : null}
             <p className="settings-help">
-              One quiet test call only — no chat sidebar. Leave base URL empty to
-              disable.
+              Powers optional error hints and the lesson coach. Requests use the provider configured here.
+              Leave the base URL empty to disable AI requests.
             </p>
           </section>
         </div>

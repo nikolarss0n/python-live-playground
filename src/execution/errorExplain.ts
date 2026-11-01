@@ -21,6 +21,56 @@ export type ErrorExplanation = {
 const DEFAULT_SUMMARY = 'Something went wrong while running this code.'
 const DEFAULT_TIP = 'Read the message above, change the code, and run again.'
 
+function interpolationEnd(source: string, start: number): number {
+  let braces = 1
+  let quote = ''
+  for (let index = start; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (character === '\\') index += 1
+      else if (source.startsWith(quote, index)) { index += quote.length - 1; quote = '' }
+    } else if (character === '"' || character === "'") {
+      quote = source.startsWith(character.repeat(3), index) ? character.repeat(3) : character
+      index += quote.length - 1
+    } else if (character === '{') braces += 1
+    else if (character === '}' && --braces === 0) return index
+  }
+  return source.length
+}
+
+function hasStarterBlank(source: string, depth = 0): boolean {
+  if (depth > 16) return false
+  let quote = ''
+  let formatted = false
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      if (formatted && character === '{') {
+        if (source[index + 1] === '{') index += 1
+        else {
+          const end = interpolationEnd(source, index + 1)
+          if (hasStarterBlank(source.slice(index + 1, end), depth + 1)) return true
+          index = end
+        }
+      } else if (character === '\\') index += 1
+      else if (source.startsWith(quote, index)) {
+        index += quote.length - 1
+        quote = ''
+        formatted = false
+      }
+    } else if (character === '#') {
+      const end = source.indexOf('\n', index)
+      if (end === -1) break
+      index = end
+    } else if (character === '"' || character === "'") {
+      formatted = /(?:^|[^A-Za-z0-9_])(?:f|fr|rf)$/i.test(source.slice(0, index))
+      quote = source.startsWith(character.repeat(3), index) ? character.repeat(3) : character
+      index += quote.length - 1
+    } else if (source.startsWith('???', index)) return true
+  }
+  return false
+}
+
 function extractNameMessage(raw: string): { name: string; detail: string } {
   const cleaned = raw.replace(/^Error:\s*/i, '').trim()
   const match = /^([A-Za-z_][A-Za-z0-9_]*(?:Error|Warning|Exception)?)\s*:\s*(.*)$/s.exec(
@@ -61,17 +111,196 @@ export type ExplainContext = {
   sourceSnippet?: string
 }
 
+type SyntaxAdvice = Pick<ErrorExplanation, 'title' | 'summary' | 'tip' | 'example'>
+
+function codeOutsideStrings(source: string): string {
+  const characters = source.split('')
+  let quote = ''
+  let formatted = false
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index]
+    if (quote) {
+      characters[index] = character === '\n' ? '\n' : ' '
+      if (formatted && character === '{') {
+        if (source[index + 1] === '{') characters[++index] = ' '
+        else {
+          const end = interpolationEnd(source, index + 1)
+          for (let offset = index + 1; offset <= end && offset < source.length; offset += 1) {
+            characters[offset] = source[offset] === '\n' ? '\n' : ' '
+          }
+          index = end
+        }
+      } else if (character === '\\') {
+        index += 1
+        if (index < source.length) characters[index] = source[index] === '\n' ? '\n' : ' '
+      } else if (source.startsWith(quote, index)) {
+        for (let offset = 0; offset < quote.length; offset += 1) characters[index + offset] = source[index + offset]
+        index += quote.length - 1
+        quote = ''
+        formatted = false
+      }
+    } else if (character === '#') {
+      while (index < source.length && source[index] !== '\n') characters[index++] = ' '
+      index -= 1
+    } else if (character === '"' || character === "'") {
+      formatted = /(?:^|[^A-Za-z0-9_])(?:f|fr|rf)$/i.test(source.slice(0, index))
+      quote = source.startsWith(character.repeat(3), index) ? character.repeat(3) : character
+      index += quote.length - 1
+    }
+  }
+  return characters.join('')
+}
+
+function matchingParenthesis(code: string, start: number): number | null {
+  let depth = 0
+  for (let index = start; index < code.length; index += 1) {
+    if (code[index] === '(') depth += 1
+    else if (code[index] === ')' && --depth === 0) return index
+  }
+  return null
+}
+
+function exampleBody(sourceLine: string, context?: ExplainContext): string {
+  const lines = context?.sourceSnippet?.split(/\r?\n/) ?? []
+  const position = lines.findIndex((line) => line.trim() === sourceLine.trim())
+  if (position >= 0) {
+    const indentation = /^[\t ]*/.exec(sourceLine)?.[0].length ?? 0
+    for (const line of lines.slice(position + 1)) {
+      if (!line.trim()) continue
+      const bodyIndent = /^[\t ]*/.exec(line)?.[0].length ?? 0
+      if (bodyIndent <= indentation) break
+      const trimmed = line.trim()
+      const code = codeOutsideStrings(trimmed).trim()
+      if (!code) continue
+      if (/^(?:print\s*\(|return\b|[A-Za-z_]\w*\s*=)/.test(code) && !code.endsWith(':') && !hasStarterBlank(trimmed)) {
+        return trimmed
+      }
+      break
+    }
+  }
+  return 'pass  # Add your function or block body here.'
+}
+
+function blockExample(header: string, sourceLine: string, context?: ExplainContext): string {
+  return `${header.trim()}\n    ${exampleBody(sourceLine, context)}`
+}
+
+function functionAdvice(sourceLine: string, context?: ExplainContext): SyntaxAdvice | null {
+  const code = codeOutsideStrings(sourceLine)
+  const header = /^\s*(async\s+)?function\s+([A-Za-z_]\w*)\s*\(/.exec(code)
+  if (!header) return null
+  const opening = header[0].lastIndexOf('(')
+  const closing = matchingParenthesis(code, opening)
+  if (closing === null) return null
+  const after = code.slice(closing + 1).trimStart()
+  if (after && !after.startsWith(':') && !after.startsWith('{')) return null
+  const pythonHeader = `${header[1] ? 'async ' : ''}def ${header[2]}${sourceLine.slice(opening, closing + 1)}:`
+  const colon = code.indexOf(':', closing + 1)
+  const inlineBody = after.startsWith(':') && colon >= 0 ? sourceLine.slice(colon + 1).trim() : ''
+  const body = inlineBody && codeOutsideStrings(inlineBody).trim()
+    ? inlineBody
+    : exampleBody(sourceLine, context)
+  return {
+    title: 'Use def to define a Python function',
+    summary: '`function` is JavaScript syntax. A Python function starts with `def`, followed by its name, arguments, and a colon.',
+    tip: `Replace \`function\` with \`def\` in \`${header[2]}(...)\`, then keep the body indented one level.`,
+    example: `${pythonHeader}\n    ${body}`,
+  }
+}
+
+function declarationAdvice(sourceLine: string): SyntaxAdvice | null {
+  const code = codeOutsideStrings(sourceLine)
+  const declaration = /^(\s*)(let|const|var)\s+([A-Za-z_]\w*)\s*=(?!=)/.exec(code)
+  if (!declaration) return null
+  const keywordStart = declaration[1].length
+  const valueStart = keywordStart + declaration[2].length
+  return {
+    title: 'Assign the variable without a declaration keyword',
+    summary: `Python does not put \`${declaration[2]}\` before a variable assignment.`,
+    tip: `Remove \`${declaration[2]}\` and start this assignment with \`${declaration[3]} =\`.`,
+    example: sourceLine.slice(valueStart).trim(),
+  }
+}
+
+function operatorAdvice(sourceLine: string, context?: ExplainContext): SyntaxAdvice | null {
+  const code = codeOutsideStrings(sourceLine)
+  const tokens = [...code.matchAll(/(?<!=)(?:!==|===)(?!=)|(?<!&)&&(?!&)|(?<!\|)\|\|(?!\|)/g)]
+  if (!tokens.length) return null
+  const replacements: Record<string, string> = { '===': '==', '!==': '!=', '&&': 'and', '||': 'or' }
+  let rewritten = ''
+  let previous = 0
+  for (const token of tokens) {
+    const replacement = replacements[token[0]]
+    const index = token.index
+    const end = index + token[0].length
+    const logical = token[0] === '&&' || token[0] === '||'
+    const before = logical && index > 0 && !/\s/.test(sourceLine[index - 1]) ? ' ' : ''
+    const after = logical && end < sourceLine.length && !/\s/.test(sourceLine[end]) ? ' ' : ''
+    rewritten += sourceLine.slice(previous, index) + before + replacement + after
+    previous = end
+  }
+  rewritten += sourceLine.slice(previous)
+  const substitutions = [...new Set(tokens.map((token) => `\`${token[0]}\` → \`${replacements[token[0]]}\``))].join(', ')
+  const hasBlock = /^(?:if|elif|while)\b/.test(code.trimStart()) && code.trimEnd().endsWith(':')
+  return {
+    title: 'Use Python comparison and logical operators',
+    summary: 'These JavaScript operator spellings are not Python syntax. Python compares values with == or != and combines conditions with `and` and `or`.',
+    tip: `On this line, use ${substitutions}.`,
+    example: hasBlock ? blockExample(rewritten, sourceLine, context) : rewritten.trim(),
+  }
+}
+
+function colonAdvice(sourceLine: string, detail: string, context?: ExplainContext): SyntaxAdvice | null {
+  if (!/expected\s+['"]:['"]/i.test(detail)) return null
+  const code = codeOutsideStrings(sourceLine).trimEnd()
+  if (code.endsWith(':') || !/^\s*(?:(?:async\s+)?(?:def|for|with)|class|if|elif|else|while|try|except|finally|match|case)\b/.test(code)) return null
+  let nesting = 0
+  for (let index = 0; index < code.length; index += 1) {
+    if ('([{'.includes(code[index])) nesting += 1
+    else if (')]}'.includes(code[index])) nesting -= 1
+    else if (code[index] === ':' && code[index + 1] !== '=' && nesting === 0) return null
+  }
+  const header = `${sourceLine.slice(0, code.length)}:${sourceLine.slice(code.length)}`
+  return {
+    title: 'Add a colon after the block header',
+    summary: 'Python reported that this block header is missing its ending colon.',
+    tip: 'Add `:` at the end of the header, before any comment, and indent the following body.',
+    example: blockExample(header, sourceLine, context),
+  }
+}
+
+function indentationAdvice(name: string, detail: string, sourceLine: string): SyntaxAdvice | null {
+  if (name === 'TabError') return {
+    title: 'Use one indentation style',
+    summary: 'Tabs and spaces are mixed in a way that makes this block ambiguous.',
+    tip: 'Replace indentation tabs with spaces and align statements in the same block. Four spaces per level is the usual convention.',
+  }
+  if (name !== 'IndentationError') return null
+  if (/expected an indented block/i.test(detail)) return {
+    title: 'Indent the body after the header',
+    summary: 'A function, condition, or loop header needs an indented body beneath it.',
+    tip: 'Indent the body one level under the preceding header, usually four spaces. Keep later statements in that body aligned.',
+    ...(sourceLine.trim() ? { example: `    ${sourceLine.trim()}` } : {}),
+  }
+  if (/unexpected indent/i.test(detail)) return {
+    title: 'This line is indented too far',
+    summary: 'Python did not expect a new indentation level at this line.',
+    tip: 'Align this line with the surrounding statements in the same block. Add an indentation level only after a block header.',
+  }
+  return null
+}
+
 /**
  * Detect C/Java/JS-style for headers that Python rejects.
  * Examples: for(i = 0; i < 10; i++):  ·  for (i=0; i<10; i++)
  */
 export function looksLikeCStyleFor(source: string | undefined): boolean {
   if (!source) return false
-  const s = source.replace(/\s+/g, ' ')
-  if (!/\bfor\s*\(/.test(s)) return false
+  const s = codeOutsideStrings(source)
+  if (!/^\s*for\s*\(/m.test(s)) return false
   // Classic three-part header, or ++ / -- increments
   if (/for\s*\([^)]*;[^)]*;[^)]*\)/.test(s)) return true
-  if (/\+\+|--/.test(s) && /\bfor\s*\(/.test(s)) return true
+  if (/for\s*\([^)]*(?:\+\+|--)[^)]*\)/.test(s)) return true
   return false
 }
 
@@ -130,14 +359,31 @@ export function explainError(
     if (!message) detail = parsed.detail
   }
 
-  const sourceHint = [context?.sourceLine, context?.sourceSnippet]
-    .filter(Boolean)
-    .join('\n')
+  const sourceHint = context?.sourceLine ?? context?.sourceSnippet ?? ''
+
+  if (name === 'SyntaxError' && hasStarterBlank(sourceHint)) {
+    return {
+      title: 'Finish the starter blank',
+      name,
+      detail,
+      summary: 'The ??? marks a part of this exercise for you to complete. It is not Python syntax.',
+      tip: 'Replace ??? with Python for the current task. Open the lesson instructions for a hint, then run again.',
+    }
+  }
+
+  if (name === 'SyntaxError') {
+    const advice = functionAdvice(sourceHint, context) ?? declarationAdvice(sourceHint) ??
+      (looksLikeCStyleFor(sourceHint) ? null : operatorAdvice(sourceHint, context) ?? colonAdvice(sourceHint, detail, context))
+    if (advice) return { ...advice, name, detail }
+  }
+
+  const indentation = indentationAdvice(name, detail, context?.sourceLine ?? '')
+  if (indentation) return { ...indentation, name, detail }
 
   // Pattern-specific coaching before the generic SyntaxError copy.
   if (
     (name === 'SyntaxError' || name === 'IndentationError') &&
-    looksLikeCStyleFor(sourceHint || detail)
+    looksLikeCStyleFor(sourceHint)
   ) {
     const line = context?.sourceLine?.trim() || 'for(i = 0; i < 10; i++):'
     return {
@@ -187,9 +433,8 @@ export function explainError(
         name,
         detail,
         summary:
-          'Python could not parse this program. Something is missing or in the wrong place (brackets, quotes, colons, or commas). If you meant a loop from another language, Python uses `for x in range(n):` instead of `for (i = 0; i < n; i++)`.',
+          'Python could not parse this program. Something is missing or in the wrong place, such as a bracket, quote, colon, or comma.',
         tip: 'Look at the marked line: match every (, [, {, and quote, and put a colon after if/for/def/while.',
-        example: 'for i in range(10):\n    print(i)',
       }
 
     case 'IndentationError':
@@ -268,6 +513,18 @@ export function explainError(
       }
     }
 
+    case 'SimFastAPIError':
+      return {
+        title: 'Simulated FastAPI limit',
+        name,
+        detail,
+        summary:
+          'This playground runs a FastAPI-shaped simulator in the browser. It is not uvicorn and does not implement every FastAPI API.',
+        tip: 'Use GET/POST/PUT/PATCH/DELETE, path params, query params, Header(), BaseModel bodies, and HTTPException. Probe with TestClient in the editor or Call in Results — not uvicorn.run.',
+        example:
+          'from fastapi import FastAPI\napp = FastAPI()\n@app.get("/hello")\ndef hello():\n    return {"message": "hi"}',
+      }
+
     case 'ModuleNotFoundError':
     case 'ImportError':
       return {
@@ -330,6 +587,17 @@ export function friendlyErrorMessage(
 
 export function parseErrorName(message: string): string {
   return extractNameMessage(message).name
+}
+
+/**
+ * Strip interpreter file/line noise already shown by the Line badge
+ * (e.g. `… (<unknown>, line 1)`).
+ */
+export function cleanErrorDetail(detail: string): string {
+  return detail
+    .replace(/\s*\((?:<unknown>|[^()\n]+),\s*line\s+\d+\)\s*$/i, '')
+    .replace(/\s+on line \d+\s*$/i, '')
+    .trim()
 }
 
 /** 1-based line text from full source (empty if out of range). */
