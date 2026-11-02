@@ -6,6 +6,8 @@ type Handler = (event: MessageEvent<WorkerOutboundMessage>) => void
 
 class MockWorker {
   static instances: MockWorker[] = []
+  /** When true, init waits for the test to emit 'ready' or 'failed'. */
+  static holdInit = false
   onmessage: Handler | null = null
   onerror: ((event: ErrorEvent) => void) | null = null
   terminated = false
@@ -22,7 +24,7 @@ class MockWorker {
   postMessage(data: unknown) {
     this.posted.push(data)
     const msg = data as { type?: string }
-    if (msg.type === 'init') {
+    if (msg.type === 'init' && !MockWorker.holdInit) {
       queueMicrotask(() => {
         this.onmessage?.({ data: { type: 'ready' } } as MessageEvent)
       })
@@ -405,6 +407,121 @@ describe('PythonRunner', () => {
     const http = snap.events.find((e) => e.kind === 'http')
     expect(http?.kind === 'http' && http.status).toBe(200)
     expect(http?.kind === 'http' && http.path).toBe('/users')
+    runner.dispose()
+  })
+})
+
+describe('PythonRunner request ownership', () => {
+  const flush = async () => {
+    for (let i = 0; i < 5; i += 1) await Promise.resolve()
+  }
+  const postedRuns = () =>
+    MockWorker.instances.flatMap((w) =>
+      (w.posted as Array<{ type: string; code?: string }>).filter((m) => m.type === 'run').map((m) => m.code),
+    )
+
+  beforeEach(() => {
+    MockWorker.instances = []
+    MockWorker.holdInit = true
+    vi.stubGlobal('Worker', MockWorker as unknown as typeof Worker)
+  })
+
+  afterEach(() => {
+    MockWorker.holdInit = false
+    vi.unstubAllGlobals()
+  })
+
+  it('reuses a booting worker and only runs the latest request', async () => {
+    const runner = new PythonRunner()
+    void runner.start()
+    const first = runner.run('print("a")')
+    const second = runner.run('print("b")')
+    await flush()
+    expect(MockWorker.instances).toHaveLength(1)
+    MockWorker.instances[0].emit({ type: 'ready' })
+    await Promise.all([first, second])
+    expect(postedRuns()).toEqual(['print("b")'])
+    runner.dispose()
+  })
+
+  it('never runs a request that was stopped while the worker booted', async () => {
+    const runner = new PythonRunner()
+    void runner.start()
+    const pending = runner.run('print("stopped")')
+    runner.stop()
+    await pending
+    MockWorker.instances.at(-1)?.emit({ type: 'ready' })
+    await flush()
+    expect(postedRuns()).toEqual([])
+    expect(runner.getSnapshot().status).toBe('ready')
+    runner.dispose()
+  })
+
+  it('does not let an older full-stack run overwrite a newer one after loading', async () => {
+    const runner = new PythonRunner()
+    const started = runner.start()
+    MockWorker.instances[0].emit({ type: 'ready' })
+    await started
+    const worker = MockWorker.instances[0]
+    const older = runner.run('print("old")', undefined, { fullstack: true })
+    await flush()
+    const load = (worker.posted as Array<{ type: string; id: string }>).find((m) => m.type === 'load')
+    if (!load) throw new Error('Expected package load')
+    await runner.run('print("new")')
+    await flush()
+    worker.emit({ type: 'loaded', id: load.id })
+    await older
+    await flush()
+    expect(postedRuns()).toEqual(['print("new")'])
+    expect(runner.getSnapshot()).toMatchObject({ status: 'success', executedCode: 'print("new")' })
+    runner.dispose()
+  })
+
+  it('settles a pending run when boot fails and boots a fresh worker for the next run', async () => {
+    const runner = new PythonRunner()
+    void runner.start()
+    const pending = runner.run('print("a")')
+    await flush()
+    MockWorker.instances[0].emit({ type: 'failed', id: 'init', error: 'network down' })
+    await pending
+    expect(runner.getSnapshot().status).toBe('error')
+    expect(postedRuns()).toEqual([])
+
+    const retry = runner.run('print("b")')
+    await flush()
+    expect(MockWorker.instances).toHaveLength(2)
+    MockWorker.instances[1].emit({ type: 'ready' })
+    await retry
+    expect(postedRuns()).toEqual(['print("b")'])
+    runner.dispose()
+  })
+
+  it('settles a pending run on dispose without posting it', async () => {
+    const runner = new PythonRunner()
+    void runner.start()
+    const pending = runner.run('print("a")')
+    runner.dispose()
+    await pending
+    expect(postedRuns()).toEqual([])
+  })
+
+  it('ignores invoke while a run is still preparing its worker', async () => {
+    const runner = new PythonRunner()
+    const started = runner.start()
+    const worker = MockWorker.instances[0]
+    worker.emit({ type: 'ready' })
+    await started
+    await runner.run('app = FastAPI()')
+    await flush()
+    expect(runner.getSnapshot().routes).toHaveLength(1)
+
+    const pending = runner.run('app = FastAPI()  # edited', undefined, { fullstack: true })
+    await flush()
+    await runner.invoke({ method: 'GET', path: '/hello' })
+    expect((worker.posted as Array<{ type: string }>).some((m) => m.type === 'invoke')).toBe(false)
+    const load = (worker.posted as Array<{ type: string; id: string }>).find((m) => m.type === 'load')
+    if (load) worker.emit({ type: 'loaded', id: load.id })
+    await pending
     runner.dispose()
   })
 })

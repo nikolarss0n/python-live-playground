@@ -78,7 +78,15 @@ export type RunnerListener = (snapshot: RunnerSnapshot) => void
 export class PythonRunner {
   private worker: Worker | null = null
   private ready = false
-  private readyWaiters: Array<() => void> = []
+  /** True once the current worker failed to boot; it must be replaced, not awaited. */
+  private initFailed = false
+  private disposed = false
+  /** Settled with true when the current worker is ready, false when it is replaced or fails. */
+  private readyWaiters: Array<(ready: boolean) => void> = []
+  /** Bumped by every run, clear, Stop and dispose; a run only proceeds while it holds the latest value. */
+  private requestSeq = 0
+  /** Sequence of a run still preparing its worker; blocks invoke from overlapping it. */
+  private pendingSeq: number | null = null
   private listeners = new Set<RunnerListener>()
   private runCounter = 0
   private activeId: string | null = null
@@ -125,7 +133,10 @@ export class PythonRunner {
   }
 
   async run(code: string, exerciseId?: ExerciseId, options: RunCheckOptions = {}): Promise<void> {
+    if (this.disposed) return
     const trimmed = code
+    const seq = ++this.requestSeq
+    this.pendingSeq = null
     if (!trimmed.trim()) {
       const wasRunning = this.activeId !== null || this.snapshot.status === 'running'
       this.clearTimeout()
@@ -149,18 +160,32 @@ export class PythonRunner {
 
     // If a previous run is still busy (e.g. infinite loop), the worker cannot
     // accept a new message — kill it first so we do not stack CPU burners.
+    this.pendingSeq = seq
+    const isCurrent = () => seq === this.requestSeq && !this.disposed
     if (this.activeId !== null || this.snapshot.status === 'running') {
       this.clearTimeout()
       this.activeId = null
-      this.terminateWorker()
       this.spawnWorker()
-      await this.waitUntilReady()
-    } else if (!this.worker || !this.ready) {
+    } else if (!this.worker || this.initFailed) {
       this.spawnWorker()
-      await this.waitUntilReady()
+    }
+    // A worker that is still booting is reused rather than restarted.
+    const ready = await this.waitUntilReady()
+    if (!isCurrent()) return
+    if (!ready) {
+      this.pendingSeq = null
+      return
     }
 
-    if (options.fullstack) await this.loadPackages(['sqlite3'])
+    if (options.fullstack) {
+      await this.loadPackages(['sqlite3'])
+      if (!isCurrent()) return
+      if (!this.ready) {
+        this.pendingSeq = null
+        return
+      }
+    }
+    this.pendingSeq = null
 
     this.runCounter += 1
     const id = `run-${this.runCounter}`
@@ -196,8 +221,8 @@ export class PythonRunner {
    * Does not re-execute the editor. No-op if no worker, busy, or no routes.
    */
   async invoke(request: InvokeRequest): Promise<void> {
-    if (!this.worker || !this.ready) return
-    if (this.activeId !== null || this.snapshot.status === 'running') return
+    if (!this.worker || !this.ready || this.disposed) return
+    if (this.activeId !== null || this.pendingSeq !== null || this.snapshot.status === 'running') return
     if (!this.snapshot.routes.length) return
 
     this.runCounter += 1
@@ -232,6 +257,9 @@ export class PythonRunner {
 
   /** Cancel the current run by replacing the worker. */
   stop(): void {
+    if (this.disposed) return
+    this.requestSeq += 1
+    this.pendingSeq = null
     const wasRunning = this.snapshot.status === 'running'
     const stoppedId = this.activeId
     const exerciseId = this.activeExerciseId
@@ -265,6 +293,9 @@ export class PythonRunner {
   }
 
   dispose(): void {
+    this.disposed = true
+    this.requestSeq += 1
+    this.pendingSeq = null
     this.clearTimeout()
     this.activeId = null
     this.activeExerciseId = undefined
@@ -276,6 +307,7 @@ export class PythonRunner {
   private spawnWorker(): void {
     this.terminateWorker()
     this.ready = false
+    this.initFailed = false
     this.setSnapshot({
       ...this.snapshot,
       status: this.snapshot.status === 'stopped' ? 'stopped' : 'booting',
@@ -294,6 +326,7 @@ export class PythonRunner {
     worker.onerror = (event) => {
       if (this.worker !== worker) return
       const message = event.message || 'Worker error'
+      if (!this.ready) this.failInit()
       if (this.activeId) {
         this.finishWithError(this.activeId, message)
       } else {
@@ -322,14 +355,27 @@ export class PythonRunner {
     this.loadWaiters.forEach(({ resolve }) => resolve())
     this.loadWaiters.clear()
     this.ready = false
-    this.readyWaiters = []
+    this.settleReadyWaiters(false)
   }
 
-  private waitUntilReady(): Promise<void> {
-    if (this.ready) return Promise.resolve()
+  private waitUntilReady(): Promise<boolean> {
+    if (this.ready) return Promise.resolve(true)
+    if (!this.worker || this.initFailed || this.disposed) return Promise.resolve(false)
     return new Promise((resolve) => {
       this.readyWaiters.push(resolve)
     })
+  }
+
+  private settleReadyWaiters(ready: boolean): void {
+    const waiters = this.readyWaiters
+    this.readyWaiters = []
+    waiters.forEach((w) => w(ready))
+  }
+
+  private failInit(): void {
+    this.initFailed = true
+    this.pendingSeq = null
+    this.settleReadyWaiters(false)
   }
 
   private onWorkerMessage(msg: WorkerOutboundMessage): void {
@@ -337,9 +383,7 @@ export class PythonRunner {
 
     if (msg.type === 'ready') {
       this.ready = true
-      const waiters = this.readyWaiters
-      this.readyWaiters = []
-      waiters.forEach((w) => w())
+      this.settleReadyWaiters(true)
       if (
         this.snapshot.status === 'booting' ||
         this.snapshot.status === 'idle' ||
@@ -417,6 +461,7 @@ export class PythonRunner {
 
     if (msg.type === 'failed') {
       if (msg.id === 'init') {
+        this.failInit()
         this.setSnapshot({
           status: 'error',
           events: [
