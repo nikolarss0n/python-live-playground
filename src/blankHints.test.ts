@@ -61,7 +61,7 @@ describe('algorithm hint layers', () => {
     for (const each of LESSONS.filter((lesson) => lesson.id.startsWith('algo-'))) {
       expect(ALGORITHM_LAYERS[each.id], each.id).toBeDefined()
       expect(each.code.split('???').length - 1, each.id).toBe(1)
-      expect(each.code, each.id).toMatch(/:\n(?:    """.*"""\n)?    \?\?\?\n/)
+      expect(each.code, each.id).toMatch(/:\n(?:    """.*"""\n)?(?:    #.*\n)*    \?\?\?\n/)
     }
   })
 })
