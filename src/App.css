@@ -69,6 +69,40 @@
   color: var(--ok);
 }
 
+.reset-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  min-height: 1.8rem;
+  margin-left: 0.35rem;
+  padding: 0.2rem 0.6rem;
+  border: 1px solid var(--border-subtle);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.74rem;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: background-color 120ms ease-out, transform 100ms ease-out;
+}
+
+.reset-pill:hover:not(:disabled) {
+  border-color: var(--border);
+  background: var(--hover);
+  color: var(--text);
+}
+
+.reset-pill:active:not(:disabled) { transform: scale(0.96); }
+.reset-pill:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.reset-pill:disabled { opacity: 0.45; cursor: default; }
+.reset-pill.is-undo { border-color: color-mix(in srgb, var(--accent) 55%, transparent); color: var(--accent-deep); }
+
+@media (prefers-reduced-motion: reduce) {
+  .reset-pill, .reset-pill:active { transition: none; transform: none; }
+}
+
 .lesson-goal-details {
   position: absolute;
   top: calc(100% + 0.2rem);

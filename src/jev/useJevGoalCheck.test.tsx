@@ -67,6 +67,16 @@ describe('useJevGoalCheck', () => {
     expect(result.current?.rows[0].note).toBe('Passed in an earlier run.')
   })
 
+  it('forgets earlier passes after the lesson is restarted', async () => {
+    mockJev({ task1: 'met', task2: 'missing', goal: 'met' })
+    const { result, rerender } = renderHook((props) => useJevGoalCheck(props), { initialProps: options() })
+    await waitFor(() => expect(result.current?.rows[0].status).toBe('pass'))
+    mockJev({ task1: 'wrong_output', task2: 'met', goal: 'wrong_output' })
+    rerender(options({ code: 'print("Excellent")\n', localGoalMet: false, attempt: 1 }))
+    await waitFor(() => expect(result.current?.rows[1].status).toBe('pass'))
+    expect(result.current?.rows.map((row) => row.status)).toEqual(['fail', 'pass', 'fail'])
+  })
+
   it('turns every row green when Jev and the local goal check agree', async () => {
     mockJev({ task1: 'met', task2: 'met', goal: 'met' })
     const { result } = renderHook(() => useJevGoalCheck(options()))

@@ -133,6 +133,7 @@ export default function App() {
   const [activeResult, setActiveResult] = useState<number | null>(null)
   const [stuckRevealed, setStuckRevealed] = useState(false)
   const [incompleteRuns, setIncompleteRuns] = useState(0)
+  const [attempt, setAttempt] = useState(0)
   const [lessonDetailsOpen, setLessonDetailsOpen] = useState(
     preferredLessonDetailsOpen,
   )
@@ -190,6 +191,7 @@ export default function App() {
       : lessonFullstack ? { fullstack: { seed, calls: fullstackCalls, ...(chosenDatasets ? { datasets: chosenDatasets } : {}) } } : undefined,
   })
   const [touchedLessonId, setTouchedLessonId] = useState<string | null>(null)
+  const [runBeforeReset, setRunBeforeReset] = useState<string | null>(null)
   const [solutionFor, setSolutionFor] = useState<string | null>(null)
   const runNow = useCallback(() => {
     setTouchedLessonId(lessonId)
@@ -199,8 +201,20 @@ export default function App() {
     setTouchedLessonId(lessonId)
     setCode(next)
   }, [lessonId, setCode])
-  // An opened starter still holding ??? always fails to parse; wait for the first edit or Run before showing that.
-  const quietStart = !refresherDay && touchedLessonId !== lessonId && code.includes(BLANK) && runSnapshot.status === 'error'
+  const restartLesson = useCallback(() => {
+    const restarted = learning.restart()
+    if (restarted) {
+      setAttempt((count) => count + 1)
+      setTouchedLessonId(null)
+      setRunBeforeReset(runSnapshot.runId)
+      setStuckRevealed(false)
+      setIncompleteRuns(0)
+    }
+    return restarted
+  }, [learning, runSnapshot.runId])
+  // An opened or reset starter still holding ??? always fails to parse; wait for the first edit or Run before showing that or an older run.
+  const quietStart = !refresherDay && touchedLessonId !== lessonId && code.includes(BLANK)
+    && (runSnapshot.status === 'error' || (runSnapshot.runId !== null && runSnapshot.runId === runBeforeReset))
   const snapshot = useMemo(
     () => (quietStart ? { ...runSnapshot, status: 'ready' as const, events: [], durationMs: null, executedCode: null, checks: undefined } : runSnapshot),
     [quietStart, runSnapshot],
@@ -366,10 +380,12 @@ export default function App() {
     localGoalMet: goalProgress.met,
     localEvidence,
     enabled: !refresherDay && !freePlay && !serviceProgress && !hasStudyEvidence && !aiBlocked,
+    attempt,
   })
-  const runSettled = snapshot.status !== 'running' && snapshot.status !== 'booting' && snapshot.executedCode === code
-  const settledGoalChecks = useSettledValue(goalChecks, runSettled, lessonId)
-  const settledEvidence = useSettledValue(evidenceLine, runSettled, lessonId)
+  const runSettled = quietStart || (snapshot.status !== 'running' && snapshot.status !== 'booting' && snapshot.executedCode === code)
+  const attemptKey = `${lessonId}:${attempt}`
+  const settledGoalChecks = useSettledValue(goalChecks, runSettled, attemptKey)
+  const settledEvidence = useSettledValue(evidenceLine, runSettled, attemptKey)
   const liveLessonView = useMemo(() => {
     if (goalChecks?.source !== 'Jev') return lessonView
     const tasks = lessonView.tasks.map((task, index) => {
@@ -378,7 +394,7 @@ export default function App() {
     })
     return { ...lessonView, tasks, allTasksDone: tasks.every((task) => task.status === 'done') }
   }, [lessonView, goalChecks])
-  const shownLessonView = useSettledValue(liveLessonView, runSettled, lessonId)
+  const shownLessonView = useSettledValue(liveLessonView, runSettled, attemptKey)
 
   useEffect(() => {
     if (snapshot.executedCode !== code) return
@@ -680,7 +696,7 @@ export default function App() {
               code={code}
               expanded={lessonDetailsOpen}
               onToggleExpanded={toggleLessonDetails}
-              onRestart={learning.restart}
+              onRestart={restartLesson}
               onRestore={learning.restore}
               canRestore={learning.canRestore}
               recoveryMessage={learning.recoveryMessage}
@@ -706,7 +722,7 @@ export default function App() {
           {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
             {blankCount > 0 ? <HintPill blanks={blankCount} onClick={showNextHint} /> : null}
             {solutionAnswers ? <SolutionPill starter={activeLesson.code} answers={solutionAnswers} open={solutionOpen} onToggle={() => setSolutionFor(solutionOpen ? null : activeLesson.id)} /> : null}
-            {learning.starterUpdated ? <StarterUpdatedPill onRestart={learning.restart} onKeep={learning.keepDraft} /> : null}
+            {learning.starterUpdated ? <StarterUpdatedPill onRestart={restartLesson} onKeep={learning.keepDraft} /> : null}
             {jev.state.status !== 'off' ? <JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /> : null}
             {showConceptPills && refresherDay ? <ConceptPills key={refresherDay.id} concepts={refresherDay.concepts} /> : null}
           </div> : null}

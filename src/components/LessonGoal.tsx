@@ -4,6 +4,7 @@ import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
 import { CompareSnippet } from './CompareSnippet'
 import { PipelineStrip } from './PipelineStrip'
+import { ResetPill } from './ResetPill'
 
 type LessonGoalProps = {
   lesson: Lesson
@@ -13,7 +14,7 @@ type LessonGoalProps = {
   code: string
   expanded: boolean
   onToggleExpanded: () => void
-  onRestart?: () => void
+  onRestart?: () => boolean | void
   onRestore?: () => void
   canRestore?: boolean
   recoveryMessage?: string | null
@@ -98,6 +99,9 @@ export function LessonGoal({
           </span>
         ) : null}
       </button>
+      {onRestart ? (
+        <ResetPill lessonId={lesson.id} atStarter={code === lesson.code} onReset={onRestart} onUndo={onRestore} canUndo={Boolean(canRestore)} />
+      ) : null}
 
       <div
         className="lesson-goal-details"

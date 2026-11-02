@@ -21,6 +21,8 @@ type Options = {
   /** Per-task evidence from the local checks, used for concrete reasons. */
   localEvidence?: readonly TaskEvidence[] | null
   enabled: boolean
+  /** Bumped when the learner restarts the lesson, so checks passed before the restart no longer count. */
+  attempt?: number
 }
 
 type Answer = { key: string; judgements: Judgement[] | null }
@@ -44,11 +46,12 @@ const localReason = (evidence: TaskEvidence | undefined) =>
  * Judges each lesson task and the goal after a clean run: Jev decides met or not when available, the local checks
  * otherwise. The goal also needs the local goal check. A check passed once in this lesson stays passed.
  */
-export function useJevGoalCheck({ lesson, code, freshSuccess, events, localTasksDone, localGoalMet, localEvidence, enabled }: Options): GoalChecks | null {
+export function useJevGoalCheck({ lesson, code, freshSuccess, events, localTasksDone, localGoalMet, localEvidence, enabled, attempt = 0 }: Options): GoalChecks | null {
   const [ready, setReady] = useState<boolean | null>(null)
   const [answer, setAnswer] = useState<Answer | null>(null)
   const cache = useRef(new Map<string, Judgement[]>())
   const passedBefore = useRef(new Map<string, Set<string>>())
+  const scope = `${lesson.id}\u0000${attempt}`
 
   useEffect(() => {
     let live = true
@@ -108,22 +111,22 @@ export function useJevGoalCheck({ lesson, code, freshSuccess, events, localTasks
       isGoal: true,
     }
     // A check passed in an earlier run of this lesson stays passed: "then try …" steps undo the step before them.
-    const earlier = passedBefore.current.get(lesson.id) ?? new Set<string>()
+    const earlier = passedBefore.current.get(scope) ?? new Set<string>()
     const rows = [...tasks, goal].map((row): GoalCheckRow => row.status === 'fail' && earlier.has(row.id)
       ? { ...row, status: 'pass', note: 'Passed in an earlier run.' }
       : row)
     return { rows, source: judged ? 'Jev' : 'local', passed: rows.filter((row) => row.status === 'pass').length }
-  }, [active, asking, ready, answer, key, lesson, code, localTasksDone, localEvidence, localGoalMet])
+  }, [active, asking, ready, answer, key, lesson, code, localTasksDone, localEvidence, localGoalMet, scope])
 
   // While Jev re-checks a new run, keep the last verdicts instead of flashing every row to a spinner.
-  const last = useRef<{ lessonId: string; checks: GoalChecks } | null>(null)
+  const last = useRef<{ scope: string; checks: GoalChecks } | null>(null)
   const pending = checks?.rows.some((row) => row.status === 'checking') ?? false
   if (checks && !pending) {
-    last.current = { lessonId: lesson.id, checks }
-    const passed = passedBefore.current.get(lesson.id) ?? new Set<string>()
+    last.current = { scope, checks }
+    const passed = passedBefore.current.get(scope) ?? new Set<string>()
     for (const row of checks.rows) if (row.status === 'pass') passed.add(row.id)
-    passedBefore.current.set(lesson.id, passed)
+    passedBefore.current.set(scope, passed)
   }
-  if (checks && pending && last.current?.lessonId === lesson.id) return { ...last.current.checks, refreshing: true }
+  if (checks && pending && last.current?.scope === scope) return { ...last.current.checks, refreshing: true }
   return checks
 }
