@@ -20,6 +20,7 @@ import { STUDY_BOOK_PRACTICE_LESSON_DRAFTS } from './curriculum/studyBookPractic
 import { INTERVIEW_PATTERN_LESSON_DRAFTS } from './curriculum/interviewPatternLessons'
 import { ALGORITHM_PRACTICE_LESSON_DRAFTS } from './curriculum/algorithmPracticeLessons'
 import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './curriculum/fastapiEssentialsLessons'
+import { FASTAPI_LADDER_LESSON_DRAFTS } from './curriculum/fastapiLadderLessons'
 import { SUPPORT_AUTOMATION_LESSON_DRAFTS } from './curriculum/supportAutomationLessons'
 import { FULLSTACK_LESSON_DRAFTS } from './curriculum/fullstackLessons'
 import { PLAYGROUND_DRAFTS } from './curriculum/playgroundLessons'
@@ -36,7 +37,7 @@ import { GENAI_SECURITY_LESSON_DRAFTS } from './curriculum/genaiSecurityLessons'
 export type { GoalCheck, GoalProgress } from './goalCheck'
 export { BLANK, evaluateGoal as checkLessonGoal } from './goalCheck'
 
-export type Difficulty = 'beginner' | 'intermediate' | 'ai' | 'api' | 'service' | 'genai' | 'refresher' | 'harness' | 'playground'
+export type Difficulty = 'beginner' | 'intermediate' | 'ai' | 'api' | 'fastapi' | 'service' | 'genai' | 'refresher' | 'harness' | 'playground'
 
 export const DIFFICULTIES: Difficulty[] = [
   'refresher',
@@ -44,6 +45,7 @@ export const DIFFICULTIES: Difficulty[] = [
   'intermediate',
   'ai',
   'api',
+  'fastapi',
   'service',
   'genai',
   'harness',
@@ -167,6 +169,7 @@ export const DIFFICULTY_OPTIONS: { id: Difficulty; label: string }[] = [
   { id: 'intermediate', label: 'Python in depth' },
   { id: 'ai', label: 'Machine learning & LLMs' },
   { id: 'api', label: 'APIs & production AI' },
+  { id: 'fastapi', label: 'FastAPI' },
   { id: 'service', label: 'Project: build an AI service' },
   { id: 'genai', label: 'GenAI services' },
   { id: 'harness', label: 'Agent harness interview' },
@@ -3158,6 +3161,7 @@ const LESSON_DRAFTS: LessonDraft[] = [
   ...STUDY_BOOK_PRACTICE_LESSON_DRAFTS,
   ...INTERVIEW_PATTERN_LESSON_DRAFTS,
   ...ALGORITHM_PRACTICE_LESSON_DRAFTS,
+  ...FASTAPI_LADDER_LESSON_DRAFTS,
   ...FASTAPI_ESSENTIALS_LESSON_DRAFTS,
   ...SUPPORT_AUTOMATION_LESSON_DRAFTS,
   ...FULLSTACK_LESSON_DRAFTS,

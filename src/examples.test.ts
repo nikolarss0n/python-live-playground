@@ -25,7 +25,7 @@ describe('lessons', () => {
     expect(beginner).toHaveLength(32)
     expect(intermediate).toHaveLength(86)
     expect(ai).toHaveLength(56)
-    expect(api).toHaveLength(61)
+    expect(api).toHaveLength(53)
 
     for (const track of [beginner, intermediate, ai, api]) {
       track.forEach((lesson) => {
@@ -129,6 +129,7 @@ describe('lessons', () => {
       intermediate: 20,
       ai: 16,
       api: 9,
+      fastapi: 0,
       service: 3,
     } as const
 
@@ -138,7 +139,7 @@ describe('lessons', () => {
     const expanded = LESSONS.filter((lesson) =>
       lesson.difficulty === 'beginner' ? !legacyBeginner.has(lesson.id) : trackPosition(lesson) > legacyLastNumber[lesson.difficulty],
     )
-    expect(expanded).toHaveLength(174)
+    expect(expanded).toHaveLength(190)
 
     for (const lesson of expanded) {
       expect(lesson.goal.length, lesson.id).toBeGreaterThan(80)
@@ -160,12 +161,16 @@ describe('lessons', () => {
     expect(getLesson('mid-pattern-pick').bookChapter).toBe('dsa-sql')
     expect(getLesson('mid-sliding-window').id).toBe('mid-sliding-window')
     expect(getLesson('api-fastapi-dispatch').bookChapter).toBe('fastapi')
-    expect(getLesson('api-fastapi-status')).toMatchObject({ section: 'fastapi', number: 1 })
+    expect(getLesson('fastapi-health')).toMatchObject({ section: 'fastapi', number: 1 })
+    expect(getLesson('api-fastapi-status')).toMatchObject({ section: 'fastapi', number: 23 })
     expect(getLesson('mid-stack-brackets').number).toBe(21)
   })
 
   it('gives the FastAPI and full-stack lessons their own section, apart from Build AI services', () => {
-    expect(lessonsByChapter('fastapi').map((group) => [group.chapter, group.lessons.length])).toEqual([['FastAPI', 8], ['Full-stack data', 7]])
+    expect(lessonsByChapter('fastapi').map((group) => [group.chapter, group.lessons.length])).toEqual([
+      ['First endpoints', 6], ['Create, read, update, delete', 3], ['Validation & responses', 5],
+      ['Dependencies & auth', 4], ['Structure & testing', 4], ['Under the hood', 2], ['Full-stack data', 7],
+    ])
     expect(lessonsForSection('build').some((lesson) => lesson.chapter === 'FastAPI' || lesson.chapter === 'Full-stack data')).toBe(false)
     expect(lessonsForSection('build').map((lesson) => lesson.chapter)).toContain('Support automation')
   })

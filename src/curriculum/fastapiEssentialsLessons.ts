@@ -2,17 +2,16 @@ import type { LessonDraft } from '../examples'
 import { practice } from './studyBookPracticeLessons'
 
 /**
- * The everyday FastAPI moves, each run against the in-browser simulator with TestClient: path and query parameters,
- * Pydantic bodies, HTTPException, a CRUD resource, API-key headers and pagination. Depends, middleware and uploads are
- * left out because the simulator rejects them.
+ * Six FastAPI lessons that sit between the ladder in fastapiLadderLessons.ts: typed path and query parameters, Pydantic
+ * bodies, HTTPException, a CRUD resource, API-key headers and pagination, each run against the in-browser simulator.
  */
 const fastapi = (spec: Omit<Parameters<typeof practice>[0], 'difficulty' | 'chapter' | 'bookChapter'>) =>
-  practice({ ...spec, difficulty: 'api', chapter: 'FastAPI essentials', bookChapter: 'fastapi' })
+  practice({ ...spec, difficulty: 'fastapi', chapter: 'FastAPI', bookChapter: 'fastapi' })
 
 export const FASTAPI_ESSENTIALS_LESSON_DRAFTS: LessonDraft[] = [
   fastapi({
     id: 'api-fastapi-path-query',
-    number: 43,
+    number: 7,
     topic: 'Path and query parameters',
     pipeline: ['match the path', 'convert path params', 'read query params', 'return JSON'],
     goal:
@@ -75,7 +74,7 @@ for url in ["/books/2", "/books/2?shout=true", "/books/abc", "/search?q=e", "/se
   }),
   fastapi({
     id: 'api-fastapi-body-model',
-    number: 44,
+    number: 10,
     topic: 'Pydantic request bodies',
     pipeline: ['parse JSON', 'validate the model', 'fill defaults', 'call the handler'],
     goal:
@@ -140,7 +139,7 @@ for name, body in cases.items():
   }),
   fastapi({
     id: 'api-fastapi-http-errors',
-    number: 45,
+    number: 14,
     topic: 'HTTPException and status codes',
     pipeline: ['look up the resource', 'raise on a gap', 'pick 404 / 409', 'return the body'],
     goal:
@@ -212,7 +211,7 @@ for name, method, url in calls:
   }),
   fastapi({
     id: 'api-fastapi-crud',
-    number: 46,
+    number: 9,
     topic: 'A CRUD resource',
     pipeline: ['create 201', 'read 200', 'replace 200', 'delete 204 / 404'],
     goal:
@@ -295,13 +294,13 @@ print("list", client.get("/todos").json())
   }),
   fastapi({
     id: 'api-fastapi-api-key',
-    number: 47,
+    number: 17,
     topic: 'API keys in headers',
     pipeline: ['read the header', 'know the caller 401', 'check the role 403', 'run the handler'],
     goal:
       'Read X-API-Key as an optional header and return 403 when a known non-admin clears the cache, so the calls print 401, 401, 200, 403 and 200.',
     why:
-      '401 means "who are you?" and 403 means "I know you, and no". Real FastAPI moves this check into Depends; the playground has no Depends, so a plain function does the same job.',
+      '401 means "who are you?" and 403 means "I know you, and no". Here a plain function does the check; the auth lesson next moves it into a Depends dependency so every route can share it.',
     tasks: [
       'Declare x_api_key as an optional Header in /me',
       'Use 403 for a known user who is not an admin',
@@ -375,7 +374,7 @@ for name, method, url, headers in calls:
   }),
   fastapi({
     id: 'api-fastapi-pagination',
-    number: 48,
+    number: 20,
     topic: 'Pagination with limit and offset',
     pipeline: ['cap the limit', 'slice the page', 'compute next_offset', 'stop at the end'],
     goal:

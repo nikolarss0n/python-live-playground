@@ -6,6 +6,7 @@ import { BLANK, evaluateGoal } from '../goalCheck'
 import type { ResultEvent } from '../execution/protocol'
 import { BLANK_ANSWERS } from './blankAnswers'
 import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './fastapiEssentialsLessons'
+import { FASTAPI_LADDER_LESSON_DRAFTS } from './fastapiLadderLessons'
 
 const SIM_DIR = path.resolve('src/execution')
 const PRELUDE = `import sys\nsys.path.insert(0, ${JSON.stringify(SIM_DIR)})\nimport fastapi_sim\nfastapi_sim.install()\nfastapi_sim.reset()\n`
@@ -22,8 +23,8 @@ function fill(code: string, answers: readonly string[]): string {
   return code.replace(/\?\?\?/g, () => answers[index++] ?? BLANK)
 }
 
-describe.skipIf(!hasPython)('FastAPI essentials lessons in the simulator', () => {
-  it.each(FASTAPI_ESSENTIALS_LESSON_DRAFTS.map((draft) => [draft.id] as const))('%s: the starter fails and the intended fill meets the goal', (id) => {
+describe.skipIf(!hasPython)('FastAPI lessons in the simulator', () => {
+  it.each([...FASTAPI_LADDER_LESSON_DRAFTS, ...FASTAPI_ESSENTIALS_LESSON_DRAFTS].map((draft) => [draft.id] as const))('%s: the starter fails and the intended fill meets the goal', (id) => {
     const lesson = getLesson(id)
     const answers = BLANK_ANSWERS[id]
     expect(answers, id).toBeDefined()

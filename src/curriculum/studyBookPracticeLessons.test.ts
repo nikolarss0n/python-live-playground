@@ -23,6 +23,6 @@ describe('study-book practice lessons', () => {
     expect(lessonsForDifficulty('intermediate').some((l) => l.id === 'mid-pattern-pick')).toBe(
       true,
     )
-    expect(lessonsForDifficulty('api').map((l) => l.id)).toContain('api-fastapi-dispatch')
+    expect(lessonsForDifficulty('fastapi').map((l) => l.id)).toContain('api-fastapi-dispatch')
   })
 })

@@ -42,9 +42,16 @@ export const TRACK_CHAPTERS: Partial<Record<Difficulty, readonly (readonly [numb
     [31, 'Serving & infrastructure'],
     [37, 'Agents & architecture'],
     [40, 'Capacity & data systems'],
-    [48, 'FastAPI'],
     [54, 'Support automation'],
     [61, 'Full-stack data'],
+  ],
+  fastapi: [
+    [6, 'First endpoints'],
+    [9, 'Create, read, update, delete'],
+    [14, 'Validation & responses'],
+    [18, 'Dependencies & auth'],
+    [22, 'Structure & testing'],
+    [24, 'Under the hood'],
   ],
   service: [[3, 'Project: build one service']],
   harness: [

@@ -7,7 +7,7 @@ import type { LessonDraft } from '../examples'
  */
 export function practice(spec: {
   id: string
-  difficulty: 'intermediate' | 'api' | 'harness'
+  difficulty: 'intermediate' | 'api' | 'fastapi' | 'harness'
   number: number
   topic: string
   chapter: string
@@ -396,8 +396,8 @@ print("answer", answer)
   }),
   practice({
     id: 'api-fastapi-status',
-    difficulty: 'api',
-    number: 41,
+    difficulty: 'fastapi',
+    number: 23,
     topic: 'FastAPI status map',
     chapter: 'FastAPI in the playground',
     bookChapter: 'fastapi',
@@ -453,8 +453,8 @@ for name, got, expected in zip(cases, codes, want):
   }),
   practice({
     id: 'api-fastapi-dispatch',
-    difficulty: 'api',
-    number: 42,
+    difficulty: 'fastapi',
+    number: 24,
     topic: 'FastAPI-shaped dispatcher',
     chapter: 'FastAPI in the playground',
     bookChapter: 'fastapi',

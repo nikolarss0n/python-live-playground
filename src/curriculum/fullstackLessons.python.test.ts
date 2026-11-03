@@ -45,7 +45,7 @@ describe('full-stack data chapter', () => {
   it('groups seven lessons with Data · API · View tabs after the FastAPI lessons', () => {
     const lessons = FULLSTACK_LESSON_DRAFTS.map((draft) => getLesson(draft.id))
     expect(lessons.map((lesson) => lesson.chapter)).toEqual(Array(7).fill('Full-stack data'))
-    expect(lessons.map((lesson) => lesson.number)).toEqual([9, 10, 11, 12, 13, 14, 15])
+    expect(lessons.map((lesson) => lesson.number)).toEqual([25, 26, 27, 28, 29, 30, 31])
     expect(lessons.every((lesson) => lesson.fullstack && lesson.bookChapter === undefined)).toBe(true)
   })
 })
