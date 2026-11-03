@@ -2241,7 +2241,21 @@
   border-top: 1px dashed color-mix(in srgb, var(--coll-hue) 18%, var(--border-subtle));
 }
 .coll-row:hover { background: color-mix(in srgb, var(--coll-hue) 6%, transparent); }
-.coll-row-dict { gap: 0.25rem 0.4rem; }
+/* Dict rows share one key column (sized to the longest key, capped so a long key wraps) and one colon column. */
+.coll-kind-dict > .coll-children {
+  display: grid;
+  grid-template-columns: fit-content(min(40%, 14rem)) auto minmax(0, 1fr);
+  column-gap: 0.4rem;
+}
+.coll-kind-dict > .coll-children > .coll-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: baseline;
+}
+.coll-kind-dict > .coll-children > .coll-truncated { display: block; }
+.coll-row-dict .coll-key { justify-self: start; max-width: 100%; }
+.coll-row-dict .coll-key .coll-atom { word-break: normal; overflow-wrap: anywhere; }
 .coll-index {
   flex: 0 0 auto;
   min-width: 1.15rem;

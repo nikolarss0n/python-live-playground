@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Fragment, useState } from 'react'
 import type { CollectionNode } from '../execution/collectionStructure'
 import {
   COLLECTION_GLYPH,
@@ -12,6 +12,18 @@ type CollectionTreeProps = {
   /** Visual tone: print (default text) or expression values. */
   tone?: 'print' | 'expr'
   depth?: number
+  /** Dict keys may break after underscores, so a long snake_case key wraps between words. */
+  isKey?: boolean
+}
+
+function withUnderscoreBreaks(text: string) {
+  const parts = text.split('_')
+  return parts.map((part, i) => (
+    <Fragment key={i}>
+      {part}
+      {i < parts.length - 1 ? <>_<wbr /></> : null}
+    </Fragment>
+  ))
 }
 
 /**
@@ -22,11 +34,12 @@ export function CollectionTree({
   node,
   tone = 'print',
   depth = 0,
+  isKey = false,
 }: CollectionTreeProps) {
   if (!isCollectionRoot(node)) {
     return (
       <span className={`coll-atom coll-tone-${tone}`}>
-        <span className="coll-atom-value">{node.preview}</span>
+        <span className="coll-atom-value">{isKey ? withUnderscoreBreaks(node.preview) : node.preview}</span>
         <span className="coll-type-chip" title={`Python type: ${node.type}`}>
           {node.type}
         </span>
@@ -89,6 +102,7 @@ function CollectionBranch({
                       node={entry.key}
                       tone={tone}
                       depth={depth + 1}
+                      isKey
                     />
                   </span>
                   <span className="coll-sep" aria-hidden="true">
