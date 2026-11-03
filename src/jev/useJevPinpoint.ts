@@ -56,7 +56,12 @@ export function useJevPinpoint({ view, code, error, timedOut = false, failedChec
 
   const check = useCallback(() => {
     controller.current?.abort()
-    if (!enabled || !view || (message === undefined && checkLabel === undefined)) { setState({ status: 'off' }); return }
+    if (!enabled || !view || (message === undefined && checkLabel === undefined)) {
+      // A fix made outside the code, such as in the Inputs box, does not edit the document, so clear the old mark here.
+      if (view) showProblemMark(view, null)
+      setState({ status: 'off' })
+      return
+    }
     const show = (pinpoint: Pinpoint, source: PinpointSource) => {
       const shown = withSuspects(code, pinpoint)
       setState({ status: 'found', pinpoint: shown, source })

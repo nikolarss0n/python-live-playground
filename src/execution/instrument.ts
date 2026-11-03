@@ -229,6 +229,54 @@ def _plp_print(*args, **kwargs):
             _plp_print_line = None
             _plp_pending_structure = None
 
+class _PlpStdin:
+    """Lines from the Inputs box; input() and sys.stdin read them in order."""
+    def __init__(self, text):
+        lines = (text or "").split("\\n")
+        if lines and lines[-1] == "":
+            lines.pop()
+        self._lines = lines
+        self.used = 0
+    def remaining(self):
+        return len(self._lines) - self.used
+    def readline(self, size=-1):
+        if self.used >= len(self._lines):
+            return ""
+        line = self._lines[self.used]
+        self.used += 1
+        return line + "\\n"
+    def read(self, size=-1):
+        rest = self._lines[self.used:]
+        self.used = len(self._lines)
+        return "".join(line + "\\n" for line in rest)
+    def readlines(self):
+        rest = self._lines[self.used:]
+        self.used = len(self._lines)
+        return [line + "\\n" for line in rest]
+    def __iter__(self):
+        while self.remaining() > 0:
+            yield self.readline()
+    def isatty(self):
+        return False
+
+_plp_stdin = _PlpStdin("")
+
+def _plp_input(prompt=""):
+    """input() reads the next line of the Inputs box and echoes it like a terminal."""
+    global _plp_print_line
+    if _plp_stdin.remaining() <= 0:
+        have = len(_plp_stdin._lines)
+        if have == 0:
+            raise EOFError("input() needs a value, but the Inputs box is empty")
+        raise EOFError(f"input() asked for value {have + 1}, but the Inputs box has only {have} line{'' if have == 1 else 's'}")
+    value = _plp_stdin.readline()[:-1]
+    frame = sys._getframe(1)
+    line = frame.f_lineno if frame.f_code.co_filename == "<playground>" else None
+    _plp_print_line = line
+    sys.stdout.write(f"{prompt}{value}\\n")
+    _plp_print_line = None
+    return value
+
 def _plp_showwarning(message, category, filename, lineno, file=None, line=None):
     text = warnings.formatwarning(message, category, filename, lineno, line)
     _plp_events.append({"kind": "warning", "text": text.rstrip(), "line": lineno})
@@ -249,6 +297,7 @@ def _plp_friendly(exc):
         "ModuleNotFoundError": "That module is not available in this browser playground.",
         "ImportError": "That import could not be completed in this browser playground.",
         "RecursionError": "The function called itself too many times. Check the base case.",
+        "EOFError": "input() reads from the Inputs box under the editor. Type one value per line there.",
         "TimeoutError": "This code ran too long and was stopped to protect the browser.",
         "SimFastAPIError": "This playground simulates FastAPI in the browser. Use TestClient or Call on a registered route instead of uvicorn, Depends, or /docs.",
     }
@@ -302,8 +351,8 @@ def _plp_run(source: str, exercise_id=None, include_namespace=False):
     coro.close()
     raise RuntimeError("top-level await needs the async runner")
 
-async def _plp_run_core(source: str, exercise_id=None, include_namespace=False):
-    global _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
+async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, stdin=None):
+    global _plp_stdin, _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
     _plp_print_line = None
     _plp_pending_structure = None
@@ -315,6 +364,10 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False):
     sys.stdout = out
     sys.stderr = out
     builtins.print = _plp_print
+    old_stdin, old_input = sys.stdin, builtins.input
+    _plp_stdin = _PlpStdin(stdin)
+    sys.stdin = _plp_stdin
+    builtins.input = _plp_input
     old_show = warnings.showwarning
     warnings.showwarning = _plp_showwarning
     _plp_sim_install()
@@ -325,6 +378,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False):
             "__plp_show__": __plp_show__,
             "_plp_check_limit": _plp_check_limit,
             "print": _plp_print,
+            "input": _plp_input,
         }
         pending = eval(code_obj, globals_dict)
         if pending is not None:
@@ -381,6 +435,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False):
         sys.stdout = old_out
         sys.stderr = old_err
         builtins.print = old_print
+        sys.stdin, builtins.input = old_stdin, old_input
         warnings.showwarning = old_show
         _plp_print_line = None
         _plp_pending_structure = None
@@ -403,7 +458,7 @@ def _plp_fullstack_after(request):
             calls.append({"method": method.upper(), "path": path, "status": 500, "body": {"detail": f"{type(exc).__name__}: {exc}"}})
     return {"tables": playdb.snapshot(), "calls": calls}
 
-async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None):
+async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None, stdin=None):
     import asyncio
     prior_tasks = asyncio.all_tasks()
     old_out, old_err, old_print = sys.stdout, sys.stderr, builtins.print
@@ -417,7 +472,7 @@ async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None)
         genai = isinstance(exercise_id, str) and exercise_id.startswith("genai-")
         refresher = isinstance(exercise_id, str) and exercise_id.startswith("refresher-")
         checked = genai or refresher
-        result = await _plp_run_core(source, None if checked else exercise_id, include_namespace=checked)
+        result = await _plp_run_core(source, None if checked else exercise_id, include_namespace=checked, stdin=stdin)
         if fullstack is not None:
             result["fullstack"] = _plp_fullstack_after(fullstack)
         namespace = result.pop("namespace", None)

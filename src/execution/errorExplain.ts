@@ -537,6 +537,17 @@ export function explainError(
         example: 'import math\nprint(math.sqrt(16))',
       }
 
+    case 'EOFError':
+      return {
+        title: 'input() ran out of values',
+        name,
+        detail,
+        summary:
+          'The code called input(), but there was no line left for it to read. Here, input() reads from the Inputs box under the editor.',
+        tip: 'Type one value per line in the Inputs box, one line for each input() call.',
+        example: 'name = input("Name? ")\nprint("Hi", name)\n# Inputs box:\n# Ada',
+      }
+
     case 'RecursionError':
       return {
         title: 'Too many recursive calls',

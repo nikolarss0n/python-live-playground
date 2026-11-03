@@ -71,10 +71,11 @@ async function runCode(id: string, code: string, exerciseId?: ExerciseId, option
     py.globals.set('__plp_exercise__', exerciseId ?? null)
     py.globals.set('__plp_context__', JSON.stringify(options.context ?? {}))
     py.globals.set('__plp_fullstack__', options.fullstack ? JSON.stringify(options.fullstack) : null)
+    py.globals.set('__plp_stdin__', options.stdin ?? null)
     // Enter Python through Pyodide's promising path so browser-local lessons
     // can use asyncio without a forbidden synchronous stack switch.
     const raw = (await py.runPythonAsync(
-      'import json; json.dumps(await _plp_run_async(__plp_source__, __plp_exercise__, json.loads(__plp_context__), json.loads(__plp_fullstack__) if __plp_fullstack__ else None), default=str)',
+      'import json; json.dumps(await _plp_run_async(__plp_source__, __plp_exercise__, json.loads(__plp_context__), json.loads(__plp_fullstack__) if __plp_fullstack__ else None, __plp_stdin__), default=str)',
     )) as string
     const parsed = JSON.parse(raw) as PyRunPayload
     post({
@@ -150,7 +151,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
   }
 
   if (msg.type === 'run') {
-    void runCode(msg.id, msg.code, msg.exerciseId, { context: msg.context, contextKey: msg.contextKey, fullstack: msg.fullstack })
+    void runCode(msg.id, msg.code, msg.exerciseId, { context: msg.context, contextKey: msg.contextKey, fullstack: msg.fullstack, stdin: msg.stdin })
     return
   }
 

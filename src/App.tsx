@@ -53,6 +53,8 @@ import { BLANK } from './goalCheck'
 import { blankHints, hintLevels } from './blankHints'
 import { closeHintBubble, currentHintBubble, showHintBubble } from './editor/blankHint'
 import { HintPill } from './components/HintPill'
+import { InputsField } from './components/InputsField'
+import { usesInput } from './usesInput'
 import { SolutionPill } from './components/SolutionPill'
 import { DamagedProgressNotice } from './components/DamagedProgressNotice'
 import { FullstackPanel, FullstackTabs, type FullstackTab } from './components/FullstackPanel'
@@ -185,11 +187,15 @@ export default function App() {
     setProjectDatasets(next)
     writePreference(PROJECT_DATASETS_KEY, JSON.stringify(next))
   }, [])
+  const [inputsText, setInputsText] = useState('')
+  const showInputs = usesInput(code)
+  const stdinOption = showInputs ? { stdin: inputsText } : {}
   const { snapshot: runSnapshot, runNow: runCode, stop } = usePythonExecution(code, {
     exerciseId,
     checkOptions: refresherDay
-      ? { context: study.context, contextKey: checkContextKey }
-      : lessonFullstack ? { fullstack: { seed, calls: fullstackCalls, ...(chosenDatasets ? { datasets: chosenDatasets } : {}) } } : undefined,
+      ? { context: study.context, contextKey: checkContextKey, ...stdinOption }
+      : lessonFullstack ? { fullstack: { seed, calls: fullstackCalls, ...(chosenDatasets ? { datasets: chosenDatasets } : {}) }, ...stdinOption }
+      : showInputs ? stdinOption : undefined,
   })
   const [touchedLessonId, setTouchedLessonId] = useState<string | null>(null)
   const [runBeforeReset, setRunBeforeReset] = useState<string | null>(null)
@@ -736,6 +742,7 @@ export default function App() {
             onGeometryChange={onGeometryChange}
             pathNames={pathNames}
           />
+          {showInputs ? <InputsField value={inputsText} onChange={setInputsText} /> : null}
         </div>
 
         <div className="split" aria-hidden="true" />

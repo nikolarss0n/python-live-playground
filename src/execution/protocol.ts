@@ -23,7 +23,8 @@ export type DbTable = { name: string; columns: { name: string; type: string }[];
 export type ApiCall = { method: string; path: string; status: number; body: unknown }
 export type FullstackPayload = { tables: DbTable[]; calls: ApiCall[] }
 
-export type RunCheckOptions = { context?: RefresherContext; contextKey?: string; fullstack?: FullstackRequest }
+/** stdin: the Inputs box text; input() reads one line of it per call. */
+export type RunCheckOptions = { context?: RefresherContext; contextKey?: string; fullstack?: FullstackRequest; stdin?: string }
 
 export type { ErrorExplanation }
 export type { CollectionNode }
