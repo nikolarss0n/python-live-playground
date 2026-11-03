@@ -12,6 +12,8 @@ import {
 } from './types'
 
 export const REFRESHER_STORAGE_KEY = 'plp-refresher-v1'
+/** Holds the last saved refresher data that could not be read, so the next save cannot destroy it. */
+export const REFRESHER_DAMAGED_KEY = 'plp-refresher-v1-damaged'
 export const MOCK_DURATION_MS = 60 * 60 * 1000
 export const MAX_DRAFT_LENGTH = 80_000
 export const MAX_NOTE_LENGTH = 6_000
@@ -253,21 +255,42 @@ export function parseRefresherState(value: unknown): RefresherState | null {
   return state
 }
 
-export function loadRefresherState(storage: SessionStorage | null = browserSessionStorage()): {
-  state: RefresherState; status: 'loaded' | 'empty' | 'invalid' | 'unavailable'
-} {
+export type RefresherLoadResult =
+  | { state: RefresherState; status: 'loaded' | 'empty' | 'unavailable' }
+  | {
+    state: RefresherState
+    status: 'invalid'
+    /** The unreadable text, kept so the learner can download it. */
+    damagedRaw: string
+    /** True when a copy was written to REFRESHER_DAMAGED_KEY; false means only the original still holds it. */
+    preserved: boolean
+  }
+
+export function loadRefresherState(storage: SessionStorage | null = browserSessionStorage()): RefresherLoadResult {
   if (!storage) return { state: emptyRefresherState(), status: 'unavailable' }
   let raw: string | null
   try { raw = storage.getItem(REFRESHER_STORAGE_KEY) } catch {
     return { state: emptyRefresherState(), status: 'unavailable' }
   }
   if (raw === null) return { state: emptyRefresherState(), status: 'empty' }
+  if (raw.length <= MAX_STORAGE_LENGTH) {
+    try {
+      const state = parseRefresherState(JSON.parse(raw))
+      if (state) return { state, status: 'loaded' }
+    } catch {
+      // Falls through to keeping a copy of the unreadable data.
+    }
+  }
+  return { state: emptyRefresherState(), status: 'invalid', damagedRaw: raw, preserved: keepDamagedCopy(storage, raw) }
+}
+
+function keepDamagedCopy(storage: SessionStorage, raw: string): boolean {
   try {
-    if (raw.length > MAX_STORAGE_LENGTH) return { state: emptyRefresherState(), status: 'invalid' }
-    const parsed: unknown = JSON.parse(raw)
-    const state = parseRefresherState(parsed)
-    return state ? { state, status: 'loaded' } : { state: emptyRefresherState(), status: 'invalid' }
-  } catch { return { state: emptyRefresherState(), status: 'invalid' } }
+    storage.setItem(REFRESHER_DAMAGED_KEY, raw)
+    return true
+  } catch {
+    return false
+  }
 }
 
 export function saveRefresherState(state: RefresherState, storage: SessionStorage | null = browserSessionStorage()): SaveStatus {

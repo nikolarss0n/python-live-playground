@@ -210,7 +210,7 @@ describe('saved service learning flow', () => {
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved yet')
     expect(screen.getByText(/Saving is paused so it is not lost/)).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: 'Download it' }))
+    await user.click(screen.getByRole('button', { name: 'Download lesson progress' }))
     expect(click).toHaveBeenCalledTimes(1)
     expect(await (createObjectURL.mock.calls[0] as unknown as [Blob])[0].text()).toBe('{broken')
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Code and progress saved')

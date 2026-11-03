@@ -24,8 +24,9 @@ const PRACTICE_BUDGET: Record<StudyStage, number> = { recall: 10, explain: 15, g
 const LIGHT_BUDGET: Record<StudyStage, number> = { recall: 5, explain: 5, guided: 5, independent: 30, review: 15 }
 const PRACTICE_DAYS = REFRESHER_DAYS.filter((day): day is PracticeDay => day.kind === 'practice')
 
-function storageMessage(status: SaveStatus): string | null {
+function storageMessage(status: SaveStatus | 'blocked'): string | null {
   if (status === 'saved') return null
+  if (status === 'blocked') return 'Not saved yet: download your earlier refresher progress from the footer first so it is not replaced.'
   if (status === 'unavailable') return 'Browser storage is unavailable. Changes may only last for this session; copy your work before leaving.'
   if (status === 'history-full') return 'Local history is full. Existing drafts and backups were kept; this action could not add another entry.'
   return 'This change exceeds local storage limits. Existing saved work was kept; copy your current text before leaving.'

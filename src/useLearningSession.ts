@@ -19,6 +19,7 @@ import {
   type LearningSaveStatus,
 } from './learningStorage'
 import { readSnapshotFromLocation } from './shareSnapshot'
+import { downloadText } from './downloadText'
 import { isServiceExerciseId } from './serviceExercise'
 import { previousServiceExercise, serviceStarterCode } from './curriculum/serviceLessons'
 
@@ -81,17 +82,8 @@ function initialSession(state: LearningState): LearningState {
   return selectLesson(state, firstLessonId(track))
 }
 
+/** Earlier saved data could not be read: kept as a backup copy, or still in place with saving paused. */
 export type DamagedNotice = 'kept' | 'blocked'
-
-/** Saves the unreadable saved data as a file the learner can keep. */
-function downloadText(text: string, filename: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  URL.revokeObjectURL(url)
-}
 
 export function useLearningSession() {
   const [initial] = useState(() => {

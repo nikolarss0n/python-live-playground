@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import {
-  MAX_DRAFT_LENGTH, REFRESHER_STORAGE_KEY, defaultStarter, emptyRefresherState, ensureDay,
+  MAX_DRAFT_LENGTH, REFRESHER_DAMAGED_KEY, REFRESHER_STORAGE_KEY, defaultStarter, emptyRefresherState, ensureDay,
   loadRefresherState, saveRefresherState, suggestRevisit, type SessionStorage,
 } from './sessionStore'
 import type { PracticeDay } from './types'
@@ -33,8 +33,19 @@ describe('refresher session storage', () => {
       window.localStorage.setItem(REFRESHER_STORAGE_KEY, value)
       expect(loadRefresherState().status).toBe('invalid')
       expect(loadRefresherState().state).toEqual(emptyRefresherState())
+      expect(loadRefresherState()).toMatchObject({ damagedRaw: value, preserved: true })
+      expect(window.localStorage.getItem(REFRESHER_DAMAGED_KEY)).toBe(value)
+      expect(window.localStorage.getItem(REFRESHER_STORAGE_KEY)).toBe(value)
     },
   )
+
+  it('reports unreadable data as not preserved when the backup copy cannot be written', () => {
+    const full: SessionStorage = {
+      getItem: (key) => (key === REFRESHER_STORAGE_KEY ? '{broken' : null),
+      setItem() { throw new Error('Quota') },
+    }
+    expect(loadRefresherState(full)).toMatchObject({ status: 'invalid', damagedRaw: '{broken', preserved: false })
+  })
 
   it('reports blocked storage and quota failures accurately', () => {
     const blocked: SessionStorage = {

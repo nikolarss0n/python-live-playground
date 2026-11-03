@@ -10,6 +10,8 @@ import {
 import {
   isPracticeDayId, type PracticeDayId, type RefresherDay, type RefresherDayId, type StudyStage,
 } from './types'
+import { downloadText } from '../downloadText'
+import type { DamagedNotice } from '../useLearningSession'
 
 type SessionOptions = {
   storage?: SessionStorage | null
@@ -44,20 +46,31 @@ export function useRefresherSession(day: RefresherDay | null, options: SessionOp
   const storage = options.storage === undefined ? browserSessionStorage() : options.storage
   const [initial] = useState(() => loadRefresherState(storage))
   const [state, setState] = useState(() => expireMockAttempts(initial.state, now()))
-  const [saveStatus, setSaveStatus] = useState<SaveStatus>(initial.status === 'unavailable' ? 'unavailable' : 'saved')
+  const damage = initial.status === 'invalid' ? initial : null
+  // Unreadable data with no backup copy must not be overwritten until the learner has downloaded it.
+  const [savesBlocked, setSavesBlocked] = useState(damage !== null && !damage.preserved)
+  const [saveStatus, setSaveStatus] = useState<SaveStatus | 'blocked'>(
+    initial.status === 'unavailable' ? 'unavailable' : savesBlocked ? 'blocked' : 'saved')
   const [clock, setClock] = useState(now)
   const stateRef = useRef(state)
   const dayRef = useRef(day)
   dayRef.current = day
 
   const commit = useCallback((next: RefresherState, requireSaved = false): boolean => {
-    const result = saveRefresherState(next, storage)
+    const result = savesBlocked ? 'blocked' : saveRefresherState(next, storage)
     setSaveStatus(result)
     if (requireSaved && result !== 'saved') return false
     stateRef.current = next
     setState(next)
     return true
-  }, [storage])
+  }, [storage, savesBlocked])
+
+  const downloadDamaged = useCallback(() => {
+    if (!damage) return
+    downloadText(damage.damagedRaw, 'python-live-refresher-progress.json')
+    setSavesBlocked(false)
+    setSaveStatus(saveRefresherState(stateRef.current, storage))
+  }, [damage, storage])
 
   useEffect(() => {
     const current = expireMockAttempts(stateRef.current, now())
@@ -319,5 +332,7 @@ export function useRefresherSession(day: RefresherDay | null, options: SessionOp
       backup.workspaceKey === session.workspaceKey && backup.stage === session.stage)),
     changeStage, updateCode, setNote, completeStage, verify, restart, restore,
     addMistake, editMistake, resolveMistake, startMock, finishMock, setRubric, selectDays,
+    damagedNotice: (damage ? (savesBlocked ? 'blocked' : 'kept') : null) as DamagedNotice | null,
+    downloadDamaged,
   }
 }

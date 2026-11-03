@@ -1,7 +1,7 @@
 import { act, cleanup, renderHook } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useRefresherSession } from './useRefresherSession'
-import { MAX_BACKUPS, MOCK_DURATION_MS, loadRefresherState, type SessionStorage, type StarterFor } from './sessionStore'
+import { MAX_BACKUPS, MOCK_DURATION_MS, REFRESHER_DAMAGED_KEY, REFRESHER_STORAGE_KEY, loadRefresherState, type SessionStorage, type StarterFor } from './sessionStore'
 import type { ConsolidationDay, MockDay, PracticeDay, RefresherDay } from './types'
 
 const practice: PracticeDay = {
@@ -106,6 +106,45 @@ describe('refresher learning state machine', () => {
     const restored = renderHook(() => useRefresherSession(practice))
     act(() => { restored.result.current.restore() })
     expect(restored.result.current.code).toBe('new work')
+  })
+
+  it('keeps a copy of unreadable progress and then saves normally', () => {
+    window.localStorage.setItem(REFRESHER_STORAGE_KEY, '{broken')
+    const hook = renderHook(() => useRefresherSession(practice))
+    expect(hook.result.current.damagedNotice).toBe('kept')
+    expect(window.localStorage.getItem(REFRESHER_DAMAGED_KEY)).toBe('{broken')
+    act(() => { hook.result.current.changeStage('guided'); hook.result.current.updateCode('fresh work') })
+    expect(hook.result.current.saveStatus).toBe('saved')
+    expect(loadRefresherState().status).toBe('loaded')
+  })
+
+  it('pauses saving over unreadable progress until it is downloaded when no copy can be kept', async () => {
+    window.localStorage.setItem(REFRESHER_STORAGE_KEY, '{broken')
+    const storage: SessionStorage = {
+      getItem: (key) => window.localStorage.getItem(key),
+      setItem(key, value) { if (key === REFRESHER_DAMAGED_KEY) throw new Error('Quota'); window.localStorage.setItem(key, value) },
+    }
+    const createObjectURL = vi.fn((_blob: Blob) => 'blob:refresher')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    const hook = renderHook(() => useRefresherSession(practice, { storage }))
+    expect(hook.result.current.damagedNotice).toBe('blocked')
+    act(() => { hook.result.current.changeStage('guided'); hook.result.current.updateCode('kept in memory') })
+    expect(hook.result.current.code).toBe('kept in memory')
+    expect(hook.result.current.saveStatus).toBe('blocked')
+    act(() => { expect(hook.result.current.restart()).toBe(false) })
+    expect(window.localStorage.getItem(REFRESHER_STORAGE_KEY)).toBe('{broken')
+
+    act(() => { hook.result.current.downloadDamaged() })
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(await createObjectURL.mock.calls[0][0].text()).toBe('{broken')
+    expect(hook.result.current.damagedNotice).toBe('kept')
+    expect(hook.result.current.saveStatus).toBe('saved')
+    const saved = loadRefresherState()
+    expect(saved.status).toBe('loaded')
+    expect(saved.state.days['refresher-01']?.workspaces.practice.guided.code).toBe('kept in memory')
+    click.mockRestore()
+    vi.unstubAllGlobals()
   })
 
   it('refuses restart when a backup cannot be saved', () => {

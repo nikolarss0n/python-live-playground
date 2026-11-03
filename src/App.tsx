@@ -54,6 +54,7 @@ import { blankHints, hintLevels } from './blankHints'
 import { closeHintBubble, currentHintBubble, showHintBubble } from './editor/blankHint'
 import { HintPill } from './components/HintPill'
 import { SolutionPill } from './components/SolutionPill'
+import { DamagedProgressNotice } from './components/DamagedProgressNotice'
 import { FullstackPanel, FullstackTabs, type FullstackTab } from './components/FullstackPanel'
 import { BLANK_ANSWERS } from './curriculum/blankAnswers'
 import type { ErrorAdvice } from './errorAdvice'
@@ -823,14 +824,10 @@ export default function App() {
           {difficulty === 'genai' && ` · ${GENAI_EXERCISE_IDS.filter((id) => completedIds.has(id)).length}/${GENAI_EXERCISE_IDS.length} exercises complete`}
         </span>
         {learning.damagedNotice ? (
-          <span className="footer-damaged">
-            {learning.damagedNotice === 'blocked'
-              ? 'Earlier saved progress could not be read. Saving is paused so it is not lost.'
-              : 'Earlier saved progress could not be read. A copy was kept on this device.'}
-            <button type="button" className="footer-damaged-download" onClick={learning.downloadDamaged}>
-              Download it
-            </button>
-          </span>
+          <DamagedProgressNotice what="lesson" notice={learning.damagedNotice} onDownload={learning.downloadDamaged} />
+        ) : null}
+        {study.damagedNotice ? (
+          <DamagedProgressNotice what="refresher" notice={study.damagedNotice} onDownload={study.downloadDamaged} />
         ) : null}
         <span className="footer-hint">
           Code runs automatically after a short pause ·{' '}
