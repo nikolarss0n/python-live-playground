@@ -29,6 +29,49 @@ _PLP_STRUCT_MAX_DEPTH = 4
 _PLP_STRUCT_MAX_ITEMS = 40
 _PLP_STRUCT_PREVIEW = 200
 
+# Output limits keep a noisy loop from flooding the results panel. Cutting only removes output, and a shortened
+# line ends with a marker, so a lesson check can never pass on text the program did not print.
+_PLP_MAX_PRINT_LINES = 500
+_PLP_MAX_LINE_CHARS = 2000
+_plp_print_count = 0
+_plp_dropped_lines = 0
+
+def _plp_clip(text, extra=0):
+    """Shorten one line of output and say how much was cut."""
+    if len(text) > _PLP_MAX_LINE_CHARS:
+        extra += len(text) - _PLP_MAX_LINE_CHARS
+        text = text[:_PLP_MAX_LINE_CHARS]
+    if extra > 0:
+        return f"{text}… ({extra:,} more characters)"
+    return text
+
+def _plp_reset_output():
+    global _plp_print_count, _plp_dropped_lines
+    _plp_print_count = 0
+    _plp_dropped_lines = 0
+
+def _plp_emit_print(text, extra=0):
+    global _plp_print_count, _plp_dropped_lines, _plp_pending_structure
+    if _plp_print_count >= _PLP_MAX_PRINT_LINES:
+        _plp_dropped_lines += 1
+        _plp_pending_structure = None
+        return
+    _plp_print_count += 1
+    event = {"kind": "print", "text": _plp_clip(text, extra)}
+    if _plp_print_line is not None:
+        event["line"] = int(_plp_print_line)
+    _plp_attach_structure(event)
+    _plp_events.append(event)
+
+def _plp_limit_notice():
+    """Add one visible note when lines were left out."""
+    if _plp_dropped_lines > 0:
+        more = f"{_plp_dropped_lines:,} more line{'' if _plp_dropped_lines == 1 else 's'}"
+        _plp_events.append({
+            "kind": "warning",
+            "text": f"Output limited: showing the first {_PLP_MAX_PRINT_LINES} printed lines. {more} were not shown.",
+        })
+
 def _plp_is_collection(value):
     return isinstance(value, (list, tuple, dict, set, frozenset))
 
@@ -117,7 +160,7 @@ def __plp_show__(value, line):
         rep = repr(value)
     except Exception as exc:
         rep = f"<unprintable: {type(exc).__name__}>"
-    event = {"kind": "expr", "value": rep, "line": int(line)}
+    event = {"kind": "expr", "value": _plp_clip(rep), "line": int(line)}
     if _plp_is_collection(value):
         try:
             event["structure"] = _plp_structure(value)
@@ -175,27 +218,27 @@ def _plp_attach_structure(event):
 class _PlpStdout:
     def __init__(self):
         self._buf = ""
+        self._extra = 0
+    def _emit(self):
+        text, extra = self._buf, self._extra
+        self._buf = ""
+        self._extra = 0
+        _plp_emit_print(text, extra)
     def write(self, s):
         if not s:
             return 0
-        self._buf += s
-        while "\\n" in self._buf:
-            text, self._buf = self._buf.split("\\n", 1)
-            event = {"kind": "print", "text": text}
-            if _plp_print_line is not None:
-                event["line"] = int(_plp_print_line)
-            _plp_attach_structure(event)
-            _plp_events.append(event)
+        for index, part in enumerate(s.split("\\n")):
+            if index > 0:
+                self._emit()
+            room = _PLP_MAX_LINE_CHARS - len(self._buf)
+            if room > 0:
+                self._buf += part[:room]
+            self._extra += max(0, len(part) - max(room, 0))
         return len(s)
     def flush(self):
         global _plp_print_line
-        if self._buf:
-            event = {"kind": "print", "text": self._buf}
-            if _plp_print_line is not None:
-                event["line"] = int(_plp_print_line)
-            _plp_attach_structure(event)
-            _plp_events.append(event)
-            self._buf = ""
+        if self._buf or self._extra:
+            self._emit()
         _plp_print_line = None
     def isatty(self):
         return False
@@ -354,6 +397,7 @@ def _plp_run(source: str, exercise_id=None, include_namespace=False):
 async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, stdin=None):
     global _plp_stdin, _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
+    _plp_reset_output()
     _plp_print_line = None
     _plp_pending_structure = None
     _plp_ticks = 0
@@ -384,6 +428,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
         if pending is not None:
             await pending
         out.flush()
+        _plp_limit_notice()
         events = list(_plp_events)
         checks = []
         if exercise_id:
@@ -416,6 +461,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
                         end_column = None
                     frames.append({"line": frame.lineno, "name": frame.name,
                                    "column": column, "endColumn": end_column})
+        _plp_limit_notice()
         events = list(_plp_events)
         error_event = {
             "kind": "error",
@@ -512,6 +558,7 @@ def _plp_invoke(req):
     import json as _json
     global _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
+    _plp_reset_output()
     _plp_print_line = None
     _plp_pending_structure = None
     _plp_ticks = 0
@@ -538,6 +585,7 @@ def _plp_invoke(req):
             headers=req.get("headers"),
         )
         out.flush()
+        _plp_limit_notice()
         events = list(_plp_events)
         events.append({
             "kind": "http",
@@ -551,6 +599,7 @@ def _plp_invoke(req):
     except Exception as exc:
         out.flush()
         tb = traceback.format_exc()
+        _plp_limit_notice()
         events = list(_plp_events)
         events.append({
             "kind": "error",
