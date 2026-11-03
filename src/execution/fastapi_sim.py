@@ -7,12 +7,13 @@ when the app is defined; handlers run only when ``dispatch`` is called.
 
 from __future__ import annotations
 
+import copy
 import inspect
 import json
 import re
 import sys
 import types
-from typing import Any, Callable, Union, get_args, get_origin
+from typing import Annotated, Any, Callable, Union, get_args, get_origin, get_type_hints
 
 _PATH_PARAM = re.compile(r"\{([a-zA-Z_][a-zA-Z0-9_]*)\}")
 _DOCS_PATHS = frozenset(
@@ -38,10 +39,45 @@ class ValidationError(Exception):
         super().__init__(str(detail))
 
 
+_LIMIT_KEYS = ("gt", "ge", "lt", "le", "min_length", "max_length")
+
+
+def _limits(kwargs: dict[str, Any]) -> dict[str, Any]:
+    return {key: kwargs[key] for key in _LIMIT_KEYS if kwargs.get(key) is not None}
+
+
+def _check_limits(value: Any, limits: dict[str, Any], loc: list[Any]) -> None:
+    """Pydantic-style number and length limits; raises a 422-shaped ValidationError."""
+    for key, bound in limits.items():
+        if key in ("min_length", "max_length"):
+            size = len(value)
+            noun = "String" if isinstance(value, str) else "List"
+            unit = ("character" if isinstance(value, str) else "item") + ("" if bound == 1 else "s")
+            if key == "min_length" and size < bound:
+                msg, kind = f"{noun} should have at least {bound} {unit}", f"{noun.lower()}_too_short"
+            elif key == "max_length" and size > bound:
+                msg, kind = f"{noun} should have at most {bound} {unit}", f"{noun.lower()}_too_long"
+            else:
+                continue
+        else:
+            checks = {
+                "gt": (value > bound, "greater than", "greater_than"),
+                "ge": (value >= bound, "greater than or equal to", "greater_than_equal"),
+                "lt": (value < bound, "less than", "less_than"),
+                "le": (value <= bound, "less than or equal to", "less_than_equal"),
+            }
+            ok, words, kind = checks[key]
+            if ok:
+                continue
+            msg = f"Input should be {words} {bound}"
+        raise ValidationError({"detail": [{"loc": loc, "msg": msg, "type": kind}]})
+
+
 class QueryInfo:
-    def __init__(self, default: Any = ..., *, alias: str | None = None) -> None:
+    def __init__(self, default: Any = ..., *, alias: str | None = None, limits: dict[str, Any] | None = None) -> None:
         self.default = default
         self.alias = alias
+        self.limits = limits or {}
 
 
 class HeaderInfo:
@@ -67,22 +103,29 @@ def Query(default: Any = ..., **kwargs: Any) -> QueryInfo:
         "ge",
         "lt",
         "le",
+        "min_length",
+        "max_length",
     }
     if extra:
         raise SimFastAPIError(
             f"simulated FastAPI Query() does not support {sorted(extra)}"
         )
-    return QueryInfo(default, alias=kwargs.get("alias"))
+    return QueryInfo(default, alias=kwargs.get("alias"), limits=_limits(kwargs))
 
 
 def Path(default: Any = ..., **kwargs: Any) -> QueryInfo:
-    return QueryInfo(default, alias=kwargs.get("alias"))
+    return QueryInfo(default, alias=kwargs.get("alias"), limits=_limits(kwargs))
 
 
-def Depends(*_args: Any, **_kwargs: Any) -> Any:
-    raise SimFastAPIError(
-        "simulated FastAPI has no Depends — keep auth and logic in the handler"
-    )
+class DependsInfo:
+    def __init__(self, dependency: Any = None, *, use_cache: bool = True) -> None:
+        self.dependency = dependency
+        self.use_cache = use_cache
+
+
+def Depends(dependency: Any = None, *, use_cache: bool = True) -> Any:
+    """Marks a parameter whose value comes from calling ``dependency`` once per request."""
+    return DependsInfo(dependency, use_cache=use_cache)
 
 
 def Header(default: Any = ..., **kwargs: Any) -> HeaderInfo:
@@ -130,11 +173,6 @@ class Request:
         )
 
 
-class APIRouter:
-    def __init__(self, *_args: Any, **_kwargs: Any) -> None:
-        raise SimFastAPIError("simulated FastAPI has no routers")
-
-
 class _MiddlewareDenied:
     def __init__(self, *_args: Any, **_kwargs: Any) -> None:
         raise SimFastAPIError("simulated FastAPI has no middleware")
@@ -153,8 +191,15 @@ class status:
     HTTP_500_INTERNAL_SERVER_ERROR = 500
 
 
-def Field(default: Any = ..., **_kwargs: Any) -> Any:
-    return default
+class FieldInfo:
+    def __init__(self, default: Any, limits: dict[str, Any]) -> None:
+        self.default = default
+        self.limits = limits
+
+
+def Field(default: Any = ..., **kwargs: Any) -> Any:
+    limits = _limits(kwargs)
+    return FieldInfo(default, limits) if limits else default
 
 
 def _annotations(cls: type) -> dict[str, Any]:
@@ -245,9 +290,13 @@ class BaseModel:
             )
         values: dict[str, Any] = {}
         for name, hint in hints.items():
+            declared = getattr(type(self), name, ...)
+            info = declared if isinstance(declared, FieldInfo) else None
             if name in data:
                 try:
                     values[name] = _coerce(data[name], hint)
+                    if info and values[name] is not None:
+                        _check_limits(values[name], info.limits, ["body", name])
                 except (TypeError, ValueError) as exc:
                     raise ValidationError(
                         {
@@ -262,7 +311,7 @@ class BaseModel:
                     ) from exc
                 continue
             if hasattr(type(self), name):
-                default = getattr(type(self), name)
+                default = info.default if info else getattr(type(self), name)
                 if default is ...:
                     raise ValidationError(
                         {
@@ -312,13 +361,21 @@ class Route:
         path: str,
         handler: Callable[..., Any],
         status_code: int = 200,
+        response_model: Any = None,
+        dependencies: list[Any] | None = None,
     ) -> None:
         self.method = method.upper()
         self.path = path if path.startswith("/") else f"/{path}"
         self.handler = handler
         self.status_code = int(status_code)
+        self.response_model = response_model
+        self.dependencies = list(dependencies or [])
         pattern = _PATH_PARAM.sub(r"(?P<\1>[^/]+)", self.path)
         self.regex = re.compile("^" + pattern + "$")
+
+    def with_prefix(self, prefix: str, dependencies: list[Any]) -> "Route":
+        return Route(self.method, prefix + self.path, self.handler, self.status_code,
+                     self.response_model, [*dependencies, *self.dependencies])
 
     def match(self, method: str, path: str) -> dict[str, str] | None:
         if method.upper() != self.method:
@@ -336,13 +393,12 @@ class Route:
         }
 
 
-class FastAPI:
-    def __init__(self, *_args: Any, **kwargs: Any) -> None:
-        if kwargs.get("dependencies"):
-            raise SimFastAPIError("simulated FastAPI has no Depends")
-        self.routes: list[Route] = []
-        self.title = kwargs.get("title") or "FastAPI"
-        _APPS.append(self)
+class _RouteTable:
+    """Route decorators shared by FastAPI and APIRouter."""
+
+    prefix = ""
+    routes: list[Route]
+    dependencies: list[Any]
 
     def get(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._decorate("GET", path, kwargs)
@@ -359,6 +415,44 @@ class FastAPI:
     def patch(self, path: str, **kwargs: Any) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
         return self._decorate("PATCH", path, kwargs)
 
+    def include_router(self, router: "APIRouter", *, prefix: str = "", dependencies: Any = None, **_kwargs: Any) -> None:
+        for route in router.routes:
+            self.routes.append(route.with_prefix(self.prefix + prefix, [*self.dependencies, *(dependencies or [])]))
+
+    def _decorate(
+        self, method: str, path: str, kwargs: dict[str, Any]
+    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
+        def wrap(fn: Callable[..., Any]) -> Callable[..., Any]:
+            self.routes.append(
+                Route(
+                    method,
+                    self.prefix + (path if path.startswith("/") else f"/{path}"),
+                    fn,
+                    status_code=int(kwargs.get("status_code", 200)),
+                    response_model=kwargs.get("response_model"),
+                    dependencies=[*self.dependencies, *(kwargs.get("dependencies") or [])],
+                )
+            )
+            return fn
+
+        return wrap
+
+
+class APIRouter(_RouteTable):
+    def __init__(self, *, prefix: str = "", dependencies: Any = None, **_kwargs: Any) -> None:
+        self.prefix = prefix.rstrip("/")
+        self.routes = []
+        self.dependencies = list(dependencies or [])
+
+
+class FastAPI(_RouteTable):
+    def __init__(self, *_args: Any, **kwargs: Any) -> None:
+        self.routes = []
+        self.dependencies = list(kwargs.get("dependencies") or [])
+        self.dependency_overrides: dict[Any, Any] = {}
+        self.title = kwargs.get("title") or "FastAPI"
+        _APPS.append(self)
+
     def websocket(self, *_args: Any, **_kwargs: Any) -> Any:
         raise SimFastAPIError("simulated FastAPI has no WebSockets")
 
@@ -368,29 +462,11 @@ class FastAPI:
     def middleware(self, *_args: Any, **_kwargs: Any) -> Any:
         raise SimFastAPIError("simulated FastAPI has no middleware")
 
-    def include_router(self, *_args: Any, **_kwargs: Any) -> None:
-        raise SimFastAPIError("simulated FastAPI has no routers")
-
     def on_event(self, *_args: Any, **_kwargs: Any) -> Any:
         raise SimFastAPIError("simulated FastAPI has no lifecycle events")
 
     def openapi(self) -> Any:
         raise SimFastAPIError("simulated FastAPI has no /docs or OpenAPI")
-
-    def _decorate(
-        self, method: str, path: str, kwargs: dict[str, Any]
-    ) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
-        if kwargs.get("dependencies"):
-            raise SimFastAPIError("simulated FastAPI has no Depends")
-
-        def wrap(fn: Callable[..., Any]) -> Callable[..., Any]:
-            status_code = kwargs.get("status_code", 200)
-            self.routes.append(
-                Route(method, path, fn, status_code=int(status_code))
-            )
-            return fn
-
-        return wrap
 
 
 def reset() -> None:
@@ -419,6 +495,19 @@ def _jsonable(value: Any) -> Any:
     return repr(value)
 
 
+def _apply_response_model(payload: Any, model: Any) -> Any:
+    """response_model keeps only the model's fields, so a password in the returned dict never leaves the API."""
+    if model is None:
+        return payload
+    if get_origin(model) is list and get_args(model):
+        return [_apply_response_model(item, get_args(model)[0]) for item in payload]
+    if not _is_model(model):
+        return payload
+    data = payload.model_dump() if isinstance(payload, BaseModel) else dict(payload)
+    fields = _annotations(model)
+    return model(**{key: value for key, value in data.items() if key in fields}).model_dump()
+
+
 def _is_model(hint: Any) -> bool:
     try:
         return isinstance(hint, type) and issubclass(hint, BaseModel)
@@ -426,19 +515,26 @@ def _is_model(hint: Any) -> bool:
         return False
 
 
+def _hint_target(fn: Any) -> Any:
+    """A class dependency is called through its __init__, so read hints from there."""
+    return fn.__init__ if inspect.isclass(fn) else fn
+
+
 def _fn_hints(fn: Callable[..., Any]) -> dict[str, Any]:
+    target = _hint_target(fn)
     try:
-        return dict(get_type_hints(fn, include_extras=False))
+        return dict(get_type_hints(target, include_extras=True))
     except Exception:
-        return dict(getattr(fn, "__annotations__", {}) or {})
+        return dict(getattr(target, "__annotations__", {}) or {})
 
 
 def _resolve_hint(hint: Any, fn: Callable[..., Any]) -> Any:
     if not isinstance(hint, str):
         return hint
-    if hint in fn.__globals__:
-        return fn.__globals__[hint]
-    builtins_ns = fn.__globals__.get("__builtins__", __builtins__)
+    module_globals = getattr(_hint_target(fn), "__globals__", {})
+    if hint in module_globals:
+        return module_globals[hint]
+    builtins_ns = module_globals.get("__builtins__", __builtins__)
     if isinstance(builtins_ns, dict):
         return builtins_ns.get(hint, hint)
     return getattr(builtins_ns, hint, hint)
@@ -483,13 +579,77 @@ def _parse_body(body: Any) -> Any:
     return body
 
 
+class _RequestScope:
+    """One request's dependency cache, cleanups for yield dependencies, and test overrides."""
+
+    def __init__(self, overrides: dict[Any, Any] | None = None) -> None:
+        self.overrides = overrides or {}
+        self.cache: dict[Any, Any] = {}
+        self.cleanups: list[Any] = []
+
+    def close(self, failed: bool) -> None:
+        while self.cleanups:
+            gen = self.cleanups.pop()
+            if failed:
+                gen.close()
+                continue
+            try:
+                next(gen)
+            except StopIteration:
+                pass
+
+
+def _solve_dependency(
+    info: DependsInfo,
+    hint: Any,
+    path_params: dict[str, str],
+    query: dict[str, Any] | None,
+    body: Any,
+    headers: dict[str, Any] | None,
+    scope: _RequestScope,
+) -> Any:
+    dependency = info.dependency if info.dependency is not None else hint
+    if not callable(dependency):
+        raise SimFastAPIError("Depends() needs a function or class to call")
+    dependency = scope.overrides.get(dependency, dependency)
+    if info.use_cache and dependency in scope.cache:
+        return scope.cache[dependency]
+    value = _call_handler(dependency, path_params, query, body, headers, scope)
+    if inspect.isgenerator(value):
+        scope.cleanups.append(value)
+        value = next(value)
+    elif inspect.isasyncgen(value):
+        raise SimFastAPIError("simulated FastAPI runs yield dependencies written with def, not async def")
+    if info.use_cache:
+        scope.cache[dependency] = value
+    return value
+
+
+def _split_annotated(hint: Any, default: Any) -> tuple[Any, Any]:
+    """Annotated[int, Query(ge=1)] = 5 reads like int = Query(5, ge=1)."""
+    if get_origin(hint) is not Annotated:
+        return hint, default
+    base, *extras = get_args(hint)
+    for extra in extras:
+        if isinstance(extra, DependsInfo):
+            return base, extra
+        if isinstance(extra, (QueryInfo, HeaderInfo)):
+            if default is not inspect._empty:
+                extra = copy.copy(extra)
+                extra.default = default
+            return base, extra
+    return base, default
+
+
 def _call_handler(
     fn: Callable[..., Any],
     path_params: dict[str, str],
     query: dict[str, Any] | None,
     body: Any,
     headers: dict[str, Any] | None,
+    scope: _RequestScope | None = None,
 ) -> Any:
+    scope = scope or _RequestScope()
     hints = _fn_hints(fn)
     query = query or {}
     header_values = _headers_ci(headers)
@@ -497,10 +657,13 @@ def _call_handler(
     parsed_body = _parse_body(body)
     signature = inspect.signature(fn)
     for name, param in signature.parameters.items():
-        hint = _resolve_hint(
-            hints.get(name, param.annotation),
-            fn,
+        hint, default = _split_annotated(
+            _resolve_hint(hints.get(name, param.annotation), fn),
+            param.default,
         )
+        if isinstance(default, DependsInfo):
+            kwargs[name] = _solve_dependency(default, hint, path_params, query, body, headers, scope)
+            continue
         if hint is Request or (
             isinstance(hint, type) and hint.__name__ == "Request"
         ):
@@ -546,6 +709,8 @@ def _call_handler(
                     path_params[name],
                     hint if hint is not inspect._empty else str,
                 )
+                if isinstance(default, QueryInfo):
+                    _check_limits(kwargs[name], default.limits, ["path", name])
             except (TypeError, ValueError) as exc:
                 raise ValidationError(
                     {
@@ -559,7 +724,6 @@ def _call_handler(
                     }
                 ) from exc
             continue
-        default = param.default
         if isinstance(default, HeaderInfo):
             header_key = _header_lookup_key(name, default)
             if header_key in header_values:
@@ -611,6 +775,8 @@ def _call_handler(
                     query[query_key],
                     hint if hint is not inspect._empty else str,
                 )
+                if isinstance(default, QueryInfo):
+                    _check_limits(kwargs[name], default.limits, ["query", query_key])
             except (TypeError, ValueError) as exc:
                 raise ValidationError(
                     {
@@ -701,13 +867,24 @@ def dispatch(
         query = parsed
     path = raw_path if raw_path.startswith("/") else f"/{raw_path}"
 
+    if not any(route.regex.match(path) for route in app.routes):
+        # /notes and /notes/ reach the same route, as FastAPI's redirect does.
+        other = path.rstrip("/") if path.endswith("/") and path != "/" else f"{path}/"
+        if any(route.regex.match(other) for route in app.routes):
+            path = other
+
     matched_wrong_method = False
     for route in app.routes:
         params = route.match(method, path)
         if params is not None:
+            scope = _RequestScope(getattr(app, "dependency_overrides", None))
+            failed = True
             try:
+                for info in route.dependencies:
+                    if isinstance(info, DependsInfo):
+                        _solve_dependency(info, None, params, query, body, headers, scope)
                 payload = _call_handler(
-                    route.handler, params, query, body, headers
+                    route.handler, params, query, body, headers, scope
                 )
                 status_code = route.status_code
                 if (
@@ -716,7 +893,14 @@ def dispatch(
                     and isinstance(payload[1], int)
                 ):
                     payload, status_code = payload
-                return _http_result(method, path, status_code, payload)
+                model = route.response_model
+                if model is None:
+                    returned = _fn_hints(route.handler).get("return")
+                    if _is_model(returned) or (get_origin(returned) is list and _is_model((get_args(returned) or [None])[0])):
+                        model = returned
+                payload = _apply_response_model(payload, model)
+                failed = False
+                return _http_result(method, path, status_code, None if status_code == 204 else payload)
             except HTTPException as exc:
                 return _http_result(
                     method, path, exc.status_code, {"detail": exc.detail}
@@ -737,6 +921,8 @@ def dispatch(
                     500,
                     {"detail": f"{type(exc).__name__}: {exc}"},
                 )
+            finally:
+                scope.close(failed)
         if route.regex.match(path):
             matched_wrong_method = True
 

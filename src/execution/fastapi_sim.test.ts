@@ -226,21 +226,70 @@ client.get("/slow")
     expect(payload.events.at(-1)?.message).toMatch(/cannot pause an async route for a timer/)
   })
 
-  it('Depends fails with a simulated-FastAPI error', () => {
-    expect(() =>
-      sim({
-        op: 'register',
-        source: `
-from fastapi import FastAPI, Depends
+  it('solves Depends, yield dependencies, router prefixes, response_model, limits and test overrides', () => {
+    const { value } = sim({
+      op: 'exec',
+      source: `
+from typing import Annotated
+from fastapi import FastAPI, Depends, APIRouter, Query, Path, HTTPException, Header
+from fastapi.testclient import TestClient
+from pydantic import BaseModel, Field
+log = []
+def get_db():
+    log.append("open")
+    try:
+        yield {1: "milk"}
+    finally:
+        log.append("close")
+def paging(limit: int = Query(10, ge=1, le=50)):
+    return limit
+def current_user(authorization: str = Header(None)):
+    if authorization != "Bearer t":
+        raise HTTPException(401, "bad token")
+    return "ada"
+class UserOut(BaseModel):
+    name: str
+class NoteIn(BaseModel):
+    title: str = Field(min_length=3)
+router = APIRouter(prefix="/notes")
+@router.get("/")
+def list_notes(db: Annotated[dict, Depends(get_db)], limit: int = Depends(paging)):
+    return {"count": len(db), "limit": limit}
+@router.get("/{note_id}")
+def one(note_id: int = Path(gt=0)):
+    return {"id": note_id}
+@router.post("/", status_code=201)
+def make(note: NoteIn):
+    return note
+@router.delete("/{note_id}", status_code=204)
+def remove(note_id: int):
+    return None
 app = FastAPI()
-def db():
-    return 1
-@app.get("/x")
-def x(item=Depends(db)):
-    return item
+app.include_router(router)
+@app.get("/me", response_model=UserOut)
+def me(name: str = Depends(current_user)):
+    return {"name": name, "password": "secret"}
+c = TestClient(app)
+out = [[r.status_code, r.json()] for r in [
+    c.get("/notes"), c.get("/notes?limit=0"), c.get("/notes/0"), c.post("/notes", json={"title": "hi"}),
+    c.delete("/notes/1"), c.get("/me", headers={"Authorization": "Bearer t"}), c.get("/me"),
+]]
+out.append(log)
+app.dependency_overrides[get_db] = lambda: {}
+out.append(c.get("/notes").json())
 `,
-      }),
-    ).toThrow(/simulated FastAPI has no Depends/i)
+    })
+    expect(value).toEqual([
+      [200, { count: 1, limit: 10 }],
+      [422, { detail: [{ loc: ['query', 'limit'], msg: 'Input should be greater than or equal to 1', type: 'greater_than_equal' }] }],
+      [422, { detail: [{ loc: ['path', 'note_id'], msg: 'Input should be greater than 0', type: 'greater_than' }] }],
+      [422, { detail: [{ loc: ['body', 'title'], msg: 'String should have at least 3 characters', type: 'string_too_short' }] }],
+      [204, null],
+      [200, { name: 'ada' }],
+      [401, { detail: 'bad token' }],
+      ['open', 'close', 'open', 'close'],
+      { count: 0, limit: 10 },
+    ])
   })
 
   it('uvicorn.run fails with a simulated-FastAPI error', () => {
