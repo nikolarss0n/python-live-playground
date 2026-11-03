@@ -160,8 +160,14 @@ describe('lessons', () => {
     expect(getLesson('mid-pattern-pick').bookChapter).toBe('dsa-sql')
     expect(getLesson('mid-sliding-window').id).toBe('mid-sliding-window')
     expect(getLesson('api-fastapi-dispatch').bookChapter).toBe('fastapi')
-    expect(getLesson('api-fastapi-status').number).toBe(41)
+    expect(getLesson('api-fastapi-status')).toMatchObject({ section: 'fastapi', number: 1 })
     expect(getLesson('mid-stack-brackets').number).toBe(21)
+  })
+
+  it('gives the FastAPI and full-stack lessons their own section, apart from Build AI services', () => {
+    expect(lessonsByChapter('fastapi').map((group) => [group.chapter, group.lessons.length])).toEqual([['FastAPI', 8], ['Full-stack data', 7]])
+    expect(lessonsForSection('build').some((lesson) => lesson.chapter === 'FastAPI' || lesson.chapter === 'Full-stack data')).toBe(false)
+    expect(lessonsForSection('build').map((lesson) => lesson.chapter)).toContain('Support automation')
   })
 
   it('groups lessons into chapters for the menu', () => {

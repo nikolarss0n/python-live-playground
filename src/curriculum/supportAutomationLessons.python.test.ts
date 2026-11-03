@@ -36,10 +36,10 @@ describe.skipIf(!hasPython)('support automation lessons in real Python', () => {
 })
 
 describe('support automation chapter', () => {
-  it('groups the six lessons under one chapter after FastAPI', () => {
+  it('groups the six lessons under one chapter in Build AI services', () => {
     const lessons = SUPPORT_AUTOMATION_LESSON_DRAFTS.map((draft) => getLesson(draft.id))
     expect(lessons.map((lesson) => lesson.chapter)).toEqual(Array(6).fill('Support automation'))
-    expect(lessons.map((lesson) => lesson.number)).toEqual([49, 50, 51, 52, 53, 54])
+    expect(lessons.map((lesson) => lesson.number)).toEqual([41, 42, 43, 44, 45, 46])
     expect(lessons.every((lesson) => lesson.bookChapter === undefined)).toBe(true)
   })
 })
