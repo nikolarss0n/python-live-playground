@@ -51,17 +51,82 @@ export type GoalLesson = {
   goalCheck?: GoalCheck
 }
 
+const isWordChar = (ch: string | undefined) => ch !== undefined && /\w/.test(ch)
+const isSpace = (ch: string | undefined) => ch === ' ' || ch === '\t'
+
+/**
+ * Walks Python source once, keeping string literals and line indentation exactly and dropping comments.
+ * With `collapseSpaces`, other spacing is ignored except one space between words, so `a//b` matches `a // b`
+ * while ` and ` still cannot match inside `candy`.
+ */
+function scanCode(code: string, collapseSpaces: boolean): string {
+  let out = ''
+  let i = 0
+  let atLineStart = true
+  while (i < code.length) {
+    const ch = code[i]
+    if (ch === '\n') {
+      out += ch
+      atLineStart = true
+      i += 1
+      continue
+    }
+    if (atLineStart && isSpace(ch)) {
+      out += ch
+      i += 1
+      continue
+    }
+    atLineStart = false
+    if (ch === '#') {
+      while (i < code.length && code[i] !== '\n') i += 1
+      continue
+    }
+    if (ch === '"' || ch === "'") {
+      const quote = code.startsWith(ch.repeat(3), i) ? ch.repeat(3) : ch
+      let end = i + quote.length
+      while (end < code.length && !code.startsWith(quote, end)) {
+        if (quote.length === 1 && code[end] === '\n') break
+        end += code[end] === '\\' ? 2 : 1
+      }
+      end = Math.min(code.length, code.startsWith(quote, end) ? end + quote.length : end)
+      out += code.slice(i, end)
+      i = end
+      continue
+    }
+    if (isSpace(ch)) {
+      let end = i
+      while (isSpace(code[end])) end += 1
+      if (!collapseSpaces) out += code.slice(i, end)
+      else {
+        const prev = out[out.length - 1]
+        const next = code[end]
+        if (isWordChar(prev) && (isWordChar(next) || next === undefined)) out += ' '
+      }
+      i = end
+      continue
+    }
+    out += ch
+    i += 1
+  }
+  return out
+}
+
+/** Source with comments, trailing spaces and blank lines removed; used to tell whether a run is still current. */
 export function normalizeCode(code: string): string {
-  return code
+  return scanCode(code, false)
     .split('\n')
-    .map((line) => {
-      // Strip full-line and trailing comments for comparison.
-      const noComment = line.replace(/(^|[^"'])#.*$/, '$1')
-      return noComment.trimEnd()
-    })
+    .map((line) => line.trimEnd())
     .filter((line) => line.trim().length > 0)
     .join('\n')
     .trim()
+}
+
+/**
+ * True when `snippet` appears in the code outside comments, either exactly (e.g. SQL inside a string)
+ * or ignoring spacing that does not change meaning (e.g. `minutes//60` for `minutes // 60`).
+ */
+export function codeContains(code: string, snippet: string): boolean {
+  return scanCode(code, false).includes(snippet) || scanCode(code, true).includes(scanCode(snippet, true))
 }
 
 export function collectPrints(events: ResultEvent[]): string[] {
@@ -168,13 +233,13 @@ export function evaluateGoal(lesson: GoalLesson, input: GoalEvalInput): GoalProg
   // 5) Explicit forbids / requires in source.
   for (const s of check.codeForbidden ?? check.codeExcludes ?? []) {
     if (s === BLANK) continue // handled above
-    if (code.includes(s)) {
+    if (codeContains(code, s)) {
       missing.push(`Remove \`${s}\` from your code`)
     }
   }
 
   for (const s of check.codeIncludes ?? []) {
-    if (!code.includes(s)) {
+    if (!codeContains(code, s)) {
       missing.push(`Use \`${s}\` in your code`)
     }
   }
