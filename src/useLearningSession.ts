@@ -64,8 +64,7 @@ function selectLesson(state: LearningState, requestedId: string): LearningState 
   })
 }
 
-function initialSession(): LearningState {
-  const { state } = loadLearningState()
+function initialSession(state: LearningState): LearningState {
   const shared = readSnapshotFromLocation()
   if (shared && getLesson(shared.lessonId).id === shared.lessonId) {
     return updateLearningState(state, {
@@ -82,22 +81,51 @@ function initialSession(): LearningState {
   return selectLesson(state, firstLessonId(track))
 }
 
+export type DamagedNotice = 'kept' | 'blocked'
+
+/** Saves the unreadable saved data as a file the learner can keep. */
+function downloadText(text: string, filename: string): void {
+  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+  const link = document.createElement('a')
+  link.href = url
+  link.download = filename
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
 export function useLearningSession() {
-  const [state, setState] = useState(initialSession)
-  const [saveStatus, setSaveStatus] = useState<LearningSaveStatus | 'saving'>('saving')
+  const [initial] = useState(() => {
+    const load = loadLearningState()
+    return { load, state: initialSession(load.state) }
+  })
+  const [state, setState] = useState(initial.state)
+  const damage = initial.load.status === 'invalid' ? initial.load : null
+  // Unreadable data with no backup copy must not be overwritten until the learner has downloaded it.
+  const [savesBlocked, setSavesBlocked] = useState(damage !== null && !damage.preserved)
+  const [saveStatus, setSaveStatus] = useState<LearningSaveStatus | 'saving' | 'blocked'>('saving')
   const [recoveryMessage, setRecoveryMessage] = useState<string | null>(null)
+  const persist = useCallback(
+    (next: LearningState) => (savesBlocked ? 'blocked' as const : saveLearningState(next)),
+    [savesBlocked],
+  )
   const lesson = getLesson(state.activeLessonId ?? firstLessonId(DEFAULT_SECTION))
   const draft = state.lessons[lesson.id]
   const code = draft?.code ?? lesson.code
   const predictDone = draft?.predictDone ?? false
 
   useEffect(() => {
-    setSaveStatus(saveLearningState(state))
+    setSaveStatus(persist(state))
     const url = new URL(window.location.href)
     url.searchParams.set('lesson', lesson.id)
     if (url.hash.startsWith('#plp=')) url.hash = ''
     window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`)
-  }, [state, lesson.id])
+  }, [state, lesson.id, persist])
+
+  const downloadDamaged = useCallback(() => {
+    if (!damage) return
+    downloadText(damage.damagedRaw, 'python-live-saved-progress.json')
+    setSavesBlocked(false)
+  }, [damage])
 
   const setCode = useCallback((next: string | ((current: string) => string)) => {
     setState((current) => {
@@ -165,7 +193,7 @@ export function useLearningSession() {
       setRecoveryMessage(code === starter ? 'This is already the starter.' : 'Backup history is full. Your code is unchanged.')
       return false
     }
-    const saved = saveLearningState(next)
+    const saved = persist(next)
     setSaveStatus(saved)
     if (saved !== 'saved') {
       setRecoveryMessage('Restart cancelled because your backup could not be saved. Your code is unchanged.')
@@ -174,12 +202,12 @@ export function useLearningSession() {
     setState(next)
     setRecoveryMessage('Starter restored. Your previous draft is saved and can be restored, including after reload.')
     return true
-  }, [state, lesson, code])
+  }, [state, lesson, code, persist])
 
   const restore = useCallback(() => {
     const next = restoreLearningLesson(state, lesson.id)
     if (next === state) return false
-    const saved = saveLearningState(next)
+    const saved = persist(next)
     setSaveStatus(saved)
     if (saved !== 'saved') {
       setRecoveryMessage('Your previous draft could not be saved as the current draft. Nothing was changed.')
@@ -188,7 +216,7 @@ export function useLearningSession() {
     setState(next)
     setRecoveryMessage('Previous draft restored.')
     return true
-  }, [state, lesson.id])
+  }, [state, lesson.id, persist])
 
   const keepDraft = useCallback(() => {
     setState((current) => acknowledgeStarter(current, lesson.id))
@@ -215,5 +243,8 @@ export function useLearningSession() {
     /** The lesson's starter changed after this draft was begun. */
     starterUpdated: starterUpdated(state, lesson.id),
     keepDraft,
+    /** Earlier saved progress could not be read: kept as a backup copy, or still in place with saving paused. */
+    damagedNotice: (damage ? (savesBlocked ? 'blocked' : 'kept') : null) as DamagedNotice | null,
+    downloadDamaged,
   }
 }

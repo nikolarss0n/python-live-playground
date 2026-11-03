@@ -815,11 +815,23 @@ export default function App() {
                 ? 'Saved history is full. Existing work is preserved.'
               : saveStatus === 'too-large'
                 ? 'Not saved: local draft storage is full. Copy your code before leaving.'
+              : saveStatus === 'blocked'
+                ? 'Not saved yet: download your earlier progress first so it is not replaced.'
                 : 'Not saved: browser storage is unavailable. Copy your code before leaving.'}
           {difficulty === 'refresher' && ` · ${study.completedDayIds.size}/14 days complete`}
           {difficulty === 'service' && ` · ${SERVICE_EXERCISE_IDS.filter((id) => completedIds.has(id)).length}/3 exercises complete`}
           {difficulty === 'genai' && ` · ${GENAI_EXERCISE_IDS.filter((id) => completedIds.has(id)).length}/${GENAI_EXERCISE_IDS.length} exercises complete`}
         </span>
+        {learning.damagedNotice ? (
+          <span className="footer-damaged">
+            {learning.damagedNotice === 'blocked'
+              ? 'Earlier saved progress could not be read. Saving is paused so it is not lost.'
+              : 'Earlier saved progress could not be read. A copy was kept on this device.'}
+            <button type="button" className="footer-damaged-download" onClick={learning.downloadDamaged}>
+              Download it
+            </button>
+          </span>
+        ) : null}
         <span className="footer-hint">
           Code runs automatically after a short pause ·{' '}
           <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> run · <kbd>Esc</kbd>{' '}

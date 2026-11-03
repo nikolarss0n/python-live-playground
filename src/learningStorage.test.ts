@@ -3,6 +3,7 @@ import { LESSONS } from './examples'
 import {
   emptyLearningState,
   isLessonVerified,
+  LEARNING_DAMAGED_KEY,
   LEARNING_STORAGE_KEY,
   loadLearningState,
   MAX_LEARNING_STORAGE_LENGTH,
@@ -100,9 +101,20 @@ describe('local learning storage', () => {
   it.each(['{broken', 'null', '[]', '{"version":2,"lessons":{}}', '{"version":1,"lessons":[]}'])(
     'recovers safely from invalid data: %s', (raw) => {
       window.localStorage.setItem(LEARNING_STORAGE_KEY, raw)
-      expect(loadLearningState()).toEqual({ state: emptyLearningState(), status: 'invalid' })
+      expect(loadLearningState()).toEqual({ state: emptyLearningState(), status: 'invalid', damagedRaw: raw, preserved: true })
+      expect(window.localStorage.getItem(LEARNING_DAMAGED_KEY)).toBe(raw)
+      expect(window.localStorage.getItem(LEARNING_STORAGE_KEY)).toBe(raw)
     },
   )
+
+  it('reports unreadable data as not preserved when the backup copy cannot be written', () => {
+    const raw = ' '.repeat(MAX_LEARNING_STORAGE_LENGTH + 1)
+    const full: LearningStorage = {
+      getItem: (key) => (key === LEARNING_STORAGE_KEY ? raw : null),
+      setItem: () => { throw new DOMException('quota', 'QuotaExceededError') },
+    }
+    expect(loadLearningState(full)).toMatchObject({ status: 'invalid', damagedRaw: raw, preserved: false })
+  })
 
   it('ignores unknown IDs, wrong-track locations and malformed drafts', () => {
     const first = LESSONS[0]

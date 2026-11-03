@@ -3,7 +3,7 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 import { EXERCISE_CHECKS, type ExerciseId } from './serviceExercise'
-import { loadLearningState, isLessonVerified } from './learningStorage'
+import { loadLearningState, isLessonVerified, LEARNING_DAMAGED_KEY, LEARNING_STORAGE_KEY } from './learningStorage'
 import type { ExecutionStatus } from './execution/protocol'
 
 const execution = vi.hoisted((): { source: string; exerciseId: string; status: ExecutionStatus } => ({
@@ -181,6 +181,40 @@ describe('saved service learning flow', () => {
     render(<App />)
     expect(screen.getByRole('textbox', { name: 'Python source' })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved')
+  })
+
+  it('keeps a copy of unreadable saved progress before saving over it', () => {
+    window.localStorage.setItem(LEARNING_STORAGE_KEY, '{broken')
+    render(<App />)
+    expect(window.localStorage.getItem(LEARNING_DAMAGED_KEY)).toBe('{broken')
+    expect(screen.getByText(/A copy was kept on this device/)).toBeInTheDocument()
+    edit('print("New start")')
+    expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Code and progress saved')
+    expect(loadLearningState().status).toBe('loaded')
+  })
+
+  it('pauses saving over unreadable progress until it is downloaded when no copy can be kept', async () => {
+    const user = userEvent.setup()
+    window.localStorage.setItem(LEARNING_STORAGE_KEY, '{broken')
+    const setItem = Storage.prototype.setItem
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(function (this: Storage, key: string, value: string) {
+      if (key === LEARNING_DAMAGED_KEY) throw new DOMException('quota', 'QuotaExceededError')
+      setItem.call(this, key, value)
+    })
+    const createObjectURL = vi.fn(() => 'blob:saved-progress')
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+    render(<App />)
+    edit('print("Not yet")')
+    expect(window.localStorage.getItem(LEARNING_STORAGE_KEY)).toBe('{broken')
+    expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved yet')
+    expect(screen.getByText(/Saving is paused so it is not lost/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Download it' }))
+    expect(click).toHaveBeenCalledTimes(1)
+    expect(await (createObjectURL.mock.calls[0] as unknown as [Blob])[0].text()).toBe('{broken')
+    expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Code and progress saved')
+    expect(loadLearningState().state.lessons[loadLearningState().state.activeLessonId!]?.code).toBe('print("Not yet")')
   })
 
   it('offers the Python GenAI path, saves its progress, and keeps the real lab in lesson details', async () => {

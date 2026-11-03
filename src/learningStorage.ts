@@ -1,6 +1,8 @@
 import { LESSONS, type Section } from './examples'
 
 export const LEARNING_STORAGE_KEY = 'plp-learning-v1'
+/** Holds the last saved data that could not be read, so the next save cannot destroy it. */
+export const LEARNING_DAMAGED_KEY = 'plp-learning-v1-damaged'
 export const MAX_LESSON_CODE_LENGTH = 80_000
 export const MAX_LEARNING_STORAGE_LENGTH = 2_000_000
 
@@ -23,10 +25,16 @@ export type LearningState = {
 
 export type LearningStorage = Pick<Storage, 'getItem' | 'setItem'>
 
-export type LearningLoadResult = {
-  state: LearningState
-  status: 'loaded' | 'empty' | 'invalid' | 'unavailable'
-}
+export type LearningLoadResult =
+  | { state: LearningState; status: 'loaded' | 'empty' | 'unavailable' }
+  | {
+    state: LearningState
+    status: 'invalid'
+    /** The unreadable text, kept so the learner can download it. */
+    damagedRaw: string
+    /** True when a copy was written to LEARNING_DAMAGED_KEY; false means only the original still holds it. */
+    preserved: boolean
+  }
 
 export type LearningSaveStatus = 'saved' | 'unavailable' | 'too-large'
 
@@ -118,17 +126,23 @@ export function loadLearningState(
     return { state: emptyLearningState(), status: 'unavailable' }
   }
   if (raw === null) return { state: emptyLearningState(), status: 'empty' }
-  if (raw.length > MAX_LEARNING_STORAGE_LENGTH) {
-    return { state: emptyLearningState(), status: 'invalid' }
+  if (raw.length <= MAX_LEARNING_STORAGE_LENGTH) {
+    try {
+      const state = parseLearningState(JSON.parse(raw))
+      if (state) return { state, status: 'loaded' }
+    } catch {
+      // Falls through to keeping a copy of the unreadable data.
+    }
   }
+  return { state: emptyLearningState(), status: 'invalid', damagedRaw: raw, preserved: keepDamagedCopy(storage, raw) }
+}
+
+function keepDamagedCopy(storage: LearningStorage, raw: string): boolean {
   try {
-    const value: unknown = JSON.parse(raw)
-    const state = parseLearningState(value)
-    return state
-      ? { state, status: 'loaded' }
-      : { state: emptyLearningState(), status: 'invalid' }
+    storage.setItem(LEARNING_DAMAGED_KEY, raw)
+    return true
   } catch {
-    return { state: emptyLearningState(), status: 'invalid' }
+    return false
   }
 }
 

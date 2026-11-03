@@ -2623,6 +2623,32 @@
   background: var(--warn);
 }
 
+.footer-damaged {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.2rem 0.5rem;
+  color: var(--text);
+}
+
+.footer-damaged-download {
+  font: inherit;
+  font-weight: 600;
+  color: var(--accent-deep);
+  background: none;
+  border: 0;
+  padding: 0.1rem 0.15rem;
+  border-radius: 0.25rem;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.footer-damaged-download:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 .footer-hint {
   color: color-mix(in srgb, var(--muted) 85%, transparent);
 }
