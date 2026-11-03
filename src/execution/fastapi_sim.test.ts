@@ -1,6 +1,7 @@
 import { execFileSync } from 'node:child_process'
 import path from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { PYTHON_PRELUDE } from './instrument'
 
 const SIM = path.resolve('src/execution/fastapi_sim.py')
 
@@ -170,6 +171,59 @@ def question(payload: dict):
       path: '/missing',
     })
     expect(result.status).toBe(404)
+  })
+
+  it('awaits an async def route instead of returning the coroutine', () => {
+    const result = sim({
+      source: `
+import asyncio
+from fastapi import FastAPI
+app = FastAPI()
+async def total(n: int) -> int:
+    await asyncio.sleep(0.01)
+    return n * 2
+@app.get("/double/{n}")
+async def double(n: int):
+    return {"n": await total(n)}
+`,
+      method: 'GET',
+      path: '/double/21',
+    })
+    expect(result.status).toBe(200)
+    expect(result.body).toEqual({ n: 42 })
+  })
+
+  it('awaits an async def route called from learner code that already runs in an event loop', () => {
+    const script = `import asyncio, json, sys
+sys.path.insert(0, ${JSON.stringify(path.resolve('src/execution'))})
+request = json.loads(sys.stdin.read())
+exec(request["prelude"], globals())
+print(json.dumps(asyncio.run(_plp_run_async(request["source"])), default=str))
+`
+    const source = `import asyncio
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+app = FastAPI()
+async def lookup(item_id: int):
+    await asyncio.sleep(0)
+    return {"id": item_id}
+@app.get("/items/{item_id}")
+async def read_item(item_id: int):
+    return await lookup(item_id)
+@app.get("/slow")
+async def slow():
+    await asyncio.sleep(1)
+    return {}
+client = TestClient(app)
+print(client.get("/items/7").json())
+client.get("/slow")
+`
+    const output = execFileSync('python3', ['-c', script], {
+      input: JSON.stringify({ source, prelude: PYTHON_PRELUDE }), encoding: 'utf8', timeout: 15_000,
+    })
+    const payload = JSON.parse(output) as { events: { kind: string; text?: string; message?: string }[] }
+    expect(payload.events[0]).toMatchObject({ kind: 'print', text: "{'id': 7}" })
+    expect(payload.events.at(-1)?.message).toMatch(/cannot pause an async route for a timer/)
   })
 
   it('Depends fails with a simulated-FastAPI error', () => {

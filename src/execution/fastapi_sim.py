@@ -638,7 +638,31 @@ def _call_handler(
             )
         if fallback is not inspect._empty and fallback is not ...:
             kwargs[name] = fallback
-    return fn(**kwargs)
+    return _finish_async(fn(**kwargs))
+
+
+def _finish_async(result: Any) -> Any:
+    """Run an ``async def`` route to its return value, as FastAPI awaits it."""
+    if not inspect.iscoroutine(result):
+        return result
+    import asyncio
+
+    try:
+        asyncio.get_running_loop()
+    except RuntimeError:
+        return asyncio.run(result)
+    # The playground already runs inside an event loop, so step the coroutine here.
+    # Plain awaits and asyncio.sleep(0) finish at once; a real wait cannot be paused for.
+    try:
+        while True:
+            if result.send(None) is not None:
+                result.close()
+                raise SimFastAPIError(
+                    "simulated FastAPI cannot pause an async route for a timer or "
+                    "task — remove the wait, or use await asyncio.sleep(0)"
+                )
+    except StopIteration as done:
+        return done.value
 
 
 def _http_result(
