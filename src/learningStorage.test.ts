@@ -116,7 +116,7 @@ describe('local learning storage', () => {
     expect(loadLearningState(full)).toMatchObject({ status: 'invalid', damagedRaw: raw, preserved: false })
   })
 
-  it('ignores unknown IDs, wrong-track locations and malformed drafts', () => {
+  it('retires unknown IDs and ignores wrong-track locations and malformed drafts', () => {
     const first = LESSONS[0]
     const second = LESSONS[1]
     window.localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify({
@@ -135,6 +135,10 @@ describe('local learning storage', () => {
     expect(state.lessons).toEqual({
       [second.id]: { code: 'print(2)', predictDone: true, verifiedCode: null, backups: [] },
     })
+    expect(state.retired).toEqual({ 'removed-lesson': { code: 'print(1)', predictDone: false, verifiedCode: null, backups: [] } })
+    const edited = updateLearningState(state, { lessonId: second.id, code: 'print(3)', predictDone: true })
+    expect(saveLearningState(edited)).toBe('saved')
+    expect(loadLearningState().state.retired?.['removed-lesson']?.code).toBe('print(1)')
     expect(updateLearningState(state, {
       lessonId: 'removed-lesson', code: '', predictDone: true,
     })).toBe(state)

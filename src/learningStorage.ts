@@ -1,4 +1,5 @@
 import { LESSONS, type Section } from './examples'
+import { resolveLessonId } from './lessonIds'
 
 export const LEARNING_STORAGE_KEY = 'plp-learning-v1'
 /** Holds the last saved data that could not be read, so the next save cannot destroy it. */
@@ -21,6 +22,8 @@ export type LearningState = {
   /** Last lesson opened in each menu section. */
   lastLessonByTrack: Partial<Record<Section, string>>
   lessons: Record<string, SavedLesson>
+  /** Drafts whose lesson no longer exists, kept untouched so a save never deletes a learner's code. */
+  retired?: Record<string, SavedLesson>
 }
 
 export type LearningStorage = Pick<Storage, 'getItem' | 'setItem'>
@@ -96,20 +99,51 @@ function readSavedLesson(value: unknown): SavedLesson | null {
   }
 }
 
+const MAX_BACKUPS = 20
+
+function stripBackups({ backups: _backups, ...draft }: SavedLesson): SavedDraft {
+  return draft
+}
+
 function parseLearningState(value: unknown): LearningState | null {
   if (!isRecord(value) || value.version !== 1 || !isRecord(value.lessons)) {
     return null
   }
   const state = emptyLearningState()
-  for (const lesson of LESSONS) {
-    const saved = readSavedLesson(value.lessons[lesson.id])
-    if (saved) state.lessons[lesson.id] = saved
-    if (value.activeLessonId === lesson.id) state.activeLessonId = lesson.id
-    if (
-      isRecord(value.lastLessonByTrack) &&
-      value.lastLessonByTrack[lesson.section] === lesson.id
-    ) {
-      state.lastLessonByTrack[lesson.section] = lesson.id
+  const retired: Record<string, SavedLesson> = {}
+  const moved: [string, SavedLesson][] = []
+  for (const [id, raw] of Object.entries(value.lessons)) {
+    const saved = readSavedLesson(raw)
+    if (!saved) continue
+    const current = resolveLessonId(id)
+    if (current === id) state.lessons[id] = saved
+    else if (current) moved.push([current, saved])
+    else retired[id] = saved
+  }
+  if (isRecord(value.retired)) {
+    for (const [id, raw] of Object.entries(value.retired)) {
+      const saved = readSavedLesson(raw)
+      if (!saved) continue
+      const current = id.endsWith('~moved') ? null : resolveLessonId(id)
+      if (current) moved.push([current, saved])
+      else if (!retired[id]) retired[id] = saved
+    }
+  }
+  for (const [id, saved] of moved) {
+    const existing = state.lessons[id]
+    if (!existing) state.lessons[id] = saved
+    else {
+      const backups = [...(existing.backups ?? []), ...(saved.backups ?? []), stripBackups(saved)]
+      if (backups.length <= MAX_BACKUPS) existing.backups = backups
+      else retired[`${id}~moved`] = saved
+    }
+  }
+  if (Object.keys(retired).length > 0) state.retired = retired
+  if (typeof value.activeLessonId === 'string') state.activeLessonId = resolveLessonId(value.activeLessonId)
+  if (isRecord(value.lastLessonByTrack)) {
+    for (const lesson of LESSONS) {
+      const saved = value.lastLessonByTrack[lesson.section]
+      if (typeof saved === 'string' && resolveLessonId(saved) === lesson.id) state.lastLessonByTrack[lesson.section] = lesson.id
     }
   }
   return state
@@ -200,6 +234,7 @@ export function updateLearningState(
   const current = starterFingerprint(lesson.code)
   const starter = !previous || input.code === lesson.code ? current : previous.starter
   return {
+    ...state,
     version: 1,
     activeLessonId: lesson.id,
     lastLessonByTrack: {
@@ -221,7 +256,7 @@ export function updateLearningState(
 
 export function restartLearningLesson(state: LearningState, id: string, starter: string): LearningState {
   const saved = state.lessons[id]
-  if (!LESSONS.some((lesson) => lesson.id === id) || !saved || saved.code === starter || (saved.backups?.length ?? 0) >= 20) return state
+  if (!LESSONS.some((lesson) => lesson.id === id) || !saved || saved.code === starter || (saved.backups?.length ?? 0) >= MAX_BACKUPS) return state
   const next = updateLearningState(state, { lessonId: id, code: starter, predictDone: false, verified: false })
   const backup: SavedDraft = { code: saved.code, predictDone: saved.predictDone, verifiedCode: saved.verifiedCode, ...(saved.starter ? { starter: saved.starter } : {}) }
   const nextDraft = next.lessons[id]

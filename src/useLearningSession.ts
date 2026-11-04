@@ -19,6 +19,7 @@ import {
   type LearningSaveStatus,
 } from './learningStorage'
 import { readSnapshotFromLocation } from './shareSnapshot'
+import { resolveLessonId } from './lessonIds'
 import { downloadText } from './downloadText'
 import { isServiceExerciseId } from './serviceExercise'
 import { previousServiceExercise, serviceStarterCode } from './curriculum/serviceLessons'
@@ -67,15 +68,17 @@ function selectLesson(state: LearningState, requestedId: string): LearningState 
 
 function initialSession(state: LearningState): LearningState {
   const shared = readSnapshotFromLocation()
-  if (shared && getLesson(shared.lessonId).id === shared.lessonId) {
+  const sharedId = shared ? resolveLessonId(shared.lessonId) : null
+  if (shared && sharedId) {
     return updateLearningState(state, {
-      lessonId: shared.lessonId,
+      lessonId: sharedId,
       code: shared.code,
       predictDone: true,
     })
   }
-  const queryId = new URLSearchParams(window.location.search).get('lesson')
-  if (queryId && getLesson(queryId).id === queryId) return selectLesson(state, queryId)
+  const queryParam = new URLSearchParams(window.location.search).get('lesson')
+  const queryId = queryParam ? resolveLessonId(queryParam) : null
+  if (queryId) return selectLesson(state, queryId)
   if (state.activeLessonId) return selectLesson(state, state.activeLessonId)
   const preference = readPreference('plp-section')
   const track = preference && isSection(preference) ? preference : DEFAULT_SECTION
