@@ -5,7 +5,8 @@ import { getLesson } from '../examples'
 import { BLANK, evaluateGoal } from '../goalCheck'
 import type { ResultEvent } from '../execution/protocol'
 import { BLANK_ANSWERS } from './blankAnswers'
-import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './fastapiEssentialsLessons'
+import { FASTAPI_BUILD_LESSON_DRAFTS } from './fastapiBuildLessons'
+import { FASTAPI_BUILD_LADDERS } from './fastapiBuildAnswers'
 import { FASTAPI_LADDER_LESSON_DRAFTS } from './fastapiLadderLessons'
 
 const SIM_DIR = path.resolve('src/execution')
@@ -24,7 +25,7 @@ function fill(code: string, answers: readonly string[]): string {
 }
 
 describe.skipIf(!hasPython)('FastAPI lessons in the simulator', () => {
-  it.each([...FASTAPI_LADDER_LESSON_DRAFTS, ...FASTAPI_ESSENTIALS_LESSON_DRAFTS].map((draft) => [draft.id] as const))('%s: the starter fails and the intended fill meets the goal', (id) => {
+  it.each([...FASTAPI_LADDER_LESSON_DRAFTS, ...FASTAPI_BUILD_LESSON_DRAFTS].map((draft) => [draft.id] as const))('%s: the starter fails and the intended fill meets the goal', (id) => {
     const lesson = getLesson(id)
     const answers = BLANK_ANSWERS[id]
     expect(answers, id).toBeDefined()
@@ -39,5 +40,24 @@ describe.skipIf(!hasPython)('FastAPI lessons in the simulator', () => {
     const progress = evaluateGoal(lesson, { code: solved, starterCode: lesson.code, events, status: 'success', executedCode: solved })
     expect(progress.missing, `${id}:\n${printed}`).toEqual([])
     expect(progress.met, id).toBe(true)
+  })
+})
+
+describe('FastAPI lessons where the learner writes the code', () => {
+  it('covers lessons 7-22 with one ??? each and a full hint ladder', () => {
+    expect(FASTAPI_BUILD_LESSON_DRAFTS.map((draft) => draft.number)).toEqual(Array.from({ length: 16 }, (_, index) => index + 7))
+    for (const draft of FASTAPI_BUILD_LESSON_DRAFTS) {
+      expect(draft.code.split(BLANK).length - 1, draft.id).toBe(1)
+      const ladder = FASTAPI_BUILD_LADDERS[draft.id]
+      expect(ladder, draft.id).toBeDefined()
+      for (const rung of [ladder.idea, ladder.tool, ladder.plan, ladder.shape]) expect(rung.length, draft.id).toBeGreaterThan(40)
+    }
+  })
+
+  it('leaves imports to the learner from lesson 15 on', () => {
+    for (const draft of FASTAPI_BUILD_LESSON_DRAFTS.filter((lesson) => lesson.number >= 15 && lesson.number <= 21)) {
+      expect(draft.code, draft.id).not.toMatch(/^(from|import) /m)
+      expect(BLANK_ANSWERS[draft.id][0], draft.id).toMatch(/^from fastapi import /m)
+    }
   })
 })

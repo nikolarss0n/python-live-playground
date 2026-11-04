@@ -1,3 +1,5 @@
+import { FASTAPI_BUILD_ANSWERS } from './fastapiBuildAnswers'
+
 /**
  * One working fill for each ??? in a lesson starter, in order. The hint bubble offers it as the last step;
  * other correct answers still pass the goal checks. Python tests run every entry against its starter.
@@ -435,22 +437,7 @@ export const BLANK_ANSWERS: Readonly<Record<string, readonly string[]>> = {
   'fastapi-ask-body': ['Question', 'post'],
   'fastapi-not-found': ['HTTPException', 'HTTPException'],
   'fastapi-async-route': ['async', 'await'],
-  'fastapi-post-create': ['201', 'note.text'],
-  'fastapi-field-limits': ['3', '5'],
-  'fastapi-query-limits': ['20', 'gt'],
-  'fastapi-response-model': ['UserOut', 'UserOut'],
-  'fastapi-depends': ['Depends', 'pagination'],
-  'fastapi-yield-dependency': ['yield', 'finally'],
-  'fastapi-current-user': ['401', '403'],
-  'fastapi-routers': ['"/users"', 'include_router'],
-  'fastapi-dependency-overrides': ['get_db', 'fake_db'],
-  'fastapi-test-asserts': ['404', '"Buy milk"'],
-  'api-fastapi-path-query': ['int', '2'],
-  'api-fastapi-body-model': ['False', 'Signup'],
-  'api-fastapi-http-errors': ['404', 'HTTPException'],
-  'api-fastapi-crud': ['todo', 'del TODOS[todo_id]'],
-  'api-fastapi-api-key': ['Header(None)', '403'],
-  'api-fastapi-pagination': ['offset:offset + limit', 'len(ITEMS)'],
+  ...FASTAPI_BUILD_ANSWERS,
   'api-support-knowledge-base': ['line[3:]', 'line.strip() + " "'],
   'api-fullstack-seed-table': ['"orders"', 'products'],
   'api-fullstack-select-where': ['city', 'temp_c DESC'],

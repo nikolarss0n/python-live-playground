@@ -4,7 +4,7 @@ import { getLesson } from '../examples'
 import { BLANK } from '../goalCheck'
 import { BLANK_ANSWERS } from './blankAnswers'
 import { ALGORITHM_PRACTICE_LESSON_DRAFTS } from './algorithmPracticeLessons'
-import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './fastapiEssentialsLessons'
+import { FASTAPI_BUILD_LESSON_DRAFTS } from './fastapiBuildLessons'
 import { FASTAPI_LADDER_LESSON_DRAFTS } from './fastapiLadderLessons'
 import { FOUNDATION_LESSON_DRAFTS } from './foundationLessons'
 import { FULLSTACK_LESSON_DRAFTS } from './fullstackLessons'
@@ -13,7 +13,7 @@ import { INTERVIEW_PATTERN_LESSON_DRAFTS } from './interviewPatternLessons'
 import { SUPPORT_AUTOMATION_LESSON_DRAFTS } from './supportAutomationLessons'
 
 const coveredElsewhere = new Set(
-  [...ALGORITHM_PRACTICE_LESSON_DRAFTS, ...FASTAPI_ESSENTIALS_LESSON_DRAFTS, ...FASTAPI_LADDER_LESSON_DRAFTS, ...FOUNDATION_LESSON_DRAFTS, ...FULLSTACK_LESSON_DRAFTS, ...HARNESS_LESSON_DRAFTS, ...INTERVIEW_PATTERN_LESSON_DRAFTS, ...SUPPORT_AUTOMATION_LESSON_DRAFTS].map((draft) => draft.id),
+  [...ALGORITHM_PRACTICE_LESSON_DRAFTS, ...FASTAPI_BUILD_LESSON_DRAFTS, ...FASTAPI_LADDER_LESSON_DRAFTS, ...FOUNDATION_LESSON_DRAFTS, ...FULLSTACK_LESSON_DRAFTS, ...HARNESS_LESSON_DRAFTS, ...INTERVIEW_PATTERN_LESSON_DRAFTS, ...SUPPORT_AUTOMATION_LESSON_DRAFTS].map((draft) => draft.id),
 )
 const hasPython = spawnSync('python3', ['--version']).status === 0
 

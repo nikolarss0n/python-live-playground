@@ -1,6 +1,7 @@
 import { explainSlot } from './blankSlot'
 import { ALGORITHM_LADDER_KICKERS, ALGORITHM_LAYERS } from './curriculum/algorithmLayers'
 import { HARNESS_LADDERS } from './curriculum/harnessLadders'
+import { FASTAPI_BUILD_LADDERS } from './curriculum/fastapiBuildAnswers'
 import { BLANK_ANSWERS } from './curriculum/blankAnswers'
 import type { Lesson } from './examples'
 import { BLANK } from './goalCheck'
@@ -100,7 +101,7 @@ export function blankHints(lesson: Lesson, code: string): BlankHint[] {
     const slot = starterBlank ? explainSlot(lesson.code, starterBlank.from) : explainSlot(code, blank.from)
     const inlineComment = /\S.*?#\s*(.+)$/.exec(starterLine)?.[1]?.trim()
     const commentClue = inlineComment && !inlineComment.includes(BLANK) ? [`The comment on this line says: “${inlineComment}”.`] : []
-    const ladder = ALGORITHM_LAYERS[lesson.id] ?? HARNESS_LADDERS[lesson.id]
+    const ladder = ALGORITHM_LAYERS[lesson.id] ?? HARNESS_LADDERS[lesson.id] ?? FASTAPI_BUILD_LADDERS[lesson.id]
     if (ladder) {
       // Algorithm bodies start empty: climb from the idea to the shape of the code; the Solution pill has the answer.
       const rungs = [ladder.idea, ladder.tool, ladder.plan, ladder.shape]

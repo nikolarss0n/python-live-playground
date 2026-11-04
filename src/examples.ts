@@ -19,7 +19,7 @@ import { STUDY_BOOK_PYTHON_LESSON_DRAFTS } from './curriculum/studyBookPythonLes
 import { STUDY_BOOK_PRACTICE_LESSON_DRAFTS } from './curriculum/studyBookPracticeLessons'
 import { INTERVIEW_PATTERN_LESSON_DRAFTS } from './curriculum/interviewPatternLessons'
 import { ALGORITHM_PRACTICE_LESSON_DRAFTS } from './curriculum/algorithmPracticeLessons'
-import { FASTAPI_ESSENTIALS_LESSON_DRAFTS } from './curriculum/fastapiEssentialsLessons'
+import { FASTAPI_BUILD_LESSON_DRAFTS } from './curriculum/fastapiBuildLessons'
 import { FASTAPI_LADDER_LESSON_DRAFTS } from './curriculum/fastapiLadderLessons'
 import { SUPPORT_AUTOMATION_LESSON_DRAFTS } from './curriculum/supportAutomationLessons'
 import { FULLSTACK_LESSON_DRAFTS } from './curriculum/fullstackLessons'
@@ -3162,7 +3162,7 @@ const LESSON_DRAFTS: LessonDraft[] = [
   ...INTERVIEW_PATTERN_LESSON_DRAFTS,
   ...ALGORITHM_PRACTICE_LESSON_DRAFTS,
   ...FASTAPI_LADDER_LESSON_DRAFTS,
-  ...FASTAPI_ESSENTIALS_LESSON_DRAFTS,
+  ...FASTAPI_BUILD_LESSON_DRAFTS,
   ...SUPPORT_AUTOMATION_LESSON_DRAFTS,
   ...FULLSTACK_LESSON_DRAFTS,
   ...SERVICE_LESSON_DRAFTS,
