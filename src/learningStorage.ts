@@ -13,12 +13,10 @@ export type SavedDraft = {
   verifiedCode: string | null
   /** Fingerprint of the lesson starter this draft was begun from; absent for drafts saved before fingerprints. */
   starter?: string
-}
-export type SavedLesson = SavedDraft & {
-  backups?: SavedDraft[]
   /** The code came from a shared link and has not been edited since, so it runs as untrusted. */
   shared?: true
 }
+export type SavedLesson = SavedDraft & { backups?: SavedDraft[] }
 
 export type LearningState = {
   version: 1
@@ -73,6 +71,12 @@ export function starterFingerprint(code: string): string {
 }
 
 const readFingerprint = (value: unknown) => typeof value === 'string' && /^[0-9a-f]{8}$/.test(value) ? { starter: value } : {}
+const readShared = (value: unknown) => (value === true ? { shared: true as const } : {})
+/** The draft fields a backup keeps, including whether the code is still untrusted. */
+const draftOf = (saved: SavedDraft): SavedDraft => ({
+  code: saved.code, predictDone: saved.predictDone, verifiedCode: saved.verifiedCode,
+  ...(saved.starter ? { starter: saved.starter } : {}), ...(saved.shared ? { shared: true as const } : {}),
+})
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -92,23 +96,19 @@ function readSavedLesson(value: unknown): SavedLesson | null {
     predictDone: value.predictDone,
     verifiedCode: value.verifiedCode === value.code ? value.code : null,
     ...readFingerprint(value.starter),
-    ...(value.shared === true ? { shared: true as const } : {}),
+    ...readShared(value.shared),
     backups: Array.isArray(value.backups)
       ? value.backups.filter(isRecord).filter((backup) =>
         typeof backup.code === 'string' && backup.code.length <= MAX_LESSON_CODE_LENGTH &&
         typeof backup.predictDone === 'boolean',
       ).flatMap((backup) => typeof backup.code === 'string' && typeof backup.predictDone === 'boolean'
-        ? [{ code: backup.code, predictDone: backup.predictDone, verifiedCode: backup.verifiedCode === backup.code ? backup.code : null, ...readFingerprint(backup.starter) }]
+        ? [{ code: backup.code, predictDone: backup.predictDone, verifiedCode: backup.verifiedCode === backup.code ? backup.code : null, ...readFingerprint(backup.starter), ...readShared(backup.shared) }]
         : [])
       : [],
   }
 }
 
 const MAX_BACKUPS = 20
-
-function stripBackups({ backups: _backups, shared: _shared, ...draft }: SavedLesson): SavedDraft {
-  return draft
-}
 
 function parseLearningState(value: unknown): LearningState | null {
   if (!isRecord(value) || value.version !== 1 || !isRecord(value.lessons)) {
@@ -138,7 +138,7 @@ function parseLearningState(value: unknown): LearningState | null {
     const existing = state.lessons[id]
     if (!existing) state.lessons[id] = saved
     else {
-      const backups = [...(existing.backups ?? []), ...(saved.backups ?? []), stripBackups(saved)]
+      const backups = [...(existing.backups ?? []), ...(saved.backups ?? []), draftOf(saved)]
       if (backups.length <= MAX_BACKUPS) existing.backups = backups
       else retired[`${id}~moved`] = saved
     }
@@ -264,7 +264,7 @@ export function restartLearningLesson(state: LearningState, id: string, starter:
   const saved = state.lessons[id]
   if (!LESSONS.some((lesson) => lesson.id === id) || !saved || saved.code === starter || (saved.backups?.length ?? 0) >= MAX_BACKUPS) return state
   const next = updateLearningState(state, { lessonId: id, code: starter, predictDone: false, verified: false })
-  const backup: SavedDraft = { code: saved.code, predictDone: saved.predictDone, verifiedCode: saved.verifiedCode, ...(saved.starter ? { starter: saved.starter } : {}) }
+  const backup = draftOf(saved)
   const nextDraft = next.lessons[id]
   const lesson = LESSONS.find((entry) => entry.id === id)
   if (!nextDraft || !lesson) return state
@@ -277,7 +277,7 @@ export function restoreLearningLesson(state: LearningState, id: string): Learnin
   const saved = state.lessons[id]
   const backup = saved?.backups?.at(-1)
   if (!saved || !backup) return state
-  const current: SavedDraft = { code: saved.code, predictDone: saved.predictDone, verifiedCode: saved.verifiedCode, ...(saved.starter ? { starter: saved.starter } : {}) }
+  const current = draftOf(saved)
   return {
     ...state,
     lessons: { ...state.lessons, [id]: { ...backup, backups: [...(saved.backups?.slice(0, -1) ?? []), current] } },

@@ -42,4 +42,29 @@ describe('worker message validation', () => {
     expect(readWorkerMessage('ready')).toBeNull()
     expect(readWorkerMessage({ type: 'failed', id: 'init', error: { a: 1 } })).toEqual({ type: 'failed', id: 'init', error: 'Python failed.' })
   })
+
+  it('shares one structure budget across all events in a message', () => {
+    const wide = { kind: 'list', length: 15_000, items: Array.from({ length: 15_000 }, () => ({ kind: 'atom', type: 'int', preview: '1' })) }
+    const result = readWorkerMessage({ type: 'result', id: 'r', durationMs: 1, events: [1, 2, 3].map(() => ({ kind: 'print', text: 'x', structure: wide })) })
+    if (result?.type !== 'result') throw new Error('expected a result')
+    expect(result.events).toHaveLength(3)
+    expect(result.events.filter((event) => 'structure' in event)).toHaveLength(1)
+  })
+
+  it('caps full-stack tables, rows and calls and replaces oversized bodies', () => {
+    const rows = Array.from({ length: 2_000 }, (_, i) => [i, 'extra'])
+    const result = readWorkerMessage({
+      type: 'result', id: 'r', durationMs: 1, events: [],
+      fullstack: {
+        tables: Array.from({ length: 80 }, (_, i) => ({ name: `t${i}`, count: 2_000, columns: [{ name: 'id', type: 'INTEGER' }], rows })),
+        calls: Array.from({ length: 900 }, () => ({ method: 'GET', path: '/', status: 200, body: 'x'.repeat(200_000) })),
+      },
+    })
+    if (result?.type !== 'result' || !result.fullstack) throw new Error('expected full-stack data')
+    expect(result.fullstack.tables).toHaveLength(50)
+    expect(result.fullstack.tables[0]?.rows).toHaveLength(500)
+    expect(result.fullstack.tables[0]?.rows[0]).toEqual([0])
+    expect(result.fullstack.calls).toHaveLength(500)
+    expect(result.fullstack.calls[0]?.body).toBe('[response body too large to show]')
+  })
 })

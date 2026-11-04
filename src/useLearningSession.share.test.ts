@@ -43,4 +43,16 @@ describe('opening a shared link', () => {
     expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("from a link")', predictDone: true }).lessons.printing?.shared).toBe(true)
     expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("edited")', predictDone: true }).lessons.printing?.shared).toBeUndefined()
   })
+
+  it('keeps the untrusted mark when a shared draft is backed up and restored', () => {
+    openShared('print("link X")')
+    const first = initialSession(emptyLearningState())
+    openShared('print("link Y")')
+    const second = initialSession(first)
+    expect(second.lessons.printing?.backups?.at(-1)).toMatchObject({ code: 'print("link X")', shared: true })
+    expect(saveLearningState(second)).toBe('saved')
+    const restored = restoreLearningLesson(loadLearningState().state, 'printing')
+    expect(restored.lessons.printing).toMatchObject({ code: 'print("link X")', shared: true })
+    expect(restored.lessons.printing?.backups?.at(-1)).toMatchObject({ code: 'print("link Y")', shared: true })
+  })
 })

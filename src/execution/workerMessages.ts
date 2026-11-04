@@ -10,6 +10,15 @@ import type { ApiCall, DbCell, DbTable, DiscoveredRoute, ErrorFrame, FullstackPa
 const MAX_EVENTS = 5_000
 const MAX_NODES = 20_000
 const MAX_DEPTH = 64
+const MAX_TABLES = 50
+const MAX_COLUMNS = 200
+const MAX_ROWS = 500
+const MAX_CALLS = 500
+const MAX_BODY_CHARS = 100_000
+
+/** Shared by every structure in one message, so many events cannot multiply the work. */
+type Budget = { nodes: number }
+const newBudget = (): Budget => ({ nodes: MAX_NODES })
 
 type Json = Record<string, unknown>
 
@@ -23,7 +32,7 @@ function withOptional<T extends Json>(base: T, extra: Json): T {
   return base
 }
 
-function readNode(value: unknown, budget: { nodes: number }, depth: number): CollectionNode | null {
+function readNode(value: unknown, budget: Budget, depth: number): CollectionNode | null {
   budget.nodes -= 1
   if (budget.nodes < 0 || depth > MAX_DEPTH || !isRecord(value) || !num(value.length) && value.kind !== 'atom') return null
   if (value.kind === 'atom') return str(value.type) && str(value.preview) ? { kind: 'atom', type: value.type, preview: value.preview } : null
@@ -53,9 +62,9 @@ function readNode(value: unknown, budget: { nodes: number }, depth: number): Col
   return null
 }
 
-function readStructure(value: unknown): { structure?: CollectionNode } {
+function readStructure(value: unknown, budget: Budget): { structure?: CollectionNode } {
   if (value === undefined || value === null) return {}
-  const node = readNode(value, { nodes: MAX_NODES }, 0)
+  const node = readNode(value, budget, 0)
   return node ? { structure: node } : {}
 }
 
@@ -69,14 +78,14 @@ function readFrames(value: unknown): ErrorFrame[] | undefined {
   )
 }
 
-export function readResultEvent(value: unknown): ResultEvent | null {
+export function readResultEvent(value: unknown, budget: Budget = newBudget()): ResultEvent | null {
   if (!isRecord(value)) return null
   const line = optNum(value.line)
   switch (value.kind) {
     case 'print':
-      return str(value.text) ? withOptional({ kind: 'print' as const, text: value.text, ...readStructure(value.structure) }, { line }) : null
+      return str(value.text) ? withOptional({ kind: 'print' as const, text: value.text, ...readStructure(value.structure, budget) }, { line }) : null
     case 'expr':
-      return str(value.value) && num(value.line) ? { kind: 'expr', value: value.value, line: value.line, ...readStructure(value.structure) } : null
+      return str(value.value) && num(value.line) ? { kind: 'expr', value: value.value, line: value.line, ...readStructure(value.structure, budget) } : null
     case 'warning':
       return str(value.text) ? withOptional({ kind: 'warning' as const, text: value.text }, { line }) : null
     case 'error':
@@ -108,21 +117,36 @@ function readChecks(value: unknown): ExerciseCheck[] | undefined {
     .map((check) => ({ id: check.id as string, label: check.label as string, passed: check.passed as boolean, detail: check.detail as string }))
 }
 
+/** A response body as JSON data, or a note when it cannot be shown safely. */
+function readBody(value: unknown): unknown {
+  try {
+    const text = JSON.stringify(value)
+    if (text === undefined) return null
+    return text.length <= MAX_BODY_CHARS ? JSON.parse(text) : '[response body too large to show]'
+  } catch {
+    return '[response body could not be shown]'
+  }
+}
+
 const isCell = (value: unknown): value is DbCell => value === null || str(value) || num(value)
 
 function readFullstack(value: unknown): FullstackPayload | undefined {
   if (!isRecord(value) || !Array.isArray(value.tables) || !Array.isArray(value.calls)) return undefined
-  const tables: DbTable[] = value.tables.filter(isRecord).filter((table) =>
+  const tables: DbTable[] = value.tables.slice(0, MAX_TABLES).filter(isRecord).filter((table) =>
     str(table.name) && num(table.count) && Array.isArray(table.columns) && Array.isArray(table.rows),
-  ).map((table) => ({
-    name: table.name as string,
-    count: table.count as number,
-    columns: (table.columns as unknown[]).filter(isRecord).filter((column) => str(column.name) && str(column.type))
-      .map((column) => ({ name: column.name as string, type: column.type as string })),
-    rows: (table.rows as unknown[]).filter((row): row is unknown[] => Array.isArray(row)).map((row) => row.map((cell) => (isCell(cell) ? cell : String(cell)))),
-  }))
-  const calls: ApiCall[] = value.calls.filter(isRecord).filter((call) => str(call.method) && str(call.path) && num(call.status))
-    .map((call) => ({ method: call.method as string, path: call.path as string, status: call.status as number, body: call.body }))
+  ).map((table) => {
+    const columns = (table.columns as unknown[]).slice(0, MAX_COLUMNS).filter(isRecord).filter((column) => str(column.name) && str(column.type))
+      .map((column) => ({ name: column.name as string, type: column.type as string }))
+    return {
+      name: table.name as string,
+      count: table.count as number,
+      columns,
+      rows: (table.rows as unknown[]).slice(0, MAX_ROWS).filter((row): row is unknown[] => Array.isArray(row))
+        .map((row) => row.slice(0, columns.length).map((cell) => (isCell(cell) ? cell : String(cell)))),
+    }
+  })
+  const calls: ApiCall[] = value.calls.slice(0, MAX_CALLS).filter(isRecord).filter((call) => str(call.method) && str(call.path) && num(call.status))
+    .map((call) => ({ method: call.method as string, path: call.path as string, status: call.status as number, body: readBody(call.body) }))
   return { tables, calls }
 }
 
@@ -138,7 +162,8 @@ export function readWorkerMessage(data: unknown): WorkerOutboundMessage | null {
       return str(data.id) ? { type: 'failed', id: data.id, error: str(data.error) ? data.error : 'Python failed.' } : null
     case 'result': {
       if (!str(data.id) || !Array.isArray(data.events)) return null
-      const events = data.events.slice(0, MAX_EVENTS).map(readResultEvent).filter((event): event is ResultEvent => event !== null)
+      const budget = newBudget()
+      const events = data.events.slice(0, MAX_EVENTS).map((event) => readResultEvent(event, budget)).filter((event): event is ResultEvent => event !== null)
       return withOptional({ type: 'result', id: data.id, events, durationMs: optNum(data.durationMs) ?? 0 }, {
         routes: readRoutes(data.routes),
         exerciseId: str(data.exerciseId) ? data.exerciseId : undefined,
