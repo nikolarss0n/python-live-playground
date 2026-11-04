@@ -160,6 +160,37 @@ describe('PythonRunner', () => {
     vi.useRealTimers()
   })
 
+  it('gives the next trusted run a fresh worker after untrusted code ran', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    const first = MockWorker.instances.at(-1)
+    await runner.run('print(1)')
+    await runner.run('print(2)')
+    expect(MockWorker.instances.at(-1)).toBe(first)
+    await runner.run('shared()', undefined, {}, true)
+    await runner.run('shared()', undefined, {}, true)
+    expect(MockWorker.instances.at(-1)).toBe(first)
+    await runner.run('mine()')
+    const fresh = MockWorker.instances.at(-1)
+    expect(fresh).not.toBe(first)
+    expect(first?.terminated).toBe(true)
+    await runner.run('mine_again()')
+    expect(MockWorker.instances.at(-1)).toBe(fresh)
+    runner.dispose()
+  })
+
+  it('ignores malformed results instead of passing them to the page', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    await runner.run('__HANG__')
+    const worker = MockWorker.instances.at(-1)
+    const id = runner.getSnapshot().runId
+    if (!worker || !id) throw new Error('Expected active worker')
+    worker.emit({ type: 'result', id, durationMs: 1, events: [{ kind: 'print', text: { x: 1 } }, { kind: 'print', text: 'ok' }] } as unknown as WorkerOutboundMessage)
+    expect(runner.getSnapshot().events).toEqual([{ kind: 'print', text: 'ok' }])
+    runner.dispose()
+  })
+
   it('boots the worker and becomes ready', async () => {
     const runner = new PythonRunner(1000)
     const statuses: string[] = []

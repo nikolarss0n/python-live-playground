@@ -1,3 +1,4 @@
+import { readWorkerMessage } from './workerMessages'
 import type {
   DiscoveredRoute,
   ExecutionStatus,
@@ -78,6 +79,8 @@ export type RunnerListener = (snapshot: RunnerSnapshot) => void
 export class PythonRunner {
   private worker: Worker | null = null
   private ready = false
+  /** The current worker has run untrusted code. */
+  private tainted = false
   /** True once the current worker failed to boot; it must be replaced, not awaited. */
   private initFailed = false
   private disposed = false
@@ -132,7 +135,11 @@ export class PythonRunner {
     await this.waitUntilReady()
   }
 
-  async run(code: string, exerciseId?: ExerciseId, options: RunCheckOptions = {}): Promise<void> {
+  /**
+   * `untrusted` marks code the learner did not write (a shared link). Python state survives between runs,
+   * so the next trusted run gets a fresh worker instead of one that untrusted code may have altered.
+   */
+  async run(code: string, exerciseId?: ExerciseId, options: RunCheckOptions = {}, untrusted = false): Promise<void> {
     if (this.disposed) return
     const trimmed = code
     const seq = ++this.requestSeq
@@ -166,7 +173,7 @@ export class PythonRunner {
       this.clearTimeout()
       this.activeId = null
       this.spawnWorker()
-    } else if (!this.worker || this.initFailed) {
+    } else if (!this.worker || this.initFailed || (this.tainted && !untrusted)) {
       this.spawnWorker()
     }
     // A worker that is still booting is reused rather than restarted.
@@ -213,6 +220,7 @@ export class PythonRunner {
       }
     }, this.timeoutMs)
 
+    if (untrusted) this.tainted = true
     this.post({ type: 'run', id, code: trimmed, exerciseId, ...options })
   }
 
@@ -307,6 +315,7 @@ export class PythonRunner {
   private spawnWorker(): void {
     this.terminateWorker()
     this.ready = false
+    this.tainted = false
     this.initFailed = false
     this.setSnapshot({
       ...this.snapshot,
@@ -318,9 +327,10 @@ export class PythonRunner {
       { type: 'module' },
     )
 
-    worker.onmessage = (event: MessageEvent<WorkerOutboundMessage>) => {
+    worker.onmessage = (event: MessageEvent<unknown>) => {
       if (this.worker !== worker) return
-      this.onWorkerMessage(event.data)
+      const message = readWorkerMessage(event.data)
+      if (message) this.onWorkerMessage(message)
     }
 
     worker.onerror = (event) => {

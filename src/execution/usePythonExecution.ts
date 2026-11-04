@@ -14,6 +14,8 @@ export type UsePythonExecutionOptions = {
   autoRun?: boolean
   exerciseId?: ExerciseId
   checkOptions?: RunCheckOptions
+  /** Editor code that came from someone else; running it taints the worker so the next other run starts fresh. */
+  untrustedCode?: string | null
 }
 
 const INITIAL: RunnerSnapshot = {
@@ -36,7 +38,10 @@ export function usePythonExecution(
     autoRun = true,
     exerciseId,
     checkOptions,
+    untrustedCode = null,
   } = options
+  const untrustedRef = useRef(untrustedCode)
+  untrustedRef.current = untrustedCode
 
   const runnerRef = useRef<PythonRunner | null>(null)
   const hasBeenReady = useRef(false)
@@ -80,7 +85,9 @@ export function usePythonExecution(
     consumedRevision.current = input.revision
     const runner = runnerRef.current
     if (!runner) return
-    if (input.checkOptions) await runner.run(source ?? input.code, input.exerciseId, input.checkOptions)
+    const untrusted = untrustedRef.current !== null && input.code === untrustedRef.current
+    if (untrusted) await runner.run(source ?? input.code, input.exerciseId, input.checkOptions ?? {}, true)
+    else if (input.checkOptions) await runner.run(source ?? input.code, input.exerciseId, input.checkOptions)
     else await runner.run(source ?? input.code, input.exerciseId)
   }, [clearDebounce])
 

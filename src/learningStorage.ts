@@ -14,7 +14,11 @@ export type SavedDraft = {
   /** Fingerprint of the lesson starter this draft was begun from; absent for drafts saved before fingerprints. */
   starter?: string
 }
-export type SavedLesson = SavedDraft & { backups?: SavedDraft[] }
+export type SavedLesson = SavedDraft & {
+  backups?: SavedDraft[]
+  /** The code came from a shared link and has not been edited since, so it runs as untrusted. */
+  shared?: true
+}
 
 export type LearningState = {
   version: 1
@@ -88,6 +92,7 @@ function readSavedLesson(value: unknown): SavedLesson | null {
     predictDone: value.predictDone,
     verifiedCode: value.verifiedCode === value.code ? value.code : null,
     ...readFingerprint(value.starter),
+    ...(value.shared === true ? { shared: true as const } : {}),
     backups: Array.isArray(value.backups)
       ? value.backups.filter(isRecord).filter((backup) =>
         typeof backup.code === 'string' && backup.code.length <= MAX_LESSON_CODE_LENGTH &&
@@ -101,7 +106,7 @@ function readSavedLesson(value: unknown): SavedLesson | null {
 
 const MAX_BACKUPS = 20
 
-function stripBackups({ backups: _backups, ...draft }: SavedLesson): SavedDraft {
+function stripBackups({ backups: _backups, shared: _shared, ...draft }: SavedLesson): SavedDraft {
   return draft
 }
 
@@ -248,6 +253,7 @@ export function updateLearningState(
         predictDone: input.predictDone,
         verifiedCode,
         ...(starter ? { starter } : {}),
+        ...(previous?.shared && previous.code === input.code ? { shared: true as const } : {}),
         backups: previous?.backups ?? [],
       },
     },
@@ -291,4 +297,11 @@ export function acknowledgeStarter(state: LearningState, id: string): LearningSt
   const lesson = LESSONS.find((entry) => entry.id === id)
   if (!saved || !lesson) return state
   return { ...state, lessons: { ...state.lessons, [id]: { ...saved, starter: starterFingerprint(lesson.code) } } }
+}
+
+/** Opens code from a shared link in a lesson and marks it untrusted until the learner edits it. */
+export function openSharedCode(state: LearningState, id: string, code: string): LearningState {
+  const next = updateLearningState(state, { lessonId: id, code, predictDone: true })
+  const draft = next.lessons[id]
+  return draft ? { ...next, lessons: { ...next.lessons, [id]: { ...draft, shared: true } } } : next
 }

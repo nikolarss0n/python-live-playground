@@ -192,6 +192,7 @@ export default function App() {
   const stdinOption = showInputs ? { stdin: inputsText } : {}
   const { snapshot: runSnapshot, runNow: runCode, stop } = usePythonExecution(code, {
     exerciseId,
+    untrustedCode: learning.untrustedCode,
     checkOptions: refresherDay
       ? { context: study.context, contextKey: checkContextKey, ...stdinOption }
       : lessonFullstack ? { fullstack: { seed, calls: fullstackCalls, ...(chosenDatasets ? { datasets: chosenDatasets } : {}) }, ...stdinOption }

@@ -13,6 +13,7 @@ import {
   updateLearningState,
   restartLearningLesson,
   restoreLearningLesson,
+  openSharedCode,
   starterUpdated,
   acknowledgeStarter,
   type LearningState,
@@ -66,15 +67,16 @@ function selectLesson(state: LearningState, requestedId: string): LearningState 
   })
 }
 
-function initialSession(state: LearningState): LearningState {
+export function initialSession(state: LearningState): LearningState {
   const shared = readSnapshotFromLocation()
   const sharedId = shared ? resolveLessonId(shared.lessonId) : null
   if (shared && sharedId) {
-    return updateLearningState(state, {
-      lessonId: sharedId,
-      code: shared.code,
-      predictDone: true,
-    })
+    // A shared link must never cost the learner their own draft: keep it as a restorable backup first.
+    const existing = state.lessons[sharedId]
+    const needsBackup = existing !== undefined && existing.code !== shared.code
+    const base = needsBackup ? restartLearningLesson(state, sharedId, shared.code) : state
+    // With the backup list full, the draft wins and the shared code is not opened.
+    if (!needsBackup || base !== state) return openSharedCode(base, sharedId, shared.code)
   }
   const queryParam = new URLSearchParams(window.location.search).get('lesson')
   const queryId = queryParam ? resolveLessonId(queryParam) : null
@@ -234,6 +236,8 @@ export function useLearningSession() {
     restart,
     restore,
     canRestore: (draft?.backups?.length ?? 0) > 0,
+    /** Code from a shared link that the learner has not edited yet; it runs in a worker that is replaced afterwards. */
+    untrustedCode: draft?.shared ? draft.code : null,
     recoveryMessage,
     /** The lesson's starter changed after this draft was begun. */
     starterUpdated: starterUpdated(state, lesson.id),

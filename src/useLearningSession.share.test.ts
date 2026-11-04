@@ -1,0 +1,46 @@
+import { afterEach, describe, expect, it } from 'vitest'
+import { emptyLearningState, loadLearningState, restoreLearningLesson, saveLearningState, updateLearningState } from './learningStorage'
+import { encodeSnapshot } from './shareSnapshot'
+import { initialSession } from './useLearningSession'
+
+function openShared(code: string) {
+  window.history.replaceState(null, '', `/#${encodeSnapshot({ v: 1, lessonId: 'printing', difficulty: 'beginner', code })}`)
+}
+
+describe('opening a shared link', () => {
+  afterEach(() => { window.history.replaceState(null, '', '/'); window.localStorage.clear() })
+
+  it('keeps the learner draft as a restorable backup before showing the shared code', () => {
+    const mine = updateLearningState(emptyLearningState(), { lessonId: 'printing', code: 'print("my work")', predictDone: true, verified: true })
+    openShared('print("from a link")')
+    const state = initialSession(mine)
+    expect(state.activeLessonId).toBe('printing')
+    expect(state.lessons.printing?.code).toBe('print("from a link")')
+    expect(restoreLearningLesson(state, 'printing').lessons.printing?.code).toBe('print("my work")')
+  })
+
+  it('does not replace the draft when no backup slot is left', () => {
+    let mine = updateLearningState(emptyLearningState(), { lessonId: 'printing', code: 'print("my work")', predictDone: true })
+    mine = { ...mine, lessons: { printing: { ...mine.lessons.printing!, backups: Array.from({ length: 20 }, (_, i) => ({ code: `b${i}`, predictDone: false, verifiedCode: null })) } } }
+    openShared('print("from a link")')
+    expect(initialSession(mine).lessons.printing?.code).toBe('print("my work")')
+  })
+
+  it('opens the shared code directly when there is no draft yet', () => {
+    openShared('print("from a link")')
+    const state = initialSession(emptyLearningState())
+    expect(state.lessons.printing?.code).toBe('print("from a link")')
+    expect(state.lessons.printing?.backups).toEqual([])
+  })
+
+  it('marks shared code untrusted until the learner edits it, across a save and reload', () => {
+    openShared('print("from a link")')
+    const state = initialSession(emptyLearningState())
+    expect(state.lessons.printing?.shared).toBe(true)
+    expect(saveLearningState(state)).toBe('saved')
+    const reloaded = loadLearningState().state
+    expect(reloaded.lessons.printing?.shared).toBe(true)
+    expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("from a link")', predictDone: true }).lessons.printing?.shared).toBe(true)
+    expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("edited")', predictDone: true }).lessons.printing?.shared).toBeUndefined()
+  })
+})
