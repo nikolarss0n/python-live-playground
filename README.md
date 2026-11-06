@@ -69,7 +69,7 @@ Learner Python can reach JavaScript through Pyodide, so the worker is treated as
 
 - `npm run dev` and `npm run preview` serve the worker with its own Content-Security-Policy (`vite.workerCsp.ts`): it may load scripts from this origin and Pyodide from `cdn.jsdelivr.net`, fetch only from that CDN, and start no workers. Python therefore cannot call the local Jev proxy or send data elsewhere. **Static hosting must send the same header** for `assets/python.worker-*.js`, using `PYTHON_WORKER_CSP`.
 - Messages from the worker are rebuilt field by field before the page uses them (`src/execution/workerMessages.ts`).
-- Code opened from a shared link is untrusted until you edit it: your own draft is kept as a restorable backup, and the next run of other code starts a fresh worker.
+- Code opened from a shared link is untrusted until you edit it: it waits for you to press Run, your own draft is kept as a restorable backup, and the next run of other code starts a fresh worker.
 
 ## What this MVP includes
 

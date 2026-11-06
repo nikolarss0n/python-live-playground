@@ -44,6 +44,7 @@ import { useRefresherSession } from './refresher/useRefresherSession'
 import { RefresherPanel } from './refresher/RefresherPanel'
 import { JevPill } from './jev/JevPill'
 import { StarterUpdatedPill } from './components/StarterUpdatedPill'
+import { SharedCodePill } from './components/SharedCodePill'
 import { ConceptPills } from './refresher/ConceptPills'
 import { useJevPinpoint } from './jev/useJevPinpoint'
 import { useJevGoalCheck } from './jev/useJevGoalCheck'
@@ -193,6 +194,8 @@ export default function App() {
   const { snapshot: runSnapshot, runNow: runCode, stop } = usePythonExecution(code, {
     exerciseId,
     untrustedCode: learning.untrustedCode,
+    // Code from a shared link waits for Run: opening a link must not execute someone else's code.
+    autoRun: learning.untrustedCode === null,
     checkOptions: refresherDay
       ? { context: study.context, contextKey: checkContextKey, ...stdinOption }
       : lessonFullstack ? { fullstack: { seed, calls: fullstackCalls, ...(chosenDatasets ? { datasets: chosenDatasets } : {}) }, ...stdinOption }
@@ -205,6 +208,7 @@ export default function App() {
     setTouchedLessonId(lessonId)
     return runCode()
   }, [lessonId, runCode])
+  const sharedNotRun = learning.untrustedCode !== null && runSnapshot.status !== 'running' && runSnapshot.executedCode !== code
   const onEditorChange = useCallback((next: string) => {
     setTouchedLessonId(lessonId)
     setCode(next)
@@ -727,9 +731,10 @@ export default function App() {
               onRun={() => void runNow()}
             /> : null}
           </div>
-          {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
+          {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || sharedNotRun || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
             {blankCount > 0 ? <HintPill blanks={blankCount} onClick={showNextHint} /> : null}
             {solutionAnswers ? <SolutionPill starter={activeLesson.code} answers={solutionAnswers} open={solutionOpen} onToggle={() => setSolutionFor(solutionOpen ? null : activeLesson.id)} /> : null}
+            {sharedNotRun ? <SharedCodePill onRun={() => void runNow()} /> : null}
             {learning.starterUpdated ? <StarterUpdatedPill onRestart={restartLesson} onKeep={learning.keepDraft} /> : null}
             {jev.state.status !== 'off' ? <JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /> : null}
             {showConceptPills && refresherDay ? <ConceptPills key={refresherDay.id} concepts={refresherDay.concepts} /> : null}
