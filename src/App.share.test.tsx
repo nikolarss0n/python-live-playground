@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { LEARNING_STORAGE_KEY } from './learningStorage'
 import { encodeSnapshot } from './shareSnapshot'
 
 const runNow = vi.fn()
@@ -60,6 +61,20 @@ describe('opening a shared link', () => {
     await userEvent.type(screen.getByLabelText('Python source'), ' ')
     expect(latest.autoRun).toBe(true)
     expect(screen.queryByRole('button', { name: 'Run it' })).not.toBeInTheDocument()
+  })
+
+  it('says so when a shared link is left closed, and lets the notice be dismissed', async () => {
+    const backups = Array.from({ length: 20 }, (_, index) => ({ code: `b${index}`, predictDone: false, verifiedCode: null }))
+    window.localStorage.setItem(LEARNING_STORAGE_KEY, JSON.stringify({
+      version: 1, activeLessonId: 'printing', lastLessonByTrack: {},
+      lessons: { printing: { code: 'print("my work")', predictDone: true, backups } },
+    }))
+    openLink()
+    render(<App />)
+    expect(screen.getByLabelText('Python source')).toHaveValue('print("my work")')
+    expect(screen.getByText(/link not opened/i)).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText(/link not opened/i)).not.toBeInTheDocument()
   })
 
   it('leaves ordinary lessons on automatic runs', () => {

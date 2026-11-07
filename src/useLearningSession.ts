@@ -90,12 +90,22 @@ export function initialSession(state: LearningState): LearningState {
 /** Earlier saved data could not be read: kept as a backup copy, or still in place with saving paused. */
 export type DamagedNotice = 'kept' | 'blocked'
 
+/** True when the address holds a shared link that initialSession could not open. */
+export function sharedLinkSkipped(state: LearningState): boolean {
+  const shared = readSnapshotFromLocation()
+  const id = shared ? resolveLessonId(shared.lessonId) : null
+  return shared !== null && id !== null && state.lessons[id]?.code !== shared.code
+}
+
 export function useLearningSession() {
   const [initial] = useState(() => {
     const load = loadLearningState()
-    return { load, state: initialSession(load.state) }
+    const state = initialSession(load.state)
+    return { load, state, skippedLink: sharedLinkSkipped(state) }
   })
   const [state, setState] = useState(initial.state)
+  const [skippedLink, setSkippedLink] = useState(initial.skippedLink)
+  const dismissSkippedLink = useCallback(() => setSkippedLink(false), [])
   const damage = initial.load.status === 'invalid' ? initial.load : null
   // Unreadable data with no backup copy must not be overwritten until the learner has downloaded it.
   const [savesBlocked, setSavesBlocked] = useState(damage !== null && !damage.preserved)
@@ -238,6 +248,9 @@ export function useLearningSession() {
     canRestore: (draft?.backups?.length ?? 0) > 0,
     /** Code from a shared link that the learner has not edited yet; it runs in a worker that is replaced afterwards. */
     untrustedCode: draft?.shared ? draft.code : null,
+    /** A shared link was left closed because that lesson has no backup slot for the learner's draft. */
+    skippedLink,
+    dismissSkippedLink,
     recoveryMessage,
     /** The lesson's starter changed after this draft was begun. */
     starterUpdated: starterUpdated(state, lesson.id),

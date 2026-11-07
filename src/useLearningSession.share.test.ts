@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import { emptyLearningState, loadLearningState, restoreLearningLesson, saveLearningState, updateLearningState } from './learningStorage'
 import { encodeSnapshot } from './shareSnapshot'
-import { initialSession } from './useLearningSession'
+import { initialSession, sharedLinkSkipped } from './useLearningSession'
 
 function openShared(code: string) {
   window.history.replaceState(null, '', `/#${encodeSnapshot({ v: 1, lessonId: 'printing', difficulty: 'beginner', code })}`)
@@ -23,7 +23,9 @@ describe('opening a shared link', () => {
     let mine = updateLearningState(emptyLearningState(), { lessonId: 'printing', code: 'print("my work")', predictDone: true })
     mine = { ...mine, lessons: { printing: { ...mine.lessons.printing!, backups: Array.from({ length: 20 }, (_, i) => ({ code: `b${i}`, predictDone: false, verifiedCode: null })) } } }
     openShared('print("from a link")')
-    expect(initialSession(mine).lessons.printing?.code).toBe('print("my work")')
+    const state = initialSession(mine)
+    expect(state.lessons.printing?.code).toBe('print("my work")')
+    expect(sharedLinkSkipped(state)).toBe(true)
   })
 
   it('opens the shared code directly when there is no draft yet', () => {
@@ -31,6 +33,7 @@ describe('opening a shared link', () => {
     const state = initialSession(emptyLearningState())
     expect(state.lessons.printing?.code).toBe('print("from a link")')
     expect(state.lessons.printing?.backups).toEqual([])
+    expect(sharedLinkSkipped(state)).toBe(false)
   })
 
   it('marks shared code untrusted until the learner edits it, across a save and reload', () => {

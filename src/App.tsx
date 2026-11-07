@@ -44,7 +44,7 @@ import { useRefresherSession } from './refresher/useRefresherSession'
 import { RefresherPanel } from './refresher/RefresherPanel'
 import { JevPill } from './jev/JevPill'
 import { StarterUpdatedPill } from './components/StarterUpdatedPill'
-import { SharedCodePill } from './components/SharedCodePill'
+import { SharedCodePill, SharedLinkSkippedPill } from './components/SharedCodePill'
 import { ConceptPills } from './refresher/ConceptPills'
 import { useJevPinpoint } from './jev/useJevPinpoint'
 import { useJevGoalCheck } from './jev/useJevGoalCheck'
@@ -731,10 +731,11 @@ export default function App() {
               onRun={() => void runNow()}
             /> : null}
           </div>
-          {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || sharedNotRun || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
+          {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || sharedNotRun || learning.skippedLink || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
             {blankCount > 0 ? <HintPill blanks={blankCount} onClick={showNextHint} /> : null}
             {solutionAnswers ? <SolutionPill starter={activeLesson.code} answers={solutionAnswers} open={solutionOpen} onToggle={() => setSolutionFor(solutionOpen ? null : activeLesson.id)} /> : null}
             {sharedNotRun ? <SharedCodePill onRun={() => void runNow()} /> : null}
+            {learning.skippedLink ? <SharedLinkSkippedPill onDismiss={learning.dismissSkippedLink} /> : null}
             {learning.starterUpdated ? <StarterUpdatedPill onRestart={restartLesson} onKeep={learning.keepDraft} /> : null}
             {jev.state.status !== 'off' ? <JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /> : null}
             {showConceptPills && refresherDay ? <ConceptPills key={refresherDay.id} concepts={refresherDay.concepts} /> : null}

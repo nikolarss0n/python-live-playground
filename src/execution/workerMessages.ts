@@ -85,7 +85,11 @@ export function readResultEvent(value: unknown, budget: Budget = newBudget()): R
     case 'print':
       return str(value.text) ? withOptional({ kind: 'print' as const, text: value.text, ...readStructure(value.structure, budget) }, { line }) : null
     case 'expr':
-      return str(value.value) && num(value.line) ? { kind: 'expr', value: value.value, line: value.line, ...readStructure(value.structure, budget) } : null
+      if (!str(value.value)) return null
+      // Results sit beside a source line, so one without a line is shown as plain output rather than lost.
+      return line === undefined
+        ? { kind: 'print', text: value.value, ...readStructure(value.structure, budget) }
+        : { kind: 'expr', value: value.value, line, ...readStructure(value.structure, budget) }
     case 'warning':
       return str(value.text) ? withOptional({ kind: 'warning' as const, text: value.text }, { line }) : null
     case 'error':

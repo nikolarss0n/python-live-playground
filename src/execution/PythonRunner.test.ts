@@ -10,6 +10,7 @@ class MockWorker {
   static holdInit = false
   onmessage: Handler | null = null
   onerror: ((event: ErrorEvent) => void) | null = null
+  onmessageerror: (() => void) | null = null
   terminated = false
   posted: unknown[] = []
   url: URL | string
@@ -188,6 +189,17 @@ describe('PythonRunner', () => {
     if (!worker || !id) throw new Error('Expected active worker')
     worker.emit({ type: 'result', id, durationMs: 1, events: [{ kind: 'print', text: { x: 1 } }, { kind: 'print', text: 'ok' }] } as unknown as WorkerOutboundMessage)
     expect(runner.getSnapshot().events).toEqual([{ kind: 'print', text: 'ok' }])
+    runner.dispose()
+  })
+
+  it('ends the run with an error when a worker message cannot be decoded', async () => {
+    const runner = new PythonRunner(1000)
+    await runner.start()
+    await runner.run('__HANG__')
+    const worker = MockWorker.instances.at(-1)
+    if (!worker) throw new Error('Expected active worker')
+    worker.onmessageerror?.()
+    expect(runner.getSnapshot()).toMatchObject({ status: 'error', error: 'Python sent a result that could not be read.' })
     runner.dispose()
   })
 

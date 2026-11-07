@@ -7,3 +7,13 @@ export function SharedCodePill({ onRun }: { onRun: () => void }) {
     </span>
   )
 }
+
+/** Shown when a shared link stayed closed, because opening it would have cost the learner a draft. */
+export function SharedLinkSkippedPill({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <span className="starter-pill" role="status">
+      <span className="starter-pill-text">Link not opened: backups full.</span>
+      <button type="button" className="starter-pill-action is-quiet" onClick={onDismiss}>Dismiss</button>
+    </span>
+  )
+}

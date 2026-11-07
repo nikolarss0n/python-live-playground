@@ -67,4 +67,10 @@ describe('worker message validation', () => {
     expect(result.fullstack.calls).toHaveLength(500)
     expect(result.fullstack.calls[0]?.body).toBe('[response body too large to show]')
   })
+
+  it('shows an expression without a line as plain output instead of losing it', () => {
+    expect(readResultEvent({ kind: 'expr', value: '42' })).toEqual({ kind: 'print', text: '42' })
+    expect(readResultEvent({ kind: 'expr', value: '42', line: 3 })).toEqual({ kind: 'expr', value: '42', line: 3 })
+    expect(readResultEvent({ kind: 'expr', value: 42 })).toBeNull()
+  })
 })

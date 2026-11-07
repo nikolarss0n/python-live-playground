@@ -333,6 +333,11 @@ export class PythonRunner {
       if (message) this.onWorkerMessage(message)
     }
 
+    worker.onmessageerror = () => {
+      if (this.worker !== worker || !this.activeId) return
+      this.finishWithError(this.activeId, 'Python sent a result that could not be read.')
+    }
+
     worker.onerror = (event) => {
       if (this.worker !== worker) return
       const message = event.message || 'Worker error'
