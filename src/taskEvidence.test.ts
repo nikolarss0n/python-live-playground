@@ -179,6 +179,12 @@ describe('withLessonAwareErrorTip', () => {
     expect(aware.tip).toMatch(/replace \?\?\?/i)
     expect(aware.tip).toMatch(/name/i)
   })
+
+  it('keeps the reload tip when Python itself stopped', () => {
+    const lesson = getLesson('variables')
+    const runner = explainError('RunnerError: Python stopped working in this tab.')
+    expect(withLessonAwareErrorTip(runner, lesson, lesson.code).tip).toMatch(/Reload the page/)
+  })
 })
 
 describe('enrichResultEvents', () => {

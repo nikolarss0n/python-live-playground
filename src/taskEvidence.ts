@@ -267,7 +267,7 @@ export function withLessonAwareErrorTip(
   lesson: Lesson,
   code: string,
 ): ErrorExplanation {
-  if (lesson.difficulty !== 'beginner' || !code.includes(BLANK)) {
+  if (lesson.difficulty !== 'beginner' || !code.includes(BLANK) || explanation.name === 'RunnerError') {
     return explanation
   }
   return {

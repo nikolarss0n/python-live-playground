@@ -10,7 +10,8 @@ export const PYTHON_WORKER_CSP = [
   "default-src 'none'",
   `script-src 'self' ${PYODIDE_CDN} 'wasm-unsafe-eval'`,
   `connect-src ${PYODIDE_CDN}`,
-  "worker-src 'none'",
+  // Firefox checks a module worker's own imports against worker-src, so it must allow what script-src allows.
+  `worker-src 'self' ${PYODIDE_CDN}`,
 ].join('; ')
 
 /** Dev serves `/src/execution/python.worker.ts?worker_file…`; a build emits `/assets/python.worker-<hash>.js`. */

@@ -575,6 +575,15 @@ export function explainError(
       }
     }
 
+    case 'RunnerError':
+      return {
+        title: 'Python stopped',
+        name,
+        detail,
+        summary: 'The Python engine in this tab failed to load or crashed. This is not a problem with your code.',
+        tip: 'Reload the page, then run again. Your code is saved.',
+      }
+
     default:
       return {
         title: name.replace(/([a-z])([A-Z])/g, '$1 $2'),

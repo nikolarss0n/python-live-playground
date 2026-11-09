@@ -368,6 +368,11 @@ describe('PythonRunner', () => {
       expect(runner.getSnapshot()).toMatchObject({
         status: 'error', exerciseId: 'service-validation', executedCode: '__HANG__', checks: [],
       })
+      if (kind === 'error') {
+        expect(runner.getSnapshot().events[0]).toMatchObject({
+          kind: 'error', message: 'RunnerError: Python stopped working in this tab.', traceback: 'Worker crashed',
+        })
+      }
     }
     runner.dispose()
   })

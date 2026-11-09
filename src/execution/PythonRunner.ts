@@ -17,6 +17,9 @@ import {
   lineFromSource,
 } from './errorExplain'
 
+/** Shown when the worker itself fails, so the learner knows it is not their code. */
+const RUNNER_ERROR = 'RunnerError: Python stopped working in this tab.'
+
 function makeErrorEvent(
   message: string,
   traceback: string,
@@ -340,14 +343,15 @@ export class PythonRunner {
 
     worker.onerror = (event) => {
       if (this.worker !== worker) return
-      const message = event.message || 'Worker error'
+      const message = RUNNER_ERROR
+      const traceback = event.message || 'The Python worker failed to load or crashed without a message.'
       if (!this.ready) this.failInit()
       if (this.activeId) {
-        this.finishWithError(this.activeId, message)
+        this.finishWithError(this.activeId, message, traceback)
       } else {
         this.setSnapshot({
           status: 'error',
-          events: [makeErrorEvent(message, message)],
+          events: [makeErrorEvent(message, traceback)],
           durationMs: null,
           runId: null,
           error: message,
@@ -498,7 +502,7 @@ export class PythonRunner {
     }
   }
 
-  private finishWithError(id: string, error: string): void {
+  private finishWithError(id: string, error: string, traceback = error): void {
     const exerciseId = this.activeExerciseId
     const contextKey = this.activeContextKey
     this.clearTimeout()
@@ -507,7 +511,7 @@ export class PythonRunner {
     this.activeContextKey = undefined
     this.setSnapshot({
       status: 'error',
-      events: [makeErrorEvent(error, error)],
+      events: [makeErrorEvent(error, traceback)],
       durationMs: null,
       runId: id,
       error,

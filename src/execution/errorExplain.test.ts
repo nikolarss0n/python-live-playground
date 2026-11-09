@@ -132,6 +132,13 @@ describe('C-style for-loop coaching', () => {
     expect(e.summary.toLowerCase()).toMatch(/browser|stuck|loop/)
     expect(e.example).toMatch(/while n < 3/)
   })
+
+  it('tells the learner a runner failure is not their code', () => {
+    const e = explainError('RunnerError: Python stopped working in this tab.')
+    expect(e.title).toBe('Python stopped')
+    expect(e.summary).toMatch(/not a problem with your code/)
+    expect(e.tip).toMatch(/Reload the page/)
+  })
 })
 
 describe('precise Python syntax guidance', () => {

@@ -14,6 +14,7 @@ describe('Python worker content security policy', () => {
     const connect = PYTHON_WORKER_CSP.split('; ').find((part) => part.startsWith('connect-src'))
     expect(connect).toBe('connect-src https://cdn.jsdelivr.net')
     expect(PYTHON_WORKER_CSP).toContain("default-src 'none'")
-    expect(PYTHON_WORKER_CSP).toContain("worker-src 'none'")
+    // worker-src 'none' blocks the worker's own module imports in Firefox.
+    expect(PYTHON_WORKER_CSP).toContain("worker-src 'self' https://cdn.jsdelivr.net")
   })
 })
