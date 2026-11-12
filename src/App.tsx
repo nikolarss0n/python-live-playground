@@ -204,10 +204,14 @@ export default function App() {
   const [touchedLessonId, setTouchedLessonId] = useState<string | null>(null)
   const [runBeforeReset, setRunBeforeReset] = useState<string | null>(null)
   const [solutionFor, setSolutionFor] = useState<string | null>(null)
+  const { untrustedCode, trustSharedDraft } = learning
   const runNow = useCallback(() => {
     setTouchedLessonId(lessonId)
-    return runCode()
-  }, [lessonId, runCode])
+    // runCode picks the untrusted worker path synchronously, before the shared mark is cleared.
+    const run = runCode()
+    if (untrustedCode !== null) trustSharedDraft()
+    return run
+  }, [lessonId, runCode, untrustedCode, trustSharedDraft])
   const sharedNotRun = learning.untrustedCode !== null && runSnapshot.status !== 'running' && runSnapshot.executedCode !== code
   const onEditorChange = useCallback((next: string) => {
     setTouchedLessonId(lessonId)

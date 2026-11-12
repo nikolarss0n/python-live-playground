@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest'
-import { emptyLearningState, loadLearningState, restoreLearningLesson, saveLearningState, updateLearningState } from './learningStorage'
+import { emptyLearningState, loadLearningState, restartLearningLesson, restoreLearningLesson, saveLearningState, trustSharedCode, updateLearningState } from './learningStorage'
 import { encodeSnapshot } from './shareSnapshot'
 import { initialSession, sharedLinkSkipped } from './useLearningSession'
 
@@ -36,7 +36,7 @@ describe('opening a shared link', () => {
     expect(sharedLinkSkipped(state)).toBe(false)
   })
 
-  it('marks shared code untrusted until the learner edits it, across a save and reload', () => {
+  it('marks shared code untrusted until the learner runs it, through edits and a save and reload', () => {
     openShared('print("from a link")')
     const state = initialSession(emptyLearningState())
     expect(state.lessons.printing?.shared).toBe(true)
@@ -44,7 +44,20 @@ describe('opening a shared link', () => {
     const reloaded = loadLearningState().state
     expect(reloaded.lessons.printing?.shared).toBe(true)
     expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("from a link")', predictDone: true }).lessons.printing?.shared).toBe(true)
-    expect(updateLearningState(reloaded, { lessonId: 'printing', code: 'print("edited")', predictDone: true }).lessons.printing?.shared).toBeUndefined()
+    const edited = updateLearningState(reloaded, { lessonId: 'printing', code: 'print("edited")', predictDone: true })
+    expect(edited.lessons.printing?.shared).toBe(true)
+    const trusted = trustSharedCode(edited, 'printing')
+    expect(trusted.lessons.printing).toMatchObject({ code: 'print("edited")' })
+    expect(trusted.lessons.printing?.shared).toBeUndefined()
+    expect(updateLearningState(trusted, { lessonId: 'printing', code: 'print("mine")', predictDone: true }).lessons.printing?.shared).toBeUndefined()
+  })
+
+  it('treats the starter as trusted after a reset, and keeps the shared draft marked in its backup', () => {
+    openShared('print("from a link")')
+    const reset = restartLearningLesson(initialSession(emptyLearningState()), 'printing', 'print("starter")')
+    expect(reset.lessons.printing?.code).toBe('print("starter")')
+    expect(reset.lessons.printing?.shared).toBeUndefined()
+    expect(reset.lessons.printing?.backups?.at(-1)).toMatchObject({ code: 'print("from a link")', shared: true })
   })
 
   it('keeps the untrusted mark when a shared draft is backed up and restored', () => {

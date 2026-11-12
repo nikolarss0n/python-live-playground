@@ -43,6 +43,9 @@ describe('opening a shared link', () => {
     expect(runNow).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Run it' }))
     expect(runNow).toHaveBeenCalledOnce()
+    // Once the learner has chosen to run it, the code is theirs and later edits run automatically.
+    expect(latest.autoRun).toBe(true)
+    expect(latest.untrustedCode).toBeNull()
   })
 
   it('still waits after a reload, when the link is gone from the address', () => {
@@ -55,12 +58,16 @@ describe('opening a shared link', () => {
     expect(screen.getByRole('button', { name: 'Run it' })).toBeInTheDocument()
   })
 
-  it('returns to automatic runs once the learner edits the code', async () => {
+  it('keeps waiting for Run after the learner edits the shared code', async () => {
     openLink()
     render(<App />)
     await userEvent.type(screen.getByLabelText('Python source'), ' ')
+    expect(latest.autoRun).toBe(false)
+    expect(latest.untrustedCode).toBe('print("from a link") ')
+    expect(runNow).not.toHaveBeenCalled()
+    await userEvent.click(screen.getByRole('button', { name: 'Run it' }))
+    expect(runNow).toHaveBeenCalledOnce()
     expect(latest.autoRun).toBe(true)
-    expect(screen.queryByRole('button', { name: 'Run it' })).not.toBeInTheDocument()
   })
 
   it('says so when a shared link is left closed, and lets the notice be dismissed', async () => {

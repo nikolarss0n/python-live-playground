@@ -14,6 +14,7 @@ import {
   restartLearningLesson,
   restoreLearningLesson,
   openSharedCode,
+  trustSharedCode,
   starterUpdated,
   acknowledgeStarter,
   type LearningState,
@@ -225,6 +226,10 @@ export function useLearningSession() {
     return true
   }, [state, lesson.id, persist])
 
+  const trustSharedDraft = useCallback(() => {
+    setState((current) => trustSharedCode(current, lesson.id))
+  }, [lesson.id])
+
   const keepDraft = useCallback(() => {
     setState((current) => acknowledgeStarter(current, lesson.id))
   }, [lesson.id])
@@ -246,8 +251,10 @@ export function useLearningSession() {
     restart,
     restore,
     canRestore: (draft?.backups?.length ?? 0) > 0,
-    /** Code from a shared link that the learner has not edited yet; it runs in a worker that is replaced afterwards. */
+    /** Code from a shared link, edited or not, that the learner has not run yet; it runs in a worker that is replaced afterwards. */
     untrustedCode: draft?.shared ? draft.code : null,
+    /** Call once the learner presses Run on shared code: it then runs and saves like their own. */
+    trustSharedDraft,
     /** A shared link was left closed because that lesson has no backup slot for the learner's draft. */
     skippedLink,
     dismissSkippedLink,

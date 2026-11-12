@@ -13,7 +13,7 @@ export type SavedDraft = {
   verifiedCode: string | null
   /** Fingerprint of the lesson starter this draft was begun from; absent for drafts saved before fingerprints. */
   starter?: string
-  /** The code came from a shared link and has not been edited since, so it runs as untrusted. */
+  /** The code came from a shared link and the learner has not pressed Run yet, so it runs as untrusted, edits included. */
   shared?: true
 }
 export type SavedLesson = SavedDraft & { backups?: SavedDraft[] }
@@ -253,7 +253,8 @@ export function updateLearningState(
         predictDone: input.predictDone,
         verifiedCode,
         ...(starter ? { starter } : {}),
-        ...(previous?.shared && previous.code === input.code ? { shared: true as const } : {}),
+        // Editing shared code does not make it the learner's own: it stays held until they choose to run it.
+        ...(previous?.shared ? { shared: true as const } : {}),
         backups: previous?.backups ?? [],
       },
     },
@@ -269,6 +270,7 @@ export function restartLearningLesson(state: LearningState, id: string, starter:
   const lesson = LESSONS.find((entry) => entry.id === id)
   if (!nextDraft || !lesson) return state
   nextDraft.starter = starterFingerprint(lesson.code)
+  delete nextDraft.shared
   nextDraft.backups = [...(saved.backups ?? []), backup]
   return next
 }
@@ -299,9 +301,17 @@ export function acknowledgeStarter(state: LearningState, id: string): LearningSt
   return { ...state, lessons: { ...state.lessons, [id]: { ...saved, starter: starterFingerprint(lesson.code) } } }
 }
 
-/** Opens code from a shared link in a lesson and marks it untrusted until the learner edits it. */
+/** Opens code from a shared link in a lesson and marks it untrusted until the learner runs it. */
 export function openSharedCode(state: LearningState, id: string, code: string): LearningState {
   const next = updateLearningState(state, { lessonId: id, code, predictDone: true })
   const draft = next.lessons[id]
   return draft ? { ...next, lessons: { ...next.lessons, [id]: { ...draft, shared: true } } } : next
+}
+
+/** The learner chose to run the shared code, so from now on it is treated as theirs. */
+export function trustSharedCode(state: LearningState, id: string): LearningState {
+  const saved = state.lessons[id]
+  if (!saved?.shared) return state
+  const { shared: _shared, ...rest } = saved
+  return { ...state, lessons: { ...state.lessons, [id]: rest } }
 }
