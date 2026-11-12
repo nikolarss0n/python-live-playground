@@ -271,7 +271,7 @@ print("lifecycle", lifecycle)
       'Require exactly location for weather arguments; extra or renamed fields must fail before execution instead of being forwarded to a tool.',
       'Accept a result only when it has exactly temperature and unit, with a real numeric temperature and a supported C or F unit.',
       'Rename temp to temperature and parse a numeric string during repair, then revalidate. Unknown keys remain rejected because inventing their meaning would be unsafe.',
-      'Return "tool call" for live external state or side effects, and "constrained response" when the model only needs to format reasoning into a schema.',
+      'In response_mode, choose an action that can obtain fresh external information when the condition is true. The modes line should distinguish executing an external operation from merely formatting a response.',
     ],
     code: `# AI 52 — Tool contracts include the return path
 ARG_SCHEMA = {"required": {"location"}}
@@ -300,6 +300,10 @@ def repair_result(result):
     return {"ok": True, "value": repaired, "repair": "validated field rename/type conversion"}
 
 def response_mode(needs_external_state_or_action):
+    # Pick one:
+    #   "constrained response"
+    #   "answer from remembered facts"
+    #   "tool call"
     return ??? if needs_external_state_or_action else "constrained response"
 
 good_args = {"location": "Sofia"}
@@ -372,7 +376,7 @@ print("modes", response_mode(True), response_mode(False))
     taskInstructions: [
       'Match direct override language and secret-exfiltration requests in user text, then scan retrieved text separately for indirect instructions such as ignore previous rules.',
       'Select documents whose tenant exactly equals the caller tenant before scanning or ranking; the tenant-b secret must never appear in tenant-a evidence.',
-      'Block irreversible delete or send actions unless approved is true, and retain OWASP-style labels for prompt injection, sensitive disclosure, and excessive agency.',
+      'For authorize\'s rejection reason, choose the phrase that pauses an irreversible action until a person approves. Results should show the unapproved send as disallowed and the approved send as allowed.',
       'Return policy IDs, matched threat names, source IDs, and final decision only. Set exposes_chain_of_thought false because audit evidence is not hidden reasoning.',
     ],
     code: `# AI 53 — Threat scenarios and evidence-based controls
@@ -409,6 +413,10 @@ def scan(user_text, documents):
 def authorize(action, approved):
     irreversible = action in {"delete_record", "send_external"}
     if irreversible and not approved:
+        # Pick one:
+        #   "human review required"
+        #   "proceed because the model requested it"
+        #   "log the action after execution"
         return {"allowed": False, "reason": ???}
     return {"allowed": True, "reason": "approved or reversible"}
 
@@ -619,20 +627,28 @@ print("utility winner", max(candidates, key=utility)["name"])
       'Combine fine-tuned stable behavior with RAG for changing grounded facts',
     ],
     taskInstructions: [
-      'Choose embedding tuning for labeled query-document pairs, SFT plus LoRA/PEFT for repeated behavior examples, preference optimization for chosen/rejected pairs, and from scratch only with massive corpus and compute.',
+      'In choose_technique, select supervised behavior adaptation for repeated examples and full base-model training only for massive data and compute. The choices line should separate those from retrieval tuning and preference learning.',
       'Keep SFT rows as instruction/output pairs and preference rows as prompt/chosen/rejected triples so the training objectives cannot be confused.',
-      'Calculate two low-rank matrices per layer as 2 * rank * hidden * layers; QLoRA keeps those adapters while loading the frozen base at low precision.',
-      'Return "fine-tuned + RAG" when stable behavior and changing facts coexist; fine-tuning must not become a stale knowledge database.',
+      'Use the two-matrix-per-layer formula in lora_parameters, then select the QLoRA phrase that keeps the compressed base unchanged. Results should show 2097152 trainable adapter parameters and describe the frozen base.',
+      'In architecture, choose the combination that learns stable behavior but fetches changing facts at request time. The architecture line should show both capabilities together, followed by retrieval alone.',
     ],
     code: `# AI 55 — Match the adaptation method to the actual gap
 def choose_technique(goal, labeled_pairs, corpus_tokens=0, compute="limited"):
     if goal == "retrieval geometry" and labeled_pairs >= 100:
         return "embedding tuning"
     if goal == "repeatable behavior" and labeled_pairs >= 50:
+        # Pick one:
+        #   "SFT with LoRA/PEFT"
+        #   "embedding tuning only"
+        #   "train from scratch"
         return ???
     if goal == "human preference" and labeled_pairs >= 50:
         return "preference optimization"
     if goal == "new base model" and corpus_tokens >= 10_000_000_000 and compute == "massive":
+        # Pick one:
+        #   "prompt with no training data"
+        #   "embedding tuning only"
+        #   "train from scratch"
         return ???
     return "prompt or collect more data"
 
@@ -641,6 +657,10 @@ def lora_parameters(hidden, rank, layers):
 
 def architecture(stable_behavior, changing_facts):
     if stable_behavior and changing_facts:
+        # Pick one:
+        #   "fine-tuned + RAG"
+        #   "fine-tuned model with facts baked in permanently"
+        #   "RAG with no behavior adaptation"
         return ???
     if changing_facts:
         return "RAG"
@@ -656,6 +676,10 @@ preference_example = {
 }
 techniques = {
     "LoRA/PEFT": "train low-rank adapters while the base stays frozen",
+    # Pick one:
+    #   "all base weights updated at full precision"
+    #   "quantized retrieval vectors without adapters"
+    #   "adapters over a quantized frozen base"
     "QLoRA": ???,
     "SFT": "learn from instruction and target-output pairs",
     "preference": "learn from chosen and rejected response pairs",
@@ -733,7 +757,7 @@ print("architecture", architecture(True, True), architecture(False, True))
     taskInstructions: [
       'Multiply price by volume for the interaction, divide price by earnings for the ratio, attach entity mean volume, parse weekday/hour, calculate lag return, and frequency-encode category.',
       'Copy train and test before balancing. Class weights change loss importance, SMOTE adds deterministic synthetic minority rows, and undersampling removes majority rows only from training.',
-      'Return ordinary k-fold for independent balanced rows, stratified folds for imbalance, group folds for repeated entities, and forward time splits for temporal deployment.',
+      'In validation_scheme, choose a past-to-future split for temporal data and class-proportion-preserving folds for imbalance. Results should list those alongside ordinary and group folds without using future rows to predict the past.',
       'Integrate the supplied precision-recall and ROC points with trapezoids, then select the largest recall whose precision remains at least the required boundary.',
       'Use one shared error vector for MAE and RMSE, guard MAPE against zero targets, and compare squared error with target variance for R-squared.',
     ],
@@ -812,10 +836,18 @@ def split_then_balance(rows, cut, strategy):
 
 def validation_scheme(temporal=False, grouped=False, imbalanced=False):
     if temporal:
+        # Pick one:
+        #   "train on future rows and test on past rows"
+        #   "forward time split"
+        #   "randomly shuffled time split"
         return ???
     if grouped:
         return "group k-fold"
     if imbalanced:
+        # Pick one:
+        #   "stratified k-fold"
+        #   "ordinary k-fold regardless of class counts"
+        #   "train and test on the same minority rows"
         return ???
     return "ordinary k-fold"
 

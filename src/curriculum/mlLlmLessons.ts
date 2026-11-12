@@ -14,7 +14,7 @@ export const ML_LLM_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Problem framing',
     chapter: 'Applied ML foundations',
     goal:
-      'Implement frame_problem so category, numeric, and ordered targets map to classification/F1, regression/MAE, and ranking/MRR; an unknown target must be rejected, and all four outcomes must print.',
+      'Finish frame_problem to match target types with learning tasks and metrics. Done when Results maps category to classification/F1, numeric to regression/MAE and ordered to ranking/MRR, and rejects the unknown target.',
     why:
       'An AI engineer should define the prediction target and success metric before choosing a model; a precise frame prevents an impressive system from optimizing the wrong outcome.',
     tasks: [
@@ -76,7 +76,7 @@ for kind in ["category", "numeric", "ordered", "free_text"]:
     topic: 'Data quality & leakage',
     chapter: 'Applied ML foundations',
     goal:
-      'Build audit_data so it counts rows with missing feature values and flags forbidden future-derived features; the clean feature set must report one invalid row with no leakage, while future_status must be exposed as leakage.',
+      'Finish audit_data to detect missing values and forbidden features derived from future information. Done when Results shows one invalid row without leakage for clean features, and flags future_status as leakage.',
     why:
       'Missing values can break training, while leakage can make offline scores look excellent for information a real prediction would never have; both checks belong before model fitting.',
     tasks: [
@@ -145,7 +145,7 @@ print("leaked", audit_data(ROWS, FEATURES + ["future_status"]))
     topic: 'Feature scaling',
     chapter: 'Applied ML foundations',
     goal:
-      'Implement population standardization so [10, 20, 30] becomes approximately [-1.225, 0, 1.225], while a constant feature returns all zeros instead of dividing by zero; print both results.',
+      'Implement population standardization, including a constant-feature case. Done when Results transforms [10, 20, 30] to approximately [-1.225, 0, 1.225] and shows all zeros for the constant feature.',
     why:
       'Features on very different scales can dominate distance-based models and gradient updates, and constant columns need an explicit zero-variance policy rather than a runtime error.',
     tasks: [
@@ -208,7 +208,7 @@ print("constant", constant)
     topic: 'Linear scores & sigmoid',
     chapter: 'Applied ML foundations',
     goal:
-      'Implement a weighted linear score and convert it to a stable sigmoid probability: the sample must print score 1.5 and probability about 0.8176, while sigmoid(-1000) must finish safely near zero.',
+      'Finish a weighted linear score and a sigmoid that handles large negative inputs. Done when Results shows score 1.5, probability about 0.8176, and sigmoid(-1000) safely near zero.',
     why:
       'Logistic classifiers and neural units first combine features linearly, then transform the unbounded score; numerical safeguards matter because extreme scores occur in real systems.',
     tasks: [
@@ -270,7 +270,7 @@ print("negative extreme", round(sigmoid(-1000), 8))
     topic: 'Cross-entropy & gradient descent',
     chapter: 'Applied ML foundations',
     goal:
-      'Train a one-weight toy logistic classifier for 20 steps using clipped binary cross-entropy and the mean gradient; print that loss decreases and that x=3 receives a higher probability than x=0.',
+      'Train a toy logistic classifier for 20 steps using clipped binary cross-entropy and the mean gradient. Done when Results shows decreasing loss and a higher probability for x=3 than x=0.',
     why:
       'Cross-entropy supplies the training signal for classification, while gradient descent turns that signal into parameter updates; this scalar exercise exposes the mechanics without claiming to replace a framework.',
     tasks: [
@@ -347,7 +347,7 @@ print("edge probabilities", round(predict(weight, 0.0), 3), round(predict(weight
     topic: 'Thresholds & confusion matrix',
     chapter: 'Applied ML foundations',
     goal:
-      'Convert scores to predictions with score >= threshold, count TP/FP/TN/FN, and compare thresholds 0.5 and 0.8; a score exactly equal to 0.5 must count as positive and print TP=1.',
+      'Count TP, FP, TN and FN from predictions using score >= threshold. Done when Results compares thresholds 0.5 and 0.8, with a score exactly 0.5 counted as positive and TP=1.',
     why:
       'A classifier score becomes a business decision only after choosing a threshold, and the confusion matrix reveals which kinds of mistakes that threshold creates.',
     tasks: [
@@ -417,7 +417,7 @@ print("equal boundary", confusion([1], [0.5], 0.5))
     topic: 'Cross-validation choice',
     chapter: 'Evaluation design',
     goal:
-      'Implement choose_validation so ordered data uses a time split, grouped entities use group folds, and ordinary binary labels use stratified folds; a one-class target must be rejected and all four decisions must print.',
+      'Finish choose_validation to match data structure with a validation method. Done when Results chooses a time split for ordered data, group folds for grouped entities and stratified folds for ordinary binary labels. The fourth decision must reject a one-class target.',
     why:
       'Validation must reproduce the way unseen data arrives. Randomly mixing future rows or the same entity across folds leaks information and produces misleading estimates.',
     tasks: [
@@ -482,7 +482,7 @@ print("one class", choose_validation([1, 1, 1]))
     topic: 'Imbalance & F1',
     chapter: 'Evaluation design',
     goal:
-      'Compute accuracy, precision, recall, and F1 for an imbalanced target: the all-negative baseline and candidate must both print accuracy 0.9, but their F1 scores must print 0.0 and about 0.667 without zero-division errors.',
+      'Calculate accuracy, precision, recall and F1 for an imbalanced target without dividing by zero. Done when Results shows accuracy 0.9 for both models, but baseline F1 of 0.0 and candidate F1 about 0.667.',
     why:
       'On rare-event problems, high accuracy can come from ignoring every positive case. Precision, recall, and F1 make that failure visible and keep metric choice tied to error costs.',
     tasks: [
@@ -553,7 +553,7 @@ print("candidate", metrics(labels, candidate))
     topic: 'Boosting residuals',
     chapter: 'Model learning patterns',
     goal:
-      'Implement one toy boosting step that fits separate mean residuals for low/high groups and adds half of each correction; MSE must fall from 10.0 to 3.25, while learning_rate=0 must leave predictions unchanged.',
+      'Fit low/high mean residuals and add half their corrections in one toy boosting step. Done when Results shows MSE falling from 10.0 to 3.25 and unchanged predictions when learning_rate=0.',
     why:
       'Gradient boosting builds a strong predictor by repeatedly fitting what the current ensemble gets wrong. This grouped-mean simulation exposes residual correction without pretending to implement XGBoost.',
     tasks: [
@@ -631,7 +631,7 @@ print("zero rate unchanged", unchanged == START)
     topic: 'Neural training loop',
     chapter: 'Model learning patterns',
     goal:
-      'Complete a scalar forward → MSE → gradient → update loop that learns y=2x: after 20 epochs loss must decrease and weight must approach 2, while train(..., epochs=0) must preserve the initial weight.',
+      'Finish a scalar forward, MSE, gradient and update loop for y=2x. Done when Results shows lower loss and weight approaching 2 after 20 epochs, while zero epochs preserve the initial weight.',
     why:
       'Framework training APIs organize the same core sequence: forward pass, loss, backward gradient, and optimizer update. A scalar model makes that order inspectable without imitating a tensor framework.',
     tasks: [
@@ -706,7 +706,7 @@ print("zero epochs unchanged", zero_weight == 0.0)
     topic: 'Context & token budgets',
     chapter: 'LLM inference',
     goal:
-      'Pack evidence by relevance after reserving system and output tokens: total used tokens must stay at or below 100, selected IDs must be [d1, d3], and oversized d2 must appear in dropped IDs.',
+      'Pack relevant evidence after reserving tokens for system instructions and output. Done when Results shows at most 100 tokens used, selected IDs [d1, d3], and oversized d2 among the dropped IDs.',
     why:
       'An LLM context window must hold instructions, history, retrieved evidence, and generated output together. Budgeting prevents truncation and makes dropped context an explicit decision.',
     tasks: [
@@ -781,7 +781,7 @@ print("within budget", packed["used"] <= packed["limit"])
     topic: 'Temperature, top-k & top-p decoding',
     chapter: 'LLM inference',
     goal:
-      'Build a deterministic candidate-filter simulation: temperature 0.5 with top_k=1 must keep only A, top_p=0.75 must keep A and B, and temperature 0 must raise and print a clear validation error.',
+      'Build a repeatable simulation of temperature, top-k and top-p candidate filtering. Done when Results keeps only A for temperature=0.5 with top_k=1, keeps A and B for top_p=0.75, and rejects temperature=0.',
     why:
       'Temperature reshapes token probabilities, while top-k and top-p restrict the sampling pool. Inspecting candidate sets clarifies the controls without claiming to generate with a real model.',
     tasks: [
@@ -863,7 +863,7 @@ except ValueError as error:
     topic: 'Chunking & metadata',
     chapter: 'RAG retrieval engineering',
     goal:
-      'Implement overlapping word chunks that preserve document ID, role metadata, and start/end offsets: size 4 with overlap 1 must print starts [0, 3, 6, 9], and overlap >= size must raise a visible error.',
+      'Split a document into overlapping word chunks that retain its ID, roles and offsets. Done when Results shows starts [0, 3, 6, 9] for size 4 and overlap 1, and an error for overlap >= size.',
     why:
       'RAG retrieval operates on chunks, but production usefulness depends on traceable source metadata and permissions surviving ingestion. This word splitter is intentionally simpler than a document parser.',
     tasks: [
@@ -1002,7 +1002,7 @@ print("one-list docs kept", "d3" in fused and "d4" in fused)
     topic: 'Reranking & permission filters',
     chapter: 'RAG retrieval engineering',
     goal:
-      'Filter candidates by role before combining 40% retrieval and 60% reranker scores: analyst results must be [d2, d1], guest results [d1], and the high-scoring admin-only secret must print as not visible.',
+      'Filter candidates by role, then combine 40% retrieval and 60% reranker scores. Done when Results shows analyst IDs [d2, d1], guest IDs [d1], and the high-scoring admin secret as not visible.',
     why:
       'Reranking can improve precision, but access control must happen before content reaches the model. A high relevance score never overrides user entitlements.',
     tasks: [
@@ -1082,7 +1082,7 @@ print("secret visible", "secret" in analyst or "secret" in guest)
     topic: 'Citations & abstention',
     chapter: 'Grounded generation',
     goal:
-      'Return the highest-scoring evidence text with its existing document ID when score >= 0.6; weak and empty evidence must return “I don’t know” with no citations, and all citation-validity checks must print True.',
+      'Select the best evidence text and its document ID only when its score reaches 0.6. Done when Results shows that cited answer, plus "I don’t know" with no citations for weak and empty evidence. Every citation-validity check should print True.',
     why:
       'A grounded answer should expose its supporting source and refuse when evidence is absent or weak. Citation shape alone is not enough—the cited ID must exist in retrieved evidence.',
     tasks: [
@@ -1153,7 +1153,7 @@ for label, evidence in [("strong", strong_evidence), ("weak", weak_evidence), ("
     topic: 'RAG evaluation',
     chapter: 'Grounded generation',
     goal:
-      'Evaluate retrieval recall@2 separately from answer faithfulness: the two-case suite must print average recall 1.0 and faithfulness 0.75, while an answer with zero claims must return faithfulness 1.0.',
+      'Measure retrieval recall@2 separately from answer faithfulness in a two-case suite. Done when Results shows average recall 1.0, faithfulness 0.75 and faithfulness 1.0 for an answer with zero claims.',
     why:
       'A RAG answer can fail because retrieval missed evidence or because generation ignored it. Separate metrics locate the failing stage and make regressions actionable.',
     tasks: [
@@ -1224,7 +1224,7 @@ print("no claims", faithfulness(0, 0))
     topic: 'Prompt vs RAG vs fine-tune',
     chapter: 'Grounded generation',
     goal:
-      'Implement an adaptation decision ladder: changing/private facts must choose RAG, stable behavior with at least 50 labeled examples must choose fine-tune, and all remaining or data-poor cases must choose prompt; print all four decisions.',
+      'Build a decision ladder for RAG, fine-tuning and prompting. Done when Results chooses RAG for changing/private facts, fine-tune for stable behavior with at least 50 labeled examples, and prompt otherwise. Print all four decisions, including the data-poor prompt case.',
     why:
       'Prompting, retrieval, and fine-tuning solve different problems. A disciplined ladder avoids expensive training when the real need is fresh knowledge or a clearer instruction.',
     tasks: [
@@ -1287,7 +1287,7 @@ print("data poor", choose_adaptation(stable_behavior=True, labeled_examples=10))
     topic: 'Prompt injection & bounded agents',
     chapter: 'Agent safety boundaries',
     goal:
-      'Implement a bounded tool executor that treats retrieved instructions as inert data, denies tools outside an allow-list, requires approval for delete_record, and stops after two steps; print safe completion, unknown-tool denial, approval-required, and budget-exhausted outcomes.',
+      'Build a two-step tool executor that ignores retrieved instructions, checks its allow-list and requires approval for delete_record. Done when Results shows safe completion, unknown-tool denial, approval-required and budget-exhausted outcomes.',
     why:
       'Retrieved pages and tool outputs can contain hostile instructions. Safety comes from deterministic controls outside model reasoning: scoped tools, explicit approvals, and a hard iteration budget.',
     tasks: [
@@ -1371,7 +1371,7 @@ print("budget", budget["status"], "tool calls", len(budget["trace"]) - 1)
     topic: 'Local RAG capstone',
     chapter: 'End-to-end RAG',
     goal:
-      'Complete a toy local lexical RAG pipeline that normalizes text, ranks positive-overlap documents, returns at most two hits, cites only retrieved IDs, and abstains for a no-overlap Mars query; print a d1-supported answer and an empty-citation abstention.',
+      'Build a local lexical RAG pipeline that cleans text, ranks positive overlaps and returns at most two hits with retrieved citations. Done when Results shows a d1-supported answer and an empty-citation abstention for the no-overlap Mars query.',
     why:
       'This capstone joins ingestion, retrieval, score gating, citations, and abstention in one inspectable browser-local flow. It is a lexical teaching system, not an embedding model or production RAG service.',
     tasks: [

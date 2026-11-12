@@ -13,7 +13,7 @@ export const STUDY_BOOK_AI_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Learning paradigms & lifecycle',
     chapter: 'Study Book foundations',
     goal:
-      'Classify three learning paradigms, complete an inspectable ML lifecycle, apply one gradient update, and expose both an overfitting signal and the role PyTorch autograd would play.',
+      'Connect learning signals, the ML lifecycle and one gradient update. Done when Results identifies three paradigms, completes the lifecycle, prints weight 0.8 and overfit True, and explains autograd\'s gradient-computing role.',
     why:
       'Model training is more than choosing an algorithm: engineers must identify the learning signal, preserve honest evaluation boundaries, recognize overfitting, and understand what a tensor framework automates.',
     tasks: [
@@ -106,7 +106,7 @@ print("PyTorch role", "autograd tracks tensor operations and computes gradients"
     topic: 'Complete Transformer block',
     chapter: 'Study Book foundations',
     goal:
-      'Build a full three-by-three attention matrix from embedded positions, combine two heads, then apply residual, LayerNorm, and FFN stages while distinguishing parallel training from sequential inference.',
+      'Build all-position attention with two heads, a residual connection, LayerNorm and an FFN. Done when Results shows a 3-by-3 attention matrix, two heads, a 3-by-2 block, and the parallel-training versus sequential-inference distinction.',
     why:
       'A single attention row explains only one fragment of a Transformer; the complete block joins all-position attention, multiple representation heads, normalization, residual paths, and position-wise computation.',
     tasks: [
@@ -119,7 +119,7 @@ print("PyTorch role", "autograd tracks tensor operations and computes gradients"
       'Set the scale to sqrt(len(states[0])) and build one score against every key for every query; the resulting matrix must contain three rows of three weights.',
       'Pass each score row through softmax, then average the two head outputs dimension by dimension so the exercise preserves multiple attention views.',
       'Add each merged head vector back to its original state before LayerNorm, and divide variance by len(vector) so every normalized row has mean approximately zero.',
-      'Complete the inference description with "one new token sequentially"; the training description deliberately says all positions can be processed together with a causal mask.',
+      'For modes["inference"], choose the phrase reflecting that each generated token becomes input for the next. The modes line should contrast parallel training positions with dependent generation steps.',
     ],
     code: `# AI 38 — A complete Transformer block, reduced to tiny vectors
 import math
@@ -183,6 +183,10 @@ block_output = [
 
 modes = {
     "training": "all positions in parallel with a causal mask",
+    # Pick one:
+    #   "one new token sequentially"
+    #   "all future tokens independently in parallel"
+    #   "one fixed token with no preceding context"
     "inference": ???,
 }
 
@@ -239,11 +243,11 @@ print("modes", modes)
     topic: 'Markov chains',
     chapter: 'Study Book foundations',
     goal:
-      'Simulate a deterministic walk through a transition matrix, state the memoryless property, connect four historical applications, and explicitly distinguish fixed-state Markov memory from an LLM context window.',
+      'Simulate a weather chain and compare its memory with an LLM context window. Done when Results shows the repeatable path, explains the current-state-only property, and connects Pushkin, PageRank, MCMC and HMMs with their uses.',
     why:
       'Markov chains explain important simulation and ranking systems, but their current-state assumption is also the precise reason that calling a long-context Transformer “just a Markov chain” is misleading.',
     tasks: [
-      'Choose the next state from only the current state and a deterministic roll',
+      'Select the next state from the current state',
       'Run a reproducible weather-chain path and expose the memoryless property',
       'Connect Pushkin, PageRank, MCMC, and HMMs to their actual uses',
       'Contrast fixed-state conditioning with attention over an LLM context window',
@@ -251,8 +255,8 @@ print("modes", modes)
     taskInstructions: [
       'Look up options with transitions[current] rather than the full path, then return the first state whose cumulative probability reaches the supplied deterministic roll.',
       'Use the four declared rolls to append exactly four next states and keep the printed path reproducible without random or wall-clock behavior.',
-      'Fill PageRank with "random surfer with damping" and keep the Pushkin, MCMC, and HMM descriptions visible so this is more than a weather toy.',
-      'Set the LLM comparison to "attention over the context window"; that phrase makes the key memory distinction explicit instead of equating next-token prediction with a Markov chain.',
+      'For applications["PageRank"], select the description that follows links but sometimes jumps elsewhere. The applications line should describe this movement instead of merely counting incoming links.',
+      'For memory["LLM"], choose the description that can consult many earlier positions, rather than only the previous token. The memory contrast line should distinguish it from the current-state-only chain.',
     ],
     code: `# AI 39 — Markov chains from transitions to PageRank
 TRANSITIONS = {
@@ -274,12 +278,20 @@ for roll in [0.8, 0.5, 0.2, 0.9]:
 
 applications = {
     "Pushkin": "letter dependence and convergence without independence",
+    # Pick one:
+    #   "highest incoming link count with no transitions"
+    #   "random surfer with damping"
+    #   "uniform ranking without following links"
     "PageRank": ???,
     "MCMC": "sampling from difficult posterior distributions",
     "HMM": "hidden-state sequence and regime modeling",
 }
 memory = {
     "Markov": "next state uses the current state only",
+    # Pick one:
+    #   "attention over the context window"
+    #   "only the immediately preceding token"
+    #   "a fixed transition table over weather states"
     "LLM": ???,
 }
 damping = ???
@@ -335,7 +347,7 @@ print("PageRank damping", damping)
     topic: 'Data-science workflow',
     chapter: 'Study Book classical ML',
     goal:
-      'Audit and clean tabular rows, fit imputation only on a training fold, apply the frozen preprocessing to validation, and explain where NumPy, pandas, and scikit-learn belong.',
+      'Audit tabular rows and fit cleaning settings using only the training fold. Done when Results shows cleaned validation data using the frozen training settings and explains the roles of NumPy, pandas and scikit-learn.',
     why:
       'Reliable tabular modeling depends on reproducible exploration and preprocessing boundaries; fitting a scaler or imputer on all rows leaks validation statistics before a model is evaluated.',
     tasks: [
@@ -345,15 +357,27 @@ print("PageRank damping", damping)
       'Transform validation with the frozen fit and compare loop versus vectorized intent',
     ],
     taskInstructions: [
-      'Fill the three role strings so NumPy owns vectorized array math, pandas owns labeled tabular exploration, and scikit-learn owns fit/transform/predict pipelines.',
+      'Fill LIBRARY_ROLES with quoted choices: NumPy operates on whole numeric arrays, pandas explores named rows and columns, and scikit-learn trains reusable transformations and predictors. Results should assign one distinct role to each library.',
       'Count a row as missing when amount is None, count repeated IDs separately, and keep the large maximum visible as an outlier or skew clue rather than deleting it silently.',
       'Add every first-seen ID to seen, then compute the median from observed training amounts only; the validation fold must never contribute to this fit.',
       'Use the fitted median for missing validation amounts and cap values through the same transform. The two doubling outputs should match while the role text explains why real array vectorization is faster.',
     ],
     code: `# AI 40 — A library-shaped data-science workflow in pure Python
 LIBRARY_ROLES = {
+    # Pick one:
+    #   "fit transform predict pipelines"
+    #   "vectorized array math"
+    #   "labeled tabular exploration"
     "NumPy": ???,
+    # Pick one:
+    #   "labeled tabular exploration"
+    #   "vectorized array math"
+    #   "fit transform predict pipelines"
     "pandas": ???,
+    # Pick one:
+    #   "vectorized array math"
+    #   "labeled tabular exploration"
+    #   "fit transform predict pipelines"
     "scikit-learn": ???,
 }
 
@@ -470,14 +494,18 @@ print("loop equals vectorized intent", loop_result == vectorized_intent)
       'Expose the core tuning order and distinguish global from local explanation',
     ],
     taskInstructions: [
-      'Set bagging to independent parallel trees that reduce variance and boosting to sequential residual-correcting trees that reduce bias; preserve both contrasts in printed output.',
+      'For ENSEMBLES["boosting"], choose trees that learn from earlier errors rather than being trained independently. The ensembles line should distinguish successive correction from the supplied parallel bagging description.',
       'Choose CatBoost for many categorical features, LightGBM for very large row counts, and XGBoost as the regularized default after those earlier conditions.',
       'Reset stale rounds on a new best loss, increment otherwise, and stop when stale reaches patience. The supplied history must stop at epoch five using zero-based indexes.',
-      'Fill the local explanation with "SHAP values" while keeping permutation importance global; the tuning order must place a modest learning rate before complexity and regularization.',
+      'For explanations["local"], choose the method that attributes one prediction to its input features. The explanations line should distinguish individual attribution from the supplied global permutation importance.',
     ],
     code: `# AI 41 — Choosing and operating a boosting system
 ENSEMBLES = {
     "bagging": "independent parallel trees reduce variance",
+    # Pick one:
+    #   "sequential residual-correcting trees reduce bias"
+    #   "independent parallel trees reduce variance"
+    #   "identical repeated trees leave errors unchanged"
     "boosting": ???,
 }
 
@@ -510,6 +538,10 @@ tuning_order = [
 ]
 explanations = {
     "global": "permutation importance",
+    # Pick one:
+    #   "global feature frequency"
+    #   "training loss alone"
+    #   "SHAP values"
     "local": ???,
 }
 
@@ -577,9 +609,9 @@ print("explanations", explanations)
     ],
     taskInstructions: [
       'Return "underfit" when both losses remain high, then return "overfit" when validation exceeds training by more than the gap; all other supplied pairs are balanced.',
-      'Fill the PyTorch API with "nn.Module + explicit loop" and retain dynamic autograd, while Keras remains the high-level compile/model.fit path.',
-      'Choose Conv for images and LSTM/attention for sequences; keep Dense for tabular data and Embedding for categorical or token IDs.',
-      'Add early stopping to the controls beside Adam, learning-rate schedule, batch size, dropout, and weight decay so the remedy is executable policy rather than vague advice.',
+      'For the PyTorch api entry in frameworks, choose a model class paired with a training loop you control. Results should contrast that approach with Keras\'s supplied compile-and-fit interface.',
+      'For layers["images"], use the image-layer name; for sequences, select the phrase that retains ordered context. The layers line should separate image processing from sequence-aware processing.',
+      'For the final training_controls entry, choose the method that ends training when validation performance stops improving. Results should add a validation-based limit without using test data to choose epochs.',
     ],
     code: `# AI 42 — Framework choice starts with the learning curves
 def diagnose(training_loss, validation_loss, high=0.50, gap=0.15):
@@ -595,6 +627,10 @@ frameworks = {
         "graph": "eager by default with production serving tools",
     },
     "PyTorch": {
+        # Pick one:
+        #   "nn.Module + explicit loop"
+        #   "compile + model.fit only"
+        #   "static graph + session execution"
         "api": ???,
         "graph": "dynamic autograd is pythonic to debug",
     },
@@ -603,6 +639,10 @@ layers = {
     "tabular": "Dense",
     "images": ???,
     "tokens": "Embedding",
+    # Pick one:
+    #   "image convolutions with no sequence handling"
+    #   "LSTM or attention"
+    #   "unordered dense features only"
     "sequences": ???,
 }
 training_controls = [
@@ -611,6 +651,10 @@ training_controls = [
     "batch size",
     "dropout",
     "weight decay",
+    # Pick one:
+    #   "early stopping"
+    #   "always train more epochs"
+    #   "choose epochs using test loss"
     ???,
 ]
 
@@ -672,7 +716,7 @@ print("default", "boosting for tabular; deep learning for images, text, audio, s
       'Distributed processing becomes understandable when planning, partition-local work, network shuffles, and aggregation are kept separate; the same model explains Spark performance without running a cluster.',
     tasks: [
       'Create partitions and map records locally before any cross-partition movement',
-      'Shuffle mapped pairs by key and reduce each group to a stable total',
+      'Reduce each shuffled key group to its total',
       'Identify lazy transformations, actions, driver, executors, DataFrame, and RDD roles',
       'Choose batch or streaming from a concrete freshness requirement',
     ],
@@ -783,7 +827,7 @@ print("modes", choose_mode(0.5), choose_mode(720))
     taskInstructions: [
       'Convert parameter count times bit width into gigabytes by dividing by eight and one billion; use four bits for the quantized result so 7B parameters print 3.5 GB.',
       'Enable the prompt cache only for an identical full request and the KV cache for a repeated prefix; the two cache decisions must remain independent.',
-      'Fill QLoRA with "train adapters over a quantized base" while retaining distillation as teacher-to-student behavior transfer.',
+      'For techniques["QLoRA"], choose the phrase that changes small extra weights while storing the large base at reduced precision. The techniques line should distinguish this from full-weight training and teacher imitation.',
       'Choose self-hosted when residency is mandatory or monthly volume reaches the declared threshold; otherwise preserve the hosted API default.',
     ],
     code: `# AI 44 — Optimization levers without loading a real model
@@ -804,6 +848,10 @@ def hosting(monthly_tokens, residency_required):
 techniques = {
     "quantization": "fewer bits reduce memory with possible quality loss",
     "distillation": "a smaller student imitates a larger teacher",
+    # Pick one:
+    #   "copy teacher outputs without any adapters"
+    #   "train adapters over a quantized base"
+    #   "update every base weight at full precision"
     "QLoRA": ???,
 }
 
@@ -1201,7 +1249,7 @@ print("explanations", explanations)
     topic: 'Semantic layer & ontologies',
     chapter: 'Study Book semantic systems',
     goal:
-      'Represent finance facts as RDF-like triples, validate them with a SHACL-like shape, apply taxonomy and ontology relationships, and route exact semantic questions differently from vector similarity.',
+      'Build finance triples, validate their shape and route exact semantic questions separately from similarity searches. Done when Results shows the taxonomy and ontology distinctions, a valid shape, issuer-7, and semantic versus vector modes.',
     why:
       'A semantic layer gives business terms stable identities and governed relationships; this supports exact, auditable answers that fuzzy vector retrieval alone cannot guarantee.',
     tasks: [
@@ -1211,7 +1259,7 @@ print("explanations", explanations)
       'Route governed aggregation and relationship questions to semantics, not vectors',
     ],
     taskInstructions: [
-      'Fill ontology with formal relationships and constraints while keeping taxonomy as a simpler parent-child classification; the semantic layer maps business language onto governed definitions.',
+      'For concepts["ontology"], select the description that can express rules about typed relationships, beyond a parent-child hierarchy. The concepts line should distinguish it from the supplied taxonomy description.',
       'Use fibo:hasIssuer as the missing predicate so bond-1 has a type, issuer, and coupon expressed as explicit RDF-like triples.',
       'Calculate present predicates for the selected subject and subtract them from REQUIRED; an empty missing list must make the SHACL-like validation pass.',
       'Route exact relationship, aggregation, and regulated questions to "semantic", leaving fuzzy similarity wording to "vector"; neither approach replaces the other.',
@@ -1219,6 +1267,10 @@ print("explanations", explanations)
     code: `# AI 48 — Semantic systems with small RDF-like structures
 concepts = {
     "taxonomy": "parent-child classification",
+    # Pick one:
+    #   "formal relationships and constraints"
+    #   "parent-child classification only"
+    #   "unstructured text with no typed relationships"
     "ontology": ???,
     "knowledge graph": "entities and typed relationships as facts",
     "semantic layer": "business terms mapped to governed definitions",
@@ -1300,7 +1352,7 @@ print("standards", ["RDF", "OWL", "SHACL", "FIBO"])
     topic: 'GraphRAG & durable memory',
     chapter: 'Study Book semantic systems',
     goal:
-      'Build and traverse a source-linked GraphRAG subgraph, choose RAG or CAG from freshness and corpus size, and store only consented durable facts in a context graph suitable for a graph database.',
+      'Build a source-linked subgraph and store only consented durable facts. Done when Results shows a two-hop traversal with source IDs, RAG/CAG choices, the saved context-graph fact and a graph-database explanation.',
     why:
       'GraphRAG retrieves relationships that isolated chunks can miss, while durable memory needs explicit provenance and consent; CAG is a separate choice for small stable knowledge that fits in context.',
     tasks: [

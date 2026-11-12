@@ -227,7 +227,7 @@ print("routes", [
     topic: 'Ingestion crawler policy',
     chapter: 'Ingestion & data systems',
     goal:
-      'Choose realtime or batch freshness, model Kafka replay, dead letters, and backpressure, assign five store roles, and run a policy-safe crawler and API acquisition workflow through reviewed link repair.',
+      'Build a freshness, storage and acquisition model with replay, dead letters and backpressure. Done when Results selects realtime/batch ingestion, assigns five store roles, enforces crawler/API rules and keeps link repair subject to review.',
     why:
       'Production ingestion must balance freshness with operational cost while preserving replay and failure evidence; acquisition also needs robots, rate, authentication, parser, status, and human-review boundaries.',
     tasks: [
@@ -426,7 +426,7 @@ print("proposal", rewrite_proposal("fallback-redirect", "document-new"))
     topic: 'Containers & serverless mechanics',
     chapter: 'Ingestion & data systems',
     goal:
-      'Compare VM and container isolation, boot time, kernel use, and density, externalize state behind a load balancer, evaluate serverless costs and risks, and complete an upload-to-resize event flow.',
+      'Compare VM/container isolation, boot time, kernel sharing and density, then model external state and event-driven functions. Done when Results shows balanced stateless requests, serverless costs and risks, and a completed upload-to-resize flow.',
     why:
       'Infrastructure choices become clearer when learners model what is isolated, where state lives, how work is routed and billed, and which cold-start, density, and function-sprawl trade-offs follow.',
     tasks: [

@@ -8,6 +8,7 @@ type IntermediateStudyBookSpec = {
   goal: string
   why: string
   tasks: [string, string, string]
+  taskInstructions: [string, string, string]
   code: string
   codeIncludes: string[]
   printPatterns: string[]
@@ -35,10 +36,7 @@ function intermediateLesson(spec: IntermediateStudyBookSpec): LessonDraft {
     goal: spec.goal,
     why: spec.why,
     tasks: spec.tasks,
-    taskInstructions: spec.tasks.map(
-      (task) =>
-        `${task}. Replace the matching ??? with the smallest valid expression, run the whole example, and confirm the named evidence in Results before moving on.`,
-    ),
+    taskInstructions: spec.taskInstructions,
     code: spec.code,
     goalCheck: {
       requireSuccess: true,
@@ -74,6 +72,11 @@ export const STUDY_BOOK_PYTHON_LESSON_DRAFTS: LessonDraft[] = [
       'Choose the lazy representation for a one-pass stream',
       'Find the slowest stage from measured profile samples',
       'Match fixed records, binary slices, and caches to memory levers',
+    ],
+    taskInstructions: [
+      'Set representation to the name of a Python object that produces items as needed instead of keeping a million items in memory. Results should describe a generator.',
+      'In max(PROFILE_MS, key=...), supply a function that looks up each stage duration. Measured hotspot should identify rank at 21 ms.',
+      'For binary_slice_tool, choose the MEMORY_LEVERS key describing a view of existing bytes. Results should show memoryview, alongside the four available memory tools.',
     ],
     code: `# Lesson 30 — Performance, memory, and profiling
 # This deterministic profile avoids noisy wall-clock timing in the browser.
@@ -133,6 +136,11 @@ print("Memory levers:", sorted(MEMORY_LEVERS.values()))
       'Choose threads for a small set of blocking I/O calls',
       'Choose processes for CPU-bound parallel work and asyncio for many waits',
       'Detect the lost update in a read-modify-write interleaving',
+    ],
+    taskInstructions: [
+      'In choose_model, fill the final return with a quoted execution model suited to a few blocking calls. The Blocking I/O line should name threads.',
+      'Fill the cpu and many branches of choose_model with model names for parallel calculation and many waiting operations. CPU work and Many waits should name processes and asyncio.',
+      'Read the read and write values in interleaving before running. Race detected should be True with final: 1; expecting 2 would overlook the overwritten update.',
     ],
     code: `# Lesson 31 — Concurrency, the GIL, and races
 # Choices are simulated so the lesson remains deterministic in every browser.
@@ -197,6 +205,11 @@ print("Race detected:", lost_update, "final:", final_value)
       'Mark the base validation method as an abstract contract',
       'Complete the diamond inheritance order and inspect its MRO',
       'Return a useful repr string from the concrete record',
+    ],
+    taskInstructions: [
+      'Above Validated.validate, use the imported decorator that requires subclasses to implement this method. With Record implementing it, Valid should print True.',
+      'In the Record parent list, add the other branch of the diamond after Left. The MRO line should visit Left, Right and then Root, without visiting Root twice.',
+      'Inside Record.__repr__, return formatted text containing the class name and self._value. Repr should show Record(value=7), making the stored value readable.',
     ],
     code: `# Lesson 32 — MRO, contracts, and dunder methods
 
@@ -270,6 +283,11 @@ print("Repr:", repr(record))
       'Implement the interface-like abstract method in Python',
       'Use finally to prove cleanup happens after an exception',
     ],
+    taskInstructions: [
+      'Fill JAVA_CORE["String"] with a quoted description of text that cannot change in place. The Java String line should describe immutable text.',
+      'In JsonLikeFormatter.format, return a dictionary with a value key holding the argument. Contract should show a dictionary containing 7.',
+      'In finally, append a quoted cleanup event to events. Exception flow should list work, handled, then cleanup, proving the last block still ran.',
+    ],
     code: `# Lesson 33 — Java core concepts through a Python bridge
 
 from abc import ABC, abstractmethod
@@ -341,6 +359,11 @@ print("Exception flow:", events)
       'Use a set for uniqueness and a list as a queue',
       'Filter and sort scores like a Java Stream pipeline',
     ],
+    taskInstructions: [
+      'Use the number of entries in buckets as the divisor after %. The Buckets line should retain repeated Ada entries instead of replacing names that share a bucket.',
+      'Construct unique_names from names with a collection that removes duplicates, and use the front index in queue.pop. Unique should contain three names; Queue first should be Ada.',
+      'Trace the score filter and descending sort in passing. Stream result should put Ada before Grace and omit Alan; a different order points to the sort direction.',
+    ],
     code: `# Lesson 34 — Java collections and generics through Python
 
 names = ["Ada", "Alan", "Grace", "Ada"]
@@ -402,11 +425,20 @@ print("Stream result:", passing)
       'Assign submitted tasks to a bounded executor pool',
       'Distinguish condition waiting from sleeping for time',
     ],
+    taskInstructions: [
+      'For JAVA_PRIMITIVES["volatile"], choose the quoted description that lets another thread see an update without making a read-plus-write indivisible. The Volatile line should distinguish those two guarantees.',
+      'In execute, wrap index around the size of the worker pool using a remainder divisor. Executor assignments should put ingest and rank on worker 0, embed and evaluate on worker 1.',
+      'Choose the JAVA_PRIMITIVES key for releasing a monitor until a notification arrives. Condition wait should describe releasing the monitor, not simply pausing for elapsed time.',
+    ],
     code: `# Lesson 35 — Java concurrency concepts through Python
 
 JAVA_PRIMITIVES = {
     "synchronized": "mutual exclusion plus visibility",
     "Lock": "explicit acquire/release and advanced locking",
+    # Pick one:
+    #   "visibility, not compound-operation atomicity"
+    #   "mutual exclusion for every compound operation"
+    #   "thread-local values with no cross-thread visibility"
     "volatile": ???,
     "wait": "release monitor and wait for notification",
     "sleep": "pause without releasing an owned monitor",
@@ -463,6 +495,11 @@ print("Condition wait:", coordination)
       'Inject the repository into the service constructor',
       'Inject the service into the controller and execute the request',
       'Select a test profile without changing production objects',
+    ],
+    taskInstructions: [
+      'In Service.__init__, store the object passed into the constructor on self.repository. Response should contain the document returned by Repository.find.',
+      'In Controller.__init__, store its supplied service so handle can call get. The request for d7 should produce status 200 and a body with that id.',
+      'Select the profiles key for tests in the final print. Test profile should say in-memory repository while the existing Response still contains the document.',
     ],
     code: `# Lesson 36 — Spring and Spring Boot through explicit Python wiring
 
@@ -531,6 +568,11 @@ print("Test profile:", profiles[???])
       'Create the chosen strategy through a small factory',
       'Notify every registered observer after ranking completes',
     ],
+    taskInstructions: [
+      'Choose a STRATEGIES key for the create_ranker call that favors freshness over quality. Winner should be new even though old has the higher quality score.',
+      'Inside create_ranker, use its argument to look up the scoring function in STRATEGIES. The freshness choice should let max select new without adding branches to the caller.',
+      'In the observers loop, pass a dictionary with the ranked key holding winner. Both audit and metrics should report the same event containing new.',
+    ],
     code: `# Lesson 37 — Strategy, Factory, and Observer
 
 def score_by_quality(item):
@@ -597,6 +639,11 @@ print("Winner:", winner)
       'Place green between red and refactor in the TDD cycle',
       'Order CI/CD checks and the first incident action safely',
     ],
+    taskInstructions: [
+      'In is_palindrome, choose a character method that keeps letters and digits while ignoring spaces and punctuation. Tests should read 4/4 for the supplied cases.',
+      'Fill the middle of tdd_cycle with the phase reached when a failing test first passes. TDD should show the successful phase between red and refactor.',
+      'For ci_cd, choose a check that detects security vulnerabilities before release; for incident, choose immediate harm reduction before diagnosis. Results should put checks before deployment and protection before investigation.',
+    ],
     code: `# Lesson 38 — TDD, delivery, and incident response
 
 def is_palindrome(text):
@@ -612,7 +659,15 @@ cases = [
 passed = sum(is_palindrome(text) == expected for text, expected in cases)
 
 tdd_cycle = ["red", ???, "refactor"]
+# Pick one:
+#   "security scan"
+#   "performance benchmark"
+#   "integration tests"
 ci_cd = ["lint", "unit tests", ???, "deploy canary", "monitor"]
+# Pick one:
+#   "restart every dependent service"
+#   "diagnose root cause first"
+#   "mitigate user impact"
 incident = [???, "preserve evidence", "diagnose", "repair", "review"]
 
 print("Tests:", f"{passed}/{len(cases)}")
@@ -651,22 +706,39 @@ print("Incident first:", incident[0])
     topic: 'Interview corrections & gotchas',
     chapter: 'Interview practice',
     goal:
-      'Repair common interview claims about Python GC, ordered dictionaries, Java finalization, HashSet complexity, dead links, and what an LLM actually learns.',
+      'Fill the three missing descriptions of dictionary order, HashSet lookup cost and LLM behavior. Done when Results shows insertion order, average lookup cost with its caveat, and an LLM description based on learned patterns and context.',
     why:
-      'Precise corrections prevent confident but misleading answers, especially where language versions, average-case complexity, or probabilistic-model wording matter.',
+      'The python_gc and java_finalize entries are worked examples; their lifecycle descriptions are already complete. Your three edits practice precise claims about dictionary ordering, HashSet lookup cost and learned language patterns.',
     tasks: [
-      'Correct Python and Java lifecycle claims',
-      'State collection ordering and complexity with their caveats',
-      'Choose a safe dead-link workflow and precise LLM wording',
+      'Fill dict_order with Python\'s ordering behavior',
+      'Fill hashset_lookup with the typical lookup cost',
+      'Fill llm_wording with a precise model description',
+    ],
+    taskInstructions: [
+      'In CORRECTIONS, replace dict_order with the quoted choice that preserves entry arrival order without sorting keys. The Python dict line should describe insertion order and note OrderedDict\'s extra operations.',
+      'In CORRECTIONS, replace hashset_lookup with the quoted choice describing typical lookup cost without promising it for every input. The HashSet line should show the average-cost claim and its worst-case caveat.',
+      'For llm_wording, choose the description of learned patterns informed by the current input, rather than a fixed fact lookup or human certainty. The LLM line should express that limited claim.',
     ],
     code: `# Lesson 39 — Corrections and gotchas
 
 CORRECTIONS = {
     "python_gc": "reference counting plus cyclic garbage collection",
+    # Pick one:
+    #   "unordered in every Python version"
+    #   "insertion-ordered in modern Python; OrderedDict still has specialized APIs"
+    #   "automatically sorted by key in modern Python"
     "dict_order": ???,
     "java_finalize": "deprecated and unreliable; use explicit resource management",
+    # Pick one:
+    #   "average O(1), not an unconditional worst-case guarantee"
+    #   "guaranteed O(1) for every possible input"
+    #   "always O(n) even with well-distributed hashes"
     "hashset_lookup": ???,
     "dead_link": ["inventory", "classify", "redirect or repair", "verify", "monitor"],
+    # Pick one:
+    #   "looks up every answer in a fixed fact database"
+    #   "understands every statement with human certainty"
+    #   "learns statistical representations and uses context"
     "llm_wording": ???,
 }
 
@@ -722,6 +794,11 @@ print("Correction set complete:", complete)
       'Compose list, set, filter, map, reduce, itemgetter, attrgetter, and heap operations',
       'Complete a parameterized decorator with functools.wraps',
       'Bind one lookup with walrus and prove pytest fixture and assertion semantics',
+    ],
+    taskInstructions: [
+      'For names, choose the row field containing a person name; for best_object, build an attribute-based score key. Functional should show Ada and Grace totaling 179, and Attrgetter should show Ada.',
+      'Use the imported metadata-preserving decorator above wrapped, passing the wrapped function. Decorator should retain the name best_name and show result:Ada.',
+      'Use the cache key holding the ranked result, and append a cleanup event after the yield in resource_fixture. Walrus should show result:Ada and Fixture should end with teardown.',
     ],
     code: `# Lesson 40 — Functional tools, syntax, and pytest fixture ideas
 

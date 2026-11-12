@@ -18,7 +18,7 @@ export const BLANK_ANSWERS: Readonly<Record<string, readonly string[]>> = {
   'elif-and-or': ['or', 'age >= 6 and age < 18'],
   lists: ['80', '95', '70', '88'],
   'for-loops': ['1, 6'],
-  'while-loops': ['5', 'n + 1'],
+  'while-loops': ['3', 'n + 1'],
   dicts: ['"Ada"', '1815', '"city", "unknown"'],
   functions: ['n * n', '4'],
   'function-parameters': ['uppercase=True', 'min(numbers), max(numbers)'],

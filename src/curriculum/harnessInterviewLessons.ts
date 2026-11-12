@@ -10,12 +10,7 @@ import { practice } from './studyBookPracticeLessons'
 const harness = (spec: Omit<Parameters<typeof practice>[0], 'difficulty' | 'chapter' | 'bookChapter'>): LessonDraft => {
   const draft = practice({ ...spec, difficulty: 'harness', chapter: 'Agent harness interview', bookChapter: '' })
   delete draft.bookChapter
-  return {
-    ...draft,
-    taskInstructions: spec.tasks.map(
-      (task) => `${task}. Write it where ??? stands; Hint starts with the idea and what to use, Solution has a full answer.`,
-    ),
-  }
+  return draft
 }
 
 const LEDGER_TOOLS = `TRADES = {
@@ -79,10 +74,15 @@ export const HARNESS_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Tool registry',
     pipeline: ['register tools by name', 'look up the requested tool', 'run it', 'return result or error'],
     goal:
-      'Write call_tool so the agent can run any registered tool by name, and so an unknown tool or a failing tool comes back as {"error": ...} instead of crashing the loop.',
+      'Write call_tool to invoke registered functions by name. Done when Results shows two successful tool results and error dictionaries for unknown and failing tools, without crashing the loop.',
     why:
       'Every harness starts with a registry: the model only names a tool, and your code decides what actually runs. Turning failures into data lets the model see what went wrong and try again, instead of the whole request dying.',
     tasks: ['Look the tool up in TOOLS by name', 'Return an error for unknown tools and for exceptions', 'Run all four calls and match the results'],
+    taskInstructions: [
+      'Inside call_tool, retrieve the function from TOOLS using name, then unpack args as keyword arguments. The first two calls should return the T1 record and cash 990.0 under result.',
+      'Handle a missing lookup before calling it, and catch exceptions around the call. Results should describe unknown tool for delete_everything and KeyError for T404 inside error dictionaries.',
+      'Read the four call_tool outputs. Expect two result dictionaries followed by two error dictionaries; a traceback means a tool failure escaped instead of becoming a returned error.',
+    ],
     code: `# Agent harness — Tool registry
 ${LEDGER_TOOLS}
 def call_tool(name: str, args: dict) -> dict:
@@ -120,10 +120,15 @@ print(call_tool("get_trade", {"trade_id": "T404"}))
     topic: 'Validate tool arguments',
     pipeline: ['read the tool signature', 'unexpected names', 'missing required', 'wrong types'],
     goal:
-      'Write validate so it lists every problem with the model’s arguments — unexpected names, missing required ones, wrong types — using the tool’s own signature, before anything runs.',
+      'Write validate to check supplied arguments against the tool\'s signature before execution. Done when Results lists unexpected names, missing required arguments and wrong types, while valid arguments produce an empty list.',
     why:
       'Models invent argument names and send "12.5" where you need 12.5. Checking against the function signature (or a Pydantic model) catches it before a write tool runs with bad data, and the problem list is a useful message to send back.',
     tasks: ['Report arguments the tool does not take', 'Report missing required arguments and wrong types', 'Run the three cases and match the problem lists'],
+    taskInstructions: [
+      'Inside validate, compare keys in args with inspect.signature(fn).parameters and collect unexpected names. The final call should report unexpected argument: note.',
+      'Check each parameter\'s default before marking it missing, then check supplied values against annotations. Results should flag missing amount and the text amount while allowing the optional reason.',
+      'Read the three validate lists. Expect [], then one missing-amount problem, then unexpected note and the float-type problem; an error for reason would incorrectly treat a defaulted argument as required.',
+    ],
     code: `# Agent harness — Validate tool arguments
 import inspect
 
@@ -170,6 +175,11 @@ print(validate(post_adjustment, {"account": "ACC-1", "amount": "12.5", "note": "
     why:
       'The agent loop is the heart of the harness, and interviews usually start here. Injecting the model as a parameter means the same loop runs against Bedrock in production and a scripted fake in tests.',
     tasks: ['Start the conversation with the user question', 'Run requested tools and append their results', 'Return the answer and the tools used'],
+    taskInstructions: [
+      'In run_agent, start messages with a user-role dictionary containing question and initialize an empty used-tools list. ScriptedModel should first see one message.',
+      'For each requested tool, append its assistant request and a tool-role result from call_tool. model saw should grow to [1, 3, 5], proving each result reaches the next model call.',
+      'When run_agent sees answer, return its text with the collected tool names. Results should explain pending T2 and show get_trade followed by get_cash.',
+    ],
     code: `# Agent harness — Agent loop with a fake model
 ${LEDGER_TOOLS}
 ${CALL_TOOL}
@@ -216,10 +226,15 @@ print("model saw", model.seen, "messages")
     topic: 'Bounded loop and outcomes',
     pipeline: ['loop at most max_steps', 'answered', 'invalid reply', 'step limit'],
     goal:
-      'Bound the agent loop: return status "answered" with the answer, "invalid_reply" when the model sends neither a tool nor an answer, and "step_limit" when it keeps calling tools.',
+      'Bound model calls and give each way of ending the agent loop its own status. Done when Results shows answered with the answer, invalid_reply for malformed output and step_limit for endless tool requests.',
     why:
       'A model that loops costs money and never returns. A hard step limit and an explicit status for every way the run can end make the harness predictable, testable and easy to alert on.',
     tasks: ['Loop at most max_steps times', 'Return a status for answers and malformed replies', 'Return step_limit when the budget runs out'],
+    taskInstructions: [
+      'In run_agent, iterate over a finite step range tied to max_steps. The looping model should make exactly three calls rather than consuming all ten scripted replies.',
+      'Within run_agent, distinguish an answer from a tool request and an invalid reply, returning status and the current step count. The first two calls should end answered and invalid_reply at step 1.',
+      'After the bounded loop finishes, return the exhausted status with max_steps as steps. Results should show step_limit at 3 and calls made: 3.',
+    ],
     code: `# Agent harness — Bounded loop and outcomes
 ${LEDGER_TOOLS}
 ${CALL_TOOL}
@@ -263,10 +278,15 @@ print("calls made:", len(looping.seen))
     topic: 'Async tools with timeouts',
     pipeline: ['async tools', 'wait_for with a timeout', 'timeout becomes an error', 'gather runs calls together'],
     goal:
-      'Write call_tool_async so each async tool gets a timeout: results come back as {"result": ...}, a slow tool becomes {"error": "timeout after 0.05s"}, and three calls run concurrently.',
+      'Write call_tool_async to enforce a deadline for every async tool. Done when Results shows two result dictionaries, an error saying "timeout after 0.05s", and concurrent: True.',
     why:
       'Real tools call APIs and databases, so they are async and sometimes hang. asyncio.wait_for bounds each call, and gather runs independent calls side by side, so one slow feed cannot stall the agent.',
     tasks: ['Await the tool with asyncio.wait_for', 'Turn a timeout into an error result', 'Run main and check the calls ran concurrently'],
+    taskInstructions: [
+      'In call_tool_async, look up the registered function and await it through asyncio.wait_for using timeout. The two price calls should return 231.4 and 418.2 under result.',
+      'Catch the timeout exception separately and return an error dictionary describing the time limit. slow_feed should produce timeout after 0.05s instead of its late value.',
+      'Read the three result dictionaries and concurrent line from main. Expect two prices, one timeout and True; False suggests calls ran sequentially or the slow call ignored its deadline.',
+    ],
     code: `# Agent harness — Async tools with timeouts
 import asyncio
 import time
@@ -337,6 +357,11 @@ await main()  # top-level await works here, like a notebook; in a script use asy
     why:
       'In financial operations the model may propose a booking, but a person approves it. Putting the gate in code, outside the model, means no prompt can talk its way past it, and the approver can be faked in tests.',
     tasks: ['Ask the approver before any write tool', 'Return a rejection without running the tool', 'Run the three calls and check the ledger'],
+    taskInstructions: [
+      'In execute, test membership in WRITE_TOOLS before asking approver about the call. asked should include the two adjustment amounts but no entry for get_cash.',
+      'Return a rejected status and reason immediately when approver declines. The 5000 adjustment must leave LEDGER unchanged after the smaller approved write.',
+      'Read the three statuses and final ledger. Expect done, done, rejected and ACC-1 at 200.0; a higher balance means the denied adjustment ran anyway.',
+    ],
     code: `# Agent harness — Human approval for writes
 LEDGER = {"ACC-1": 174.5}
 WRITE_TOOLS = {"post_adjustment"}
@@ -398,6 +423,11 @@ print("asked about:", asked, "ledger:", LEDGER)
     why:
       'Agents retry, networks time out, and workers restart mid-step. Without an idempotency key the same payment can be booked twice — the classic, expensive bug in financial systems.',
     tasks: ['Replay the stored result for a known key', 'Run and remember the result the first time', 'Run the duplicate and check the ledger'],
+    taskInstructions: [
+      'In execute_once, check DONE for key before executing the call and return the saved result with replayed marked true. The second call should still report 100.0.',
+      'For a new key, call the registered tool, save its result in DONE and mark the returned response as a first execution. The first output should have replayed False.',
+      'Read both responses and ledger. Expect replayed False then True with ledger 100.0; a balance of 200.0 means the duplicate performed the write again.',
+    ],
     code: `# Agent harness — Idempotency keys
 import hashlib
 import json
@@ -455,10 +485,15 @@ print("new run, new key:", key_for("run-8", call) != key)
     topic: 'Retries with backoff',
     pipeline: ['call the tool', 'transient error: wait and retry', 'permanent error: fail now', 'give up after N tries'],
     goal:
-      'Write with_retries so only TransientError is retried, with exponential backoff (0.1, then 0.2), a PermanentError fails at once, and the last transient error is raised when attempts run out.',
+      'Write with_retries to retry only TransientError and stop at the attempt limit. Done when Results records delays 0.1 and 0.2, rejects PermanentError immediately and raises the final transient error when attempts run out.',
     why:
       'Throttling and timeouts deserve another try; a validation error never will. Retrying the wrong errors wastes time and can repeat writes, so the policy must be explicit. The sleep is injected so tests run instantly.',
     tasks: ['Retry only TransientError', 'Wait base_delay × 2^(attempt-1) between tries', 'Raise once attempts are used up'],
+    taskInstructions: [
+      'In with_retries, catch only TransientError around fn. The permanent case should immediately print PermanentError with no recorded sleep values.',
+      'Between unsuccessful attempts, call the supplied sleep function with a delay that doubles each time. The flaky example should record [0.1, 0.2] before succeeding on call 3.',
+      'On the last allowed attempt, re-raise TransientError without another sleep. always throttled should show that error and only two delays, proving retries stop at the limit.',
+    ],
     code: `# Agent harness — Retries with backoff
 class TransientError(Exception):
     pass
@@ -525,6 +560,11 @@ for label, target in [("permanent", bad_request), ("always throttled", flaky(99)
     why:
       'Emails, PDFs and web pages can contain instructions aimed at the model. You cannot rely on the model to ignore them, so the harness enforces a per-task allowlist outside the model: reasoning is separate from what is allowed to run.',
     tasks: ['Block tools outside the task’s allowlist', 'Block accounts outside the task’s scope', 'Run the three proposed calls and match the verdicts'],
+    taskInstructions: [
+      'In guard, look up TASK_POLICY[task] and reject a tool absent from its tools set. The proposed post_payment call should print a tool-not-allowed reason.',
+      'After the tool check, compare any account argument with the permitted accounts. get_cash for ACC-9 should print out of scope even though get_cash itself is permitted.',
+      'Read the three proposed-call verdicts. Only get_cash for ACC-1 should be allowed; allowing either ACC-9 call would let EMAIL text expand the task\'s authority.',
+    ],
     code: `# Agent harness — Prompt-injection guard
 import json
 
@@ -580,10 +620,15 @@ for call in proposed:
     topic: 'Structured traces',
     pipeline: ['time the call', 'record tool, args, ok, error', 'print one JSON line', 'summarise the run'],
     goal:
-      'Write call_with_trace so every tool call appends a structured entry — step, tool, args, ok, ms, and error when it failed — to TRACE and prints it as one JSON line.',
+      'Write call_with_trace to record each tool call in TRACE. Done when Results prints JSON entries with step, tool, args, ok and ms, adding error only to failed calls.',
     why:
       'When an agent misbehaves in production, the trace is the evidence: which tools ran, with what arguments, how long each took and what failed. One JSON line per step can go straight into CloudWatch or any log platform.',
     tasks: ['Time the call and record its outcome', 'Add the error only when the call failed', 'Print each entry as JSON and check the summary'],
+    taskInstructions: [
+      'In call_with_trace, measure call_tool with time.perf_counter and append an entry with step, tool, args, ok and milliseconds. Results should print one JSON line per call.',
+      'Add error to the trace entry only when call_tool returned an error. The ACC-404 line should have ok false and a KeyError, while successful lines should omit error.',
+      'Print each TRACE entry as JSON before returning the result. The summary should list get_trade, get_cash, get_cash with failed: 1; a different count means a call was missed or mislabeled.',
+    ],
     code: `# Agent harness — Structured traces
 import json
 import time
@@ -634,6 +679,11 @@ print("tools:", [entry["tool"] for entry in TRACE], "failed:", sum(not entry["ok
     why:
       'A right answer reached through the wrong tools is luck, not quality. Asserting the outcome and the tool path catches regressions when prompts, models or tools change — the same checks you would write as pytest tests.',
     tasks: ['Run the agent with the case’s scripted replies', 'Report a missing answer phrase and a different tool path', 'Run the suite and match the score'],
+    taskInstructions: [
+      'In evaluate, create a fresh ScriptedModel from the case replies and call run_agent with its question. The pending trade and cash lookup cases should both pass.',
+      'Build failures by checking the expected phrase in answer and comparing the ordered tools lists. The guessed answer must fail despite containing settled because it never called get_trade.',
+      'Read the three case lines and score. Expect PASS, PASS, FAIL and 2/3; a perfect score would mean the evaluator accepted an unsupported answer without its required tool call.',
+    ],
     code: `# Agent harness — Regression evals
 ${LEDGER_TOOLS}
 ${CALL_TOOL}
@@ -691,10 +741,15 @@ print(f"score {passed}/{len(CASES)}")
     topic: 'Mock session 1: build the agent',
     pipeline: ['registry + validation', 'bounded loop', 'statuses', 'answer with evidence'],
     goal:
-      'Interview rehearsal, about 45 minutes: write call_tool (validate, then run) and run_agent (bounded loop with statuses) so the reconciliation question is answered, a bad tool call is reported back to the model, and a looping model stops.',
+      'Rehearse building call_tool with argument checks and run_agent with a bounded loop, allowing about 45 minutes. Done when Results answers the reconciliation question, feeds a bad tool call back for repair, and stops the looping model.',
     why:
       'This is the shape of a typical first live-coding hour: a small agent over a few tools with a fake model, built step by step while you explain your choices. Every piece comes from the earlier lessons.',
     tasks: ['Validate arguments, then run the tool', 'Write the bounded loop with statuses', 'Run the three scenarios and match the outcomes'],
+    taskInstructions: [
+      'In call_tool, reject unknown names and validate args before invoking the function; return failures as error dictionaries. The fixes_itself scenario should recover after its incorrect id argument.',
+      'In run_agent, bound model calls by max_steps, append tool replies and return a status plus tools used. The looping scenario should stop after four get_cash requests.',
+      'Read the three scenario outputs. Expect answered, answered and step_limit; the second should record get_trade twice, showing the failed attempt was returned to the model for repair.',
+    ],
     code: `# Agent harness — Mock session 1: build the agent
 import inspect
 
@@ -756,10 +811,15 @@ print(run_agent(ScriptedModel([{"tool": "get_cash", "args": {"account": "ACC-1"}
     topic: 'Mock session 2: harden it',
     pipeline: ['policy guard', 'approval for writes', 'idempotent replay', 'retries for transient errors', 'trace every step'],
     goal:
-      'Interview rehearsal, part two: write execute, the single gate every tool call passes through — guard, approval for writes, idempotent replay, retries for transient errors and a trace entry — so the payment posts once and the injected call is blocked.',
+      'Rehearse one execute gate combining guards, write approval, keyed replay, transient retries and tracing. Done when Results shows one actual payment, a replayed result, a denied write and the injected call blocked, with every outcome traced.',
     why:
       'The second interview usually asks you to make your first build production-ready. Putting every control in one execute() function keeps the loop simple and gives you one place to test, log and audit.',
     tasks: ['Block guarded calls and denied writes', 'Replay by idempotency key, retrying transient errors', 'Trace every outcome and match the run'],
+    taskInstructions: [
+      'In execute, run guard first, then approve writes before any tool executes. Results should reject the large payment and block wire_out without changing LEDGER.',
+      'Check DONE by key before calling through with_retries, then store the first successful result. Repeating run1-pay should replay 120.0 after only one actual payment.',
+      'Append every returned outcome to TRACE, including replayed, rejected and blocked results. The final line should show ledger 120.0 and statuses done, replayed, rejected, blocked in that order.',
+    ],
     code: `# Agent harness — Mock session 2: harden it
 LEDGER = {"ACC-1": 0.0}
 WRITE_TOOLS = {"post_payment"}

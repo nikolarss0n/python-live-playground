@@ -27,8 +27,13 @@ export const FULLSTACK_LESSON_DRAFTS: LessonDraft[] = [
       'Almost every web app keeps its data in a database table. Seeing the table next to the code that filled it makes rows, columns and types concrete before any API is involved.',
     tasks: [
       'Load the "orders" practice dataset into the database',
-      'Count the rows of the orders table',
+      'Count the rows of the products table',
       'Run, then open the Data tab and press Shuffle data',
+    ],
+    taskInstructions: [
+      'In playdb.load, pass the quoted dataset name for the orders table. Results should show its row count and first order after the database has been seeded.',
+      'In the products COUNT query, insert the table name created near the top of the starter. The printed products rows should be 3, alongside the separate orders count.',
+      'Read orders rows, products rows and first order, then inspect Data and shuffle the dataset. Product count should remain 3; a missing orders table means playdb.load used the wrong dataset.',
     ],
     code: `# Full-stack data — Create and seed a table
 import playdb
@@ -83,6 +88,11 @@ print("first order:", dict(db.execute("SELECT * FROM orders ORDER BY id LIMIT 1"
       'Sort the warmest readings first',
       'Run and check the filtered counts',
     ],
+    taskInstructions: [
+      'In rainy_days, put the city argument first in the SQL parameter tuple. only Oslo should print True, proving the city placeholder uses the requested value.',
+      'Complete the warmest ORDER BY clause with the temperature column and descending direction. warmest first should print True followed by 3.',
+      'Read only Oslo, only wet and warmest first in Results. All should be True; a False points to the city binding, rain filter or temperature ordering respectively.',
+    ],
     code: `# Full-stack data — SELECT with WHERE
 import playdb
 
@@ -129,13 +139,18 @@ print("warmest first:", temps == sorted(temps, reverse=True), len(temps))
     topic: 'GROUP BY into a chart',
     pipeline: ['load orders', 'GROUP BY city', 'COUNT and SUM', 'chart the route'],
     goal:
-      'Group the orders by city so each city gets one row with its order count and revenue, check the counts add up to all 40 orders, then open the View tab to see the revenue chart.',
+      'Group orders by city to calculate each city\'s order count and revenue. Done when Results confirms the grouped counts cover all 40 orders and revenues are sorted, ready for the View chart.',
     why:
       'Dashboards are mostly GROUP BY queries: one row per category with a total. Returning those rows from a route is all a frontend needs to draw a bar chart.',
     tasks: [
       'Group the rows by city',
       'Check that the per-city counts add up to every order',
       'Run, then open the View tab and switch between Bars and Line',
+    ],
+    taskInstructions: [
+      'In revenue_by_city, group the SQL rows by the city column. Results should list the number of cities, with the highest revenue first.',
+      'Complete the orders add up comparison with the total number of orders from the loaded table. The printed comparison should be True, confirming grouping did not drop rows.',
+      'Read orders add up and biggest first before opening View for /revenue/by-city. Both should be True; a False means the chart would omit orders or show unsorted totals.',
     ],
     code: `# Full-stack data — GROUP BY into a chart
 import playdb
@@ -193,6 +208,11 @@ def by_city():
       'Raise a 404 when no rows match the name',
       'Return the average rows as a list of dicts',
       'Run, then edit the path in the API tab to /students/Grace',
+    ],
+    taskInstructions: [
+      'In report, fill the exception status with the missing-resource code. The Zed request should print 404 while Ada still returns 200.',
+      'In averages, convert every returned database row to a dictionary inside a list. Results should show the subject names from /averages without a serialization error.',
+      'Read the Ada status, Zed status and average subject list, then request /students/Grace in the API tab. Grace should return her subject rows; 404 would mean the name matched no records.',
     ],
     code: `# Full-stack data — A route that queries the database
 import playdb
@@ -256,6 +276,11 @@ print([row["subject"] for row in client.get("/averages").json()])
       'Bind the city value when the filter is set',
       'Bind the limit value',
       'Run, then try /orders/daily?city=Paris in the API tab',
+    ],
+    taskInstructions: [
+      'In list_orders, append the supplied city to params only inside the city branch. only Oslo should be True for the filtered request.',
+      'For the final params.append, use the requested maximum row count. limit works should print 3 for the test request instead of the default five.',
+      'Read only Oslo, limit works and every order, then request /orders/daily?city=Paris. A False city check or a count above 3 means the corresponding SQL placeholder received the wrong value.',
     ],
     code: `# Full-stack data — Query filters like ?city=
 import playdb
@@ -322,7 +347,12 @@ print("every order:", len(client.get("/orders?limit=40").json()))
     tasks: [
       'Store the ticket’s minutes in the new row',
       'Answer 201 Created for a new ticket',
-      'Run, then check tickets in the Data tab and the chart in View',
+      'Inspect the new ticket in Data and View',
+    ],
+    taskInstructions: [
+      'In create\'s INSERT parameter tuple, take the duration from the NewTicket body. The new billing row should store 12 minutes, with open tickets growing by 1.',
+      'In the /tickets decorator, supply the integer status for successful creation. The first Results line should begin 201 and include the new ticket id.',
+      'Read open tickets grew by before inspecting Data and View. Expect 1; 0 means the inserted row did not become an open ticket in the grouped query.',
     ],
     code: `# Full-stack data — POST a row
 import playdb
@@ -396,6 +426,11 @@ print("open tickets grew by", after - before)
       'Loop over the four dataset names',
       'Run and pick each route in the View tab',
       'Write one new route that answers your own question',
+    ],
+    taskInstructions: [
+      'In the loading loop, iterate over TABLES so each listed dataset reaches playdb.load. Results should show 4 tables loaded and a count for each table.',
+      'Read the printed row-count dictionary before selecting the four routes in View. Every table name should appear; a missing table means its dataset was not loaded.',
+      'Below minutes_by_topic, add a GET route using rows to answer one question about a loaded table. Print that query result to check it against the data before choosing the route in View.',
     ],
     code: `# Full-stack data — Sandbox: all four datasets
 import playdb

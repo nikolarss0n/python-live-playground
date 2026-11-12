@@ -25,6 +25,27 @@ function fill(code: string, answers: readonly string[]): string {
 }
 
 describe.skipIf(!hasPython)('FastAPI lessons in the simulator', () => {
+  it('lesson 7 supplies a working book route before the learner writes search', () => {
+    const lesson = getLesson('api-fastapi-path-query')
+    const exampleOnly = lesson.code.replace(BLANK, '')
+    const { ok, events, stderr } = run(exampleOnly)
+    expect(ok, stderr).toBe(true)
+    const output = events.flatMap((event) => event.kind === 'print' ? [event.text] : [])
+    expect(output.slice(0, 2)).toEqual([
+      "/books/2 200 {'id': 2, 'title': 'Emma'}",
+      "/books/2?shout=true 200 {'id': 2, 'title': 'EMMA'}",
+    ])
+    expect(output[2]).toMatch(/^\/books\/abc 422 /)
+    expect(output[3]).toMatch(/^\/search\?q=e 404 /)
+    expect(output[4]).toMatch(/^\/search 404 /)
+    expect(evaluateGoal(lesson, {
+      code: exampleOnly, starterCode: lesson.code, executedCode: exampleOnly,
+      status: 'success', events,
+    }).met).toBe(false)
+    expect(lesson.tasks).toHaveLength(3)
+    expect(BLANK_ANSWERS[lesson.id][0]).not.toContain('def read_book')
+  })
+
   it.each([...FASTAPI_LADDER_LESSON_DRAFTS, ...FASTAPI_BUILD_LESSON_DRAFTS].map((draft) => [draft.id] as const))('%s: the starter fails and the intended fill meets the goal', (id) => {
     const lesson = getLesson(id)
     const answers = BLANK_ANSWERS[id]

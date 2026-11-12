@@ -61,13 +61,13 @@ export const STUDY_BOOK_DEEP_DIVE_PYTHON_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'CPython memory tools',
     chapter: 'Python runtime deep dives',
     goal:
-      'Prove immediate reference-count release and separate cyclic collection, mutate a bytearray through a zero-copy memoryview, exercise slotted and weak-referenceable records plus a packed array, and match four profiling tools to their precise jobs.',
+      'Explore object lifetime, shared bytes, compact storage and profiling tools. Done when Results distinguishes immediate release from cycle collection, shows the original buffer changing to AzCDE, and explains each profiling tool. The record named model should support weak references without an instance dictionary, and the packed array should contain signed integers 2, 4 and 6.',
     why:
       'Memory debugging becomes reliable when object lifetime, cycles, copies, representation, and measurement tools are treated separately instead of reaching for gc.collect or micro-optimizations by habit.',
     tasks: [
-      'Make a slotted node weak-referenceable and distinguish reference-count release from cyclic garbage collection',
+      'Enable weak references on the slotted node',
       'Create a memoryview slice that mutates its original bytearray without copying',
-      'Store compact integers in an array and prove a slotted instance has no per-instance dictionary',
+      'Store compact integers in an array',
       'Match memory_profiler, dis, cProfile, and timeit to their distinct diagnostic roles',
     ],
     taskInstructions: [
@@ -184,14 +184,14 @@ print("Tool roles:", [TOOL_ROLES[name] for name in tool_order])
     topic: 'Concurrency safety patterns',
     chapter: 'Python runtime deep dives',
     goal:
-      'Choose thread and process executors by workload, state why blocking I/O can release the GIL, repair shared updates with a lock and immutable messages, and encode event-loop-safe waiting, retained task gathering, surfaced failures, and cancellation cleanup.',
+      'Finish workload selection, protected updates and async task cleanup. Done when Results identifies both executors, explains GIL release during I/O, and shows a counter value of 2 after locked updates. Two messages should use an immutable tuple, and the checks for async waiting and task cleanup should both pass.',
     why:
       'Concurrency safety depends on workload shape and ownership: executors address different bottlenecks, locks protect compound mutations, and async tasks need explicit retention, failure collection, and cleanup.',
     tasks: [
       'Choose ThreadPoolExecutor for blocking I/O and ProcessPoolExecutor for CPU-bound Python work',
       'Protect a read-modify-write update with Lock while passing immutable messages',
-      'Use asyncio.sleep as the non-blocking replacement for a blocking wait in the event loop',
-      'Retain created tasks, gather returned failures, and cancel plus await unfinished work in finally',
+      'Replace the blocking wait with asyncio.sleep',
+      'Complete task cleanup in finally',
     ],
     taskInstructions: [
       'Return ThreadPoolExecutor.__name__ for blocking_io and ProcessPoolExecutor.__name__ for cpu_python. The fixed policy text should remain visible: blocking I/O can release the GIL while its thread waits.',
@@ -314,13 +314,13 @@ print(
     topic: 'Python object protocols',
     chapter: 'Python object model deep dives',
     goal:
-      'Demonstrate internal-name conventions and name mangling through a validated property, register ORM-like fields with a metaclass, compose interchangeable formatters through constructor injection including a fake, implement container protocols, and contrast dict insertion order with OrderedDict move-to-end behavior.',
+      'Build validated objects, registered fields, interchangeable formatters and a container. Done when Results confirms hidden score storage, registered invoice fields, both formatters handling the same value and the fake formatter recording its call. The container should hold three items; the plain dictionary should keep insertion order, while OrderedDict moves the first key to the end.',
     why:
       'Senior Python design relies on protocols and explicit ownership: properties guard state, metaclasses can build class metadata, composition enables testing, and dunder methods let custom objects cooperate with ordinary language tools.',
     tasks: [
-      'Store a public property behind a name-mangled attribute while retaining a single-underscore internal convention',
+      'Store the property value using name mangling',
       'Use a metaclass to collect ORM-like Column declarations at class creation',
-      'Compose polymorphic formatters through constructor injection and verify behavior with a fake collaborator',
+      'Inject interchangeable formatters into the caller',
       'Implement len, indexing, and iteration for a small Batch container',
       'Preserve ordinary dict insertion order and use OrderedDict.move_to_end for explicit LRU-style reordering',
     ],

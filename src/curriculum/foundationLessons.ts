@@ -49,11 +49,11 @@ export const FOUNDATION_LESSON_DRAFTS: LessonDraft[] = [
   foundation({
     id: 'comments-indentation',
     topic: 'Comments & indentation',
-    goal: 'Write your own comment above the if and indent its print, so the hot-day message and "Done checking" both print while the commented-out line stays silent.',
+    goal: 'Add a comment explaining the if and indent its print line. Done when Results shows the hot-day message and "Done checking", with no debug message.',
     why: 'Python uses indentation instead of braces to know which lines belong to an if, a loop or a function. Comments are notes for people; Python skips them, which also makes them a quick way to switch a line off.',
     tasks: [
       'Replace ??? with a comment that says what the if checks',
-      'Indent the hot-day print by 4 spaces so it belongs to the if',
+      'Indent the hot-day print by four spaces',
       'Run and check that the debug line does not print',
     ],
     taskInstructions: [
@@ -95,7 +95,7 @@ print("Done checking")
   foundation({
     id: 'operators',
     topic: 'Operators',
-    goal: 'Use whole-number division and an in-place update so the program prints 2 h 15 min, a total of 14, a grouped total of 20 and 15 points.',
+    goal: 'Finish the division and points update in this small calculation. Done when Results shows 2 h 15 min, Total 14, Grouped 20 and 15 points.',
     why: 'Python has two divisions: / always gives a float, // gives whole units and % the remainder. Multiplication runs before addition unless brackets say otherwise, and += updates a variable in place.',
     tasks: [
       'Split 135 minutes into whole hours with the right operator',
@@ -148,7 +148,7 @@ print("Power:", 2 ** 10)
   foundation({
     id: 'string-methods',
     topic: 'String methods',
-    goal: 'Clean a messy name with a string method and swap a word with replace, so the program prints Ada Lovelace, ada lovelace, 12 and I like Python.',
+    goal: 'Clean a name and replace a word using string methods. Done when Results shows Ada Lovelace, ada lovelace, 12 and I like Python.',
     why: 'Real text arrives with extra spaces and odd capitals. String methods like strip, title, lower, replace and find return a new cleaned string; the original never changes in place.',
     tasks: [
       'Remove the spaces around raw with a string method',
@@ -197,7 +197,7 @@ print("-" * 10)
   foundation({
     id: 'elif-and-or',
     topic: 'Combined conditions',
-    goal: 'Finish the ticket rules with or and and, so ages 4, 70, a 30-year-old student, 12 and 30 cost 0, 8, 8, 10 and 14.',
+    goal: 'Finish the ticket rules using the keywords "or" and "and". Done when Results shows costs 0, 8, 8, 10 and 14 for the five supplied visitors.',
     why: 'Real rules combine facts. or needs one side true, and needs both, and not flips a value. An elif chain stops at the first true branch, so the order of the rules matters.',
     tasks: [
       'Give seniors or students the reduced price with one keyword',
@@ -298,7 +298,7 @@ print("low", low, "high", high)
   foundation({
     id: 'variable-scope',
     topic: 'Local & global scope',
-    goal: 'Finish add so it returns the new total and use it to update total, so the bad version leaves total at 0 and the good version reaches 12.',
+    goal: 'Finish add so its returned value updates total in the caller. Done when Results shows the bad version leaving total at 0 and the good version reaching 12.',
     why: 'A name assigned inside a function is local: it exists only there and hides any global with the same name. Passing values in and returning results out keeps functions predictable without the global keyword.',
     tasks: [
       'Return the sum of current and amount from add',
@@ -403,7 +403,7 @@ print("Age: " + ???)
   foundation({
     id: 'classes-basics',
     topic: 'Classes & objects',
-    goal: 'Store the starting balance on self and subtract in withdraw, so Ada ends with 120 EUR, Bob has 0 EUR and an overdraft prints Not enough money.',
+    goal: 'Finish the account methods that store a balance and withdraw money. Done when Results shows Ada with 120 EUR, Bob with 0 EUR and "Not enough money" for the overdraft.',
     why: 'A class bundles data (attributes on self) with the functions that change it (methods). Each object made from the class keeps its own copy of the data, so Ada and Bob never share a balance.',
     tasks: [
       'Save the balance argument on self in __init__',
@@ -463,7 +463,7 @@ print(bob.describe())
   foundation({
     id: 'inheritance',
     topic: 'Inheritance',
-    goal: 'Call the parent initializer with super() and make EmailNotifier inherit from Notifier, so the email line uses the shared format and the SMS line uses its own.',
+    goal: 'Finish EmailNotifier so it inherits from Notifier and calls the parent initializer with super(). Done when Results shows the email using the shared format and the SMS using its own format.',
     why: 'Inheritance lets a child class reuse everything from a parent and replace only what differs. Overriding one method changes behavior while the shared send logic stays in one place.',
     tasks: [
       'Run the parent __init__ from SmsNotifier with super()',
@@ -527,7 +527,7 @@ print("is a Notifier:", isinstance(SmsNotifier("Bob", "555-0100"), Notifier))
   foundation({
     id: 'files-pathlib',
     topic: 'Files & paths',
-    goal: 'Read the todo file back with pathlib and convert each CSV amount to a number, so the program prints 2 tasks and a total of 10 sold.',
+    goal: 'Read the todo file with pathlib and convert CSV amounts to numbers. Done when Results shows 2 tasks and a total of 10 sold.',
     why: 'Most real data lives in files. pathlib joins paths with / and reads or writes text in one call, and csv.DictReader turns each row into a dictionary. Everything in a file is text until you convert it.',
     tasks: [
       'Read todo.txt back with the matching pathlib method',

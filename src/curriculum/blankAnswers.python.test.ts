@@ -26,6 +26,14 @@ describe('blank answers', () => {
 })
 
 describe.skipIf(!hasPython)('blank answers in real Python', () => {
+  it('while-loops stops after printing 0, 1 and 2 as the lesson promises', () => {
+    let index = 0
+    const filled = getLesson('while-loops').code.replace(/\?\?\?/g, () => BLANK_ANSWERS['while-loops'][index++])
+    const result = spawnSync('python3', ['-I', '-c', filled], { encoding: 'utf8', timeout: 5000 })
+    expect(result.status, result.stderr).toBe(0)
+    expect(result.stdout.trim().split('\n')).toEqual(['0', '1', '2'])
+  })
+
   const ids = Object.keys(BLANK_ANSWERS).filter((id) => !coveredElsewhere.has(id))
   it.each(ids.map((id) => [id] as const))('%s: the filled starter runs', (id) => {
     let index = 0

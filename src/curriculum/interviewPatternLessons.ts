@@ -23,6 +23,11 @@ export const INTERVIEW_PATTERN_LESSON_DRAFTS: LessonDraft[] = [
       'Return True only when nothing is left open',
       'Run the three cases and match True, False, False',
     ],
+    taskInstructions: [
+      'In is_valid\'s elif, remove and inspect the newest item in stack before comparing with PAIRS[ch]. The correctly nested ([]{}) example, should return True.',
+      'Compare the final stack length with the count that means no opener is waiting. The unfinished (( case should then return False.',
+      'Read the three printed bracket cases. Expect True, False, False; accepting (] means types were not compared, while accepting (( means leftover openers were ignored.',
+    ],
     code: `# Interview patterns — Stack
 # Valid parentheses: each closer must match the latest unclosed opener.
 
@@ -64,13 +69,18 @@ for case in ["([]{})", "(]", "(("]:
     number: 51,
     topic: 'Monotonic stack',
     goal:
-      'Finish daily temperatures with a stack of waiting indices so each day learns how long until a warmer day, printing [1, 1, 4, 2, 1, 1, 0, 0] in one pass.',
+      'Finish daily temperatures using a stack of waiting indices in one pass. Done when Results shows waiting times [1, 1, 4, 2, 1, 1, 0, 0].',
     why:
       'Next greater element, stock span and histogram area all keep a stack of items still waiting for an answer. Each index is pushed and popped once, so it is O(n) instead of the O(n²) double loop.',
     tasks: [
       'Pop waiting days while today is warmer than the top',
       'Store the distance from the waiting day to today',
       'Push today and print the answer list',
+    ],
+    taskInstructions: [
+      'In daily_temperatures, choose a comparison that only removes waiting days colder than t. Equal temperatures must keep waiting; the first answer should be 1.',
+      'For answer[day], subtract the waiting index from today\'s index. The third input day should wait 4 days, not the difference between the two temperatures.',
+      'Trace waiting.append(today) before running the supplied list. Expect [1, 1, 4, 2, 1, 1, 0, 0]; nonzero final entries would claim warmer days that never arrive.',
     ],
     code: `# Interview patterns — Monotonic stack
 # Daily temperatures: days until a warmer temperature (0 if none).
@@ -111,13 +121,18 @@ print(daily_temperatures([73, 74, 75, 71, 69, 72, 76, 73]))
     number: 52,
     topic: 'Merge intervals',
     goal:
-      'Sort the meetings by start, then merge each one into the last block when they overlap, so [[1, 3], [8, 10], [2, 6], [15, 18]] prints [[1, 6], [8, 10], [15, 18]].',
+      'Sort intervals by start and combine overlaps with the last saved block. Done when Results merges [[1, 3], [8, 10], [2, 6], [15, 18]] into [[1, 6], [8, 10], [15, 18]].',
     why:
       'Calendars, booking systems and range compaction all reduce to sort-then-sweep. Without sorting by start you would have to compare every pair; after sorting, only the last merged block can overlap.',
     tasks: [
       'Sort the intervals by their start',
       'Extend the last block to the larger end when they overlap',
       'Print the merged list',
+    ],
+    taskInstructions: [
+      'In merge, give sorted a key function that extracts each interval\'s start. Processing [2, 6] before [8, 10] should allow the first two overlapping intervals to combine.',
+      'For merged[-1][1], choose the larger of the saved end and the current end. The first merged interval should reach 6 instead of stopping at 3.',
+      'Read the printed merged list. Expect [[1, 6], [8, 10], [15, 18]]; an extra [2, 6] means overlap detection or processing order is wrong.',
     ],
     code: `# Interview patterns — Intervals
 # Merge overlapping intervals.
@@ -157,13 +172,18 @@ print(merge([[1, 3], [8, 10], [2, 6], [15, 18]]))
     number: 53,
     topic: 'Hash map grouping',
     goal:
-      'Group words that are anagrams by giving each word a canonical key, so the six words print three groups: eat/tea/ate, tan/nat and bat, in first-seen order.',
+      'Group words by a shared sorted-letter key while preserving first-seen order. Done when Results shows three groups: eat/tea/ate, tan/nat and bat.',
     why:
       'Two-sum, anagram groups, duplicate detection and "first unique" all trade memory for speed with a dict keyed by something canonical. Choosing the key is the whole problem.',
     tasks: [
       'Build the key by sorting the letters of the word',
       'Append the word to its group with setdefault',
       'Print each group on its own line',
+    ],
+    taskInstructions: [
+      'Inside group_anagrams, build an immutable key from the sorted letters of word. eat, tea and ate should end up on the same Results line.',
+      'Pass the original word into the append following setdefault. Results should preserve each word\'s spelling instead of printing the sorted-letter key.',
+      'Read the three printed groups. Expect eat tea ate, then tan nat, then bat; splitting tea from eat means their keys differ despite having the same letters.',
     ],
     code: `# Interview patterns — Hash map grouping
 # Group anagrams together.
@@ -210,6 +230,11 @@ for group in group_anagrams(["eat", "tea", "tan", "ate", "nat", "bat"]):
       'Take the k most frequent with heapq.nlargest and a key',
       'Print each word and its count',
     ],
+    taskInstructions: [
+      'Inside top_k, construct the imported counting collection from words. The final lines should report error with 3 occurrences and warn with 2.',
+      'Give nlargest a key function that extracts the count from each (word, count) pair. Results should rank error before warn instead of comparing the words alphabetically.',
+      'Read the two word-count lines from log. Expect error 3 and warn 2; info appearing would mean the selection ignored frequency or returned more than k entries.',
+    ],
     code: `# Interview patterns — Heap (top k)
 # The k most frequent words in a log.
 import heapq
@@ -247,13 +272,18 @@ for word, count in top_k(log, 2):
     number: 55,
     topic: 'BFS shortest path',
     goal:
-      'Finish breadth-first search on the grid so the queue explores level by level and the shortest path from the top-left to the bottom-right prints 8 steps, or -1 when walled off.',
+      'Finish breadth-first search so a queue explores the grid level by level. Done when Results shows 8 steps from top-left to bottom-right in the open grid and -1 for the blocked grid.',
     why:
       'Fewest moves on an unweighted grid or graph is BFS: a queue visits all cells at distance d before d + 1, so the first time you reach the goal is the shortest. DFS can find a path, not the shortest one.',
     tasks: [
       'Take the oldest cell from the queue with popleft',
       'Mark a neighbour as seen when you enqueue it',
-      'Print the steps for the open grid and -1 for the blocked one',
+      'Print both shortest-path results',
+    ],
+    taskInstructions: [
+      'In shortest_path, remove the oldest queue entry and unpack its row, column and steps. The open grid should report 8 steps when nearer cells are explored first.',
+      'Before queue.append, add the new coordinate pair to seen. Results should still show open 8 while preventing the same cell from being queued repeatedly.',
+      'Read open and blocked together. Expect 8 and -1; a nonnegative blocked result means walls were crossed, while a larger open result suggests cells were explored in the wrong order.',
     ],
     code: `# Interview patterns — BFS
 # Fewest steps from top-left to bottom-right; # is a wall.
@@ -304,13 +334,18 @@ print("blocked", shortest_path(blocked))
     number: 56,
     topic: 'Topological sort',
     goal:
-      'Finish Kahn\'s algorithm so courses are taken only after their prerequisites, printing a valid order for the four courses and "cycle" when two courses require each other.',
+      'Finish Kahn\'s algorithm to order courses after their prerequisites. Done when Results shows a valid four-course order and "cycle" for two courses that require each other.',
     why:
       'Build systems, task schedulers and course planners need an order that respects dependencies. Kahn\'s algorithm repeatedly takes nodes with no remaining prerequisites and detects cycles when it gets stuck.',
     tasks: [
       'Start the queue with every course that has zero prerequisites',
       'Decrease a course\'s in-degree when one prerequisite is taken',
       'Print the order, or "cycle" when not every course was taken',
+    ],
+    taskInstructions: [
+      'In course_order\'s initial queue, select courses whose indegree is zero. The first printed order should start with course 0, which needs no other course.',
+      'Inside the loop over after[course], reduce nxt\'s remaining prerequisite count by one. Course 3 should enter the order only after courses 1 and 2.',
+      'Read the two course_order outputs. Expect [0, 1, 2, 3] and cycle; an incomplete list instead of cycle means the final length check was bypassed.',
     ],
     code: `# Interview patterns — Topological sort (Kahn)
 # Order courses so each comes after its prerequisites.
@@ -360,13 +395,18 @@ print(course_order(2, [(0, 1), (1, 0)]))
     number: 57,
     topic: 'Backtracking',
     goal:
-      'Finish the choose / explore / un-choose recursion so subsets([1, 2, 3]) prints all 8 subsets, starting [] [1] [1, 2] [1, 2, 3], with no duplicates and no copies sharing one list.',
+      'Finish recursive subset generation by saving separate lists and undoing each choice. Done when Results shows 8 unique subsets of [1, 2, 3], starting [] [1] [1, 2] [1, 2, 3].',
     why:
       'Subsets, permutations, combination sum and N-queens are the same shape: add a choice, recurse, then undo it. Forgetting to undo or to copy the path is the classic bug.',
     tasks: [
       'Save a copy of the current path, not the path itself',
       'Undo the choice after exploring it',
       'Print every subset and the count 8',
+    ],
+    taskInstructions: [
+      'In explore, append a separate copy of path to result. The first Results line should retain different subsets instead of many references to the same changing list.',
+      'After explore(i + 1), remove the last choice from path before the next iteration. The printed subsets should contain no repeated choice from an earlier branch.',
+      'Read the subsets and count lines for [1, 2, 3]. Expect eight distinct subsets including [] and [1, 2, 3]; repeated empty lists suggest path was saved without copying.',
     ],
     code: `# Interview patterns — Backtracking
 # All subsets of a list.
@@ -412,13 +452,18 @@ print("count", len(found))
     number: 58,
     topic: 'Dynamic programming',
     goal:
-      'Fill the bottom-up table so best[a] is the fewest coins for amount a, printing 3 coins for 11 with [1, 2, 5] and -1 when 3 cannot be made from [2].',
+      'Fill best[a] with the fewest coins needed for each amount. Done when Results shows 3 coins for 11 using [1, 2, 5] and -1 for 3 using only [2].',
     why:
       'When the answer for n is built from answers for smaller n — coin change, climbing stairs, house robber, edit distance — store them in a table. Greedy "take the biggest coin" fails on coins like [1, 3, 4].',
     tasks: [
       'Fill best[a] from best[a - coin] plus one coin',
       'Return -1 when the amount stays unreachable',
       'Print both answers',
+    ],
+    taskInstructions: [
+      'In min_coins, form a candidate from the best count for a minus coin, plus this one coin. The amount 11 should need 3 coins.',
+      'Fill the final else value with the integer used for an unreachable amount. The request for 3 using only coins of 2 should print -1.',
+      'Read both labeled answers. Expect 3 and -1; infinity in the second line means the unreachable marker was not converted before returning.',
     ],
     code: `# Interview patterns — Dynamic programming
 # Coin change: fewest coins that add up to the amount.
@@ -459,13 +504,18 @@ print("3 with [2]:", min_coins([2], 3))
     number: 59,
     topic: 'Linked list',
     goal:
-      'Reverse the singly linked list in place by re-pointing one node at a time, so 1 -> 2 -> 3 -> 4 prints 4 -> 3 -> 2 -> 1 without building a Python list.',
+      'Reverse the linked list in place by changing one node link at a time, without building a Python list. Done when Results turns 1 -> 2 -> 3 -> 4 into 4 -> 3 -> 2 -> 1.',
     why:
       'Reverse, detect a cycle, find the middle and merge two sorted lists are all pointer walks with prev / current / next. Losing the next pointer before re-linking breaks the list.',
     tasks: [
       'Remember the next node before re-pointing current',
       'Point current back at prev, then step both forward',
       'Print the reversed list',
+    ],
+    taskInstructions: [
+      'Inside reverse, save current\'s original next link in nxt before changing it. Results should retain all four nodes rather than losing the rest of the chain.',
+      'Assign current.next to the previous node and let the existing pair assignment advance the walk. The final printed chain should start with 4.',
+      'Read the full show(reverse(head)) result. Expect 4 -> 3 -> 2 -> 1; missing nodes mean an original link was overwritten before it was saved.',
     ],
     code: `# Interview patterns — Linked list
 # Reverse a singly linked list in place.
@@ -517,13 +567,18 @@ print(show(reverse(head)))
     number: 60,
     topic: 'Union-find',
     goal:
-      'Finish find with path compression and union by root so the friendship pairs collapse into groups, printing 2 groups for five people and True / False for two "same group?" questions.',
+      'Finish root lookup with path compression and join friendship groups by their roots. Done when Results shows 2 groups for five people, True for 0 and 2, and False for 2 and 3.',
     why:
       'Connected components, redundant connections and account merging ask "are these in the same group?" many times while groups keep merging. Union-find answers each in near O(1).',
     tasks: [
       'Make find follow parents to the root and compress the path',
       'Join two groups by pointing one root at the other',
       'Print the group count and both answers',
+    ],
+    taskInstructions: [
+      'Inside find, recursively find the root of parent[x] and save that root back on x. After the joins, Results should report two groups.',
+      'In union, assign one root\'s parent to the other root when they differ. The comparison for 0 and 2 should print True after their indirect connection.',
+      'Read groups, 0 and 2, and 2 and 3. Expect 2, True, False; joining all five nodes would incorrectly make the last comparison True.',
     ],
     code: `# Interview patterns — Union-find
 # Count friend groups and answer same-group questions.
@@ -571,13 +626,18 @@ print("2 and 3", find(2) == find(3))
     number: 61,
     topic: 'Trie',
     goal:
-      'Finish a dict-of-dicts trie so insert walks one character at a time and starts_with answers prefix questions, printing True for "app" and "ban" and False for "cat".',
+      'Build a dictionary-based trie that inserts words and answers prefix queries one character at a time. Done when Results shows True for app and ban, and False for cat.',
     why:
       'Autocomplete, word search and "longest common prefix" check many prefixes against one word list. A trie answers each prefix in O(length) no matter how many words are stored.',
     tasks: [
-      'Create the child node only when it is missing, then step into it',
+      'Insert each missing child node',
       'Walk the prefix and fail as soon as a character is missing',
       'Print the three prefix answers',
+    ],
+    taskInstructions: [
+      'In insert\'s setdefault, supply a fresh empty dictionary for a missing child. Existing nodes must survive so both apple and app share their first three letters.',
+      'In starts_with, return the Boolean for failure as soon as ch is absent. The cat query should print False instead of continuing into a nonexistent child.',
+      'Read app, ban and cat in Results. Expect True, True, False; ban being False would mean the code required a full word rather than just its prefix.',
     ],
     code: `# Interview patterns — Trie
 # Prefix lookups over a word list.

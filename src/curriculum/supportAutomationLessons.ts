@@ -20,13 +20,18 @@ export const SUPPORT_AUTOMATION_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Knowledge base from Markdown',
     pipeline: ['read the policy file', 'split on ## headings', 'one entry per section', 'look up a question'],
     goal:
-      'Turn the Markdown policy into four entries, one per ## heading, and route each question to the right entry: a slow leak to Slow leak, a missing pump to Missing pump, and kayaks to None.',
+      'Parse the Markdown policy into four entries, one per second-level heading. Done when Results routes the leak to Slow leak, the pump question to Missing pump, and kayaks to None.',
     why:
       'A support bot should answer from the shop’s own written rules, not from what the model remembers. Splitting the policy by heading gives small entries the bot can look up and quote, and a person can edit them later.',
     tasks: [
-      'Store the heading text without the leading "## " as the entry title',
+      'Save the heading text as the entry title',
       'Append each content line to the current entry',
       'Run and check that every question finds the right entry',
+    ],
+    taskInstructions: [
+      'In parse_kb, slice line after the three-character heading marker for title. The first print should show four entries with clean titles such as Choosing a tent.',
+      'For entries[-1]["content"], add the current line and a separator so consecutive lines remain readable. The next print should contain the slow-leak advice.',
+      'Read the four question lines after the entry list. They should find Slow leak, Missing pump, Choosing a tent and None; a wrong title suggests missing heading or content text.',
     ],
     code: `# Support automation — Knowledge base from Markdown
 KB_TEXT = """# Tents
@@ -106,6 +111,11 @@ for question in ["My mattress has a slow leak", "The pump was not in the box", "
       'Return None when no guard applies so the email gets an answer',
       'Run and match one line per email',
     ],
+    taskInstructions: [
+      'In skip_reason, compare sender with the supplied our_address in lowercase. The Re: Tent pole snapped line should say sent by us.',
+      'Fill the final return of skip_reason with Python\'s no-value marker. The ordinary Tent pole snapped and Pump missing messages should both print answer.',
+      'Read each INBOX subject beside its printed decision. Only the two ordinary customer messages should say answer; an answer for a bounce or auto-reply means a guard was missed.',
+    ],
     code: `# Support automation — Guards before any reply
 OUR_ADDRESS = "help@northwind-outdoor.test"
 
@@ -167,13 +177,18 @@ for message in INBOX:
     topic: 'A polling loop that labels',
     pipeline: ['list mail without the label', 'handle each message', 'label it on success', 'leave failures for the next pass'],
     goal:
-      'Make the poller pick up only unlabelled mail and label each message it handled, so m3 fails once, is retried on pass 2, and pass 3 finds nothing new.',
+      'Finish a poller that selects unlabelled mail and labels each successfully handled message. Done when Results shows m3 failing once, being retried on pass 2, and no new work on pass 3.',
     why:
       'Polling only makes outgoing calls, so the server needs no public address. A label marks what is done; a message that failed keeps no label and is simply tried again, which makes the loop safe to restart at any time.',
     tasks: [
       'List only messages that do not carry the handled label',
       'Add the label after a message was handled',
       'Run and follow the three passes',
+    ],
+    taskInstructions: [
+      'Inside new_mail, use a membership test that selects messages lacking HANDLED in their labels. Pass 1 should handle m1 and m2 while m3 reports a timeout.',
+      'After handle succeeds in poll_once, add the same label that new_mail checks. The successful messages should disappear from the next pass instead of being processed twice.',
+      'Read pass 1, pass 2 and pass 3: handled counts should be 2, 1 and 0. Attempts should show m3 twice; labeling it on failure would prevent that retry.',
     ],
     code: `# Support automation — A polling loop that labels
 HANDLED = "bot/handled"
@@ -241,13 +256,18 @@ print("attempts:", attempts)
     topic: 'Triage with escalation rules',
     pipeline: ['check always-escalate phrases', 'match a section', 'fall back to a person', 'return a typed result'],
     goal:
-      'Finish classify so refunds and rule-bending go to a person, product emails get a section, and an email no section covers is handed to a person too.',
+      'Finish classify to separate product questions from requests needing a person. Done when Results assigns product sections and sends refunds, rule-bending messages and uncovered questions to human review.',
     why:
       'The first model call in a support bot only sorts the email. Some cases must always reach a person, whatever the model thinks: money, legal threats, phone requests and attempts to change the bot’s rules.',
     tasks: [
       'Mark always-escalate emails as needing a human',
       'Match the email against the words of each section',
       'Run and compare the six results',
+    ],
+    taskInstructions: [
+      'In the first Triage return inside classify, set the human-needed flag to a Boolean. Both the refund and ignore-rule emails should print escalate with human=True.',
+      'Complete the any expression with the current section\'s word list. The first three emails should print tents, mattresses and shipping with human=False.',
+      'Read the six section and human values. Kayaks should be unknown with human=True; routing the refund as mattresses means product matching ran before escalation.',
     ],
     code: `# Support automation — Triage with escalation rules
 from dataclasses import dataclass
@@ -323,13 +343,18 @@ for email in [
     topic: 'The model proposes, code decides',
     pipeline: ['read the structured draft', 'block promises', 'apply replacement rules', 'send, ask or escalate'],
     goal:
-      'Finish decide so a leak within 30 days gets a new mattress, an older leak gets a repair kit, and a draft the knowledge base cannot back up is escalated.',
+      'Finish decide to apply replacement, repair and escalation rules to model drafts. Done when Results replaces a mattress within 30 days, offers repair for an older leak, and escalates answers unsupported by the knowledge base.',
     why:
       'The drafting model fills in facts as structured output. What the shop ships or refunds stays in plain Python, where a rule like “30 days” is exact, testable and cannot be talked out of by a clever email.',
     tasks: [
       'Replace the mattress only within 30 days of delivery',
       'Escalate drafts that were not answered from the knowledge base',
       'Run and check the seven decisions',
+    ],
+    taskInstructions: [
+      'In decide, supply the maximum replacement age in the days_since_delivery comparison. Day 12 should get a replacement, while day 45 should get a repair kit.',
+      'Complete the attribute after draft in the last condition using the flag that records whether the knowledge base supports the answer. Gift cards should be escalated.',
+      'Read all seven DRAFTS decisions. A leak without a date should ask for details, and refund tomorrow should escalate; a send decision for either would skip a required check.',
     ],
     code: `# Support automation — The model proposes, code decides
 from dataclasses import dataclass
@@ -403,13 +428,18 @@ for name, draft in DRAFTS.items():
     topic: 'Golden emails as evals',
     pipeline: ['write expected outcomes first', 'run every email', 'compare section and action', 'report failures and score'],
     goal:
-      'Count a case as passed only when the pipeline matches the expected section and action, read the failing case, then teach the mattress section "air bed" so the golden set reaches 8/8.',
+      'Finish the golden-email checks and teach the mattress section the phrase "air bed". Done when Results reaches 8/8, counting a case only when both its section and action match.',
     why:
       'Without evals every prompt or rule change is a guess: you fix one email and break two others. A golden set written before tuning shows exactly which emails changed, and grows with every mistake the bot makes.',
     tasks: [
       'Add "air bed" to the mattress words',
       'Compare each result with the expected outcome',
       'Run until all eight golden emails pass',
+    ],
+    taskInstructions: [
+      'Extend SECTIONS["mattresses"] with a quoted synonym found in the final GOLDEN email. That email should then be classified as mattresses with action reply.',
+      'In the got comparison, use the saved expected tuple from GOLDEN. Only matching section-and-action pairs should increase passed.',
+      'Read the final passed line and any FAIL lines above it. Expect 8/8 passed (100%); a FAIL line names the email whose section or action still differs.',
     ],
     code: `# Support automation — Golden emails as evals
 SECTIONS = {

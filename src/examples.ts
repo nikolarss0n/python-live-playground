@@ -245,6 +245,7 @@ print(???)
       'Set name to your name (replace ???)',
       'Run and check the greeting on the right',
     ],
+    stretch: 'Stretch: set name to "Ada Lovelace". Run again and check that Results prints Hello, Ada Lovelace!, including both parts of the name.',
     code: `# Lesson 3 — Variables
 # Goal: Store your name and print a greeting that uses it.
 # Your turn: put your name in the variable.
@@ -282,6 +283,7 @@ print(f"Hello, {name}!")
       'Fill age (int), price (float), label (str), ready (bool)',
       'Make number = int("42") work (fix ???)',
     ],
+    stretch: 'Stretch: change the quoted text passed to int from "42" to "007". Results should show the whole number 7, without the leading zeroes.',
     code: `# Lesson 4 — Types
 # Goal: Create one value of each type and convert a string to an int.
 # Your turn: finish each assignment.
@@ -328,6 +330,7 @@ number
       'Change 2 + 2 into a different calculation',
       'Add one more expression on its own line (no print)',
     ],
+    stretch: 'Stretch: change the repeat count in "Python" * 3 to 2. The value beside that line should become PythonPython.',
     code: `# Lesson 5 — Expressions
 # Goal: Write two expressions that show values without using print.
 # Your turn: edit these lines and watch the orange values on the right.
@@ -366,6 +369,7 @@ number
       'Set word to any word of 4+ letters',
       'Change the slice and the f-string name',
     ],
+    stretch: 'Stretch: change the slice of word to word[-3:]. The value beside that line should be hon, the last three letters of Python.',
     code: `# Lesson 7 — Strings
 # Goal: Slice a word and print an f-string with your own name.
 # Your turn: explore one word of text.
@@ -405,6 +409,7 @@ print(f"{name} loves {word}")
       'Change score so score >= 60 is True',
       'Add one more comparison line that is False',
     ],
+    stretch: 'Stretch: set score to 100. The two supplied comparisons should both show True because 100 is at least 60 and equal to 100.',
     code: `# Lesson 9 — Booleans
 # Goal: Get both True and False to appear by changing score and comparisons.
 # Your turn: tweak score and the comparisons.
@@ -444,6 +449,7 @@ score == 100
       'Set score so the Passed branch runs (60–89)',
       'Then change score to 90 or more so it prints Excellent',
     ],
+    stretch: 'Stretch: change score to 59. The program should print Try again because the score is below both the 90 and 60 cutoffs.',
     code: `# Lesson 10 — If decisions
 # Goal: Make the program print "Passed" for your score.
 # Your turn: choose a score that prints "Passed".
@@ -486,6 +492,7 @@ else:
       'Fill scores with four numbers of your choice',
       'Run and check the average on the right',
     ],
+    stretch: 'Stretch: set all four entries in scores to 80. The average value and Average score line should both show 80.0.',
     code: `# Lesson 12 — Lists
 # Goal: Put four numbers in a list and show their average.
 # Your turn: use your own four scores.
@@ -524,6 +531,7 @@ print(f"Average score: {average}")
       'Fix range so n goes 1, 2, 3, 4, 5',
       'Print each n (the print line is ready)',
     ],
+    stretch: 'Stretch: change range so n visits 2, 4 and 6. Results should contain exactly those three numbers on separate lines.',
     code: `# Lesson 13 — For loops
 # Goal: Loop with range and print each number from 1 through 5.
 # Your turn: finish the range so you see 1 through 5.
@@ -560,6 +568,7 @@ for n in range(???):
       'Complete the condition so the loop stops',
       'Increase n each time (replace ???)',
     ],
+    stretch: 'Stretch: start n at 1 in your completed loop while keeping its stop value at 3. Results should print 1 and 2, then stop.',
     code: `# Lesson 14 — While loops
 # Goal: Count with while and stop at the right time (print 0, 1, 2).
 # Your turn: print 0, 1, 2 then stop.
@@ -599,6 +608,7 @@ while n < ???:
       'Fill name and year in the dict',
       'Print the city using .get("city", "unknown")',
     ],
+    stretch: 'Stretch: change person["city"] from London to Sofia. The existing get call should now print Sofia without changing the print line.',
     code: `# Lesson 15 — Dictionaries
 # Goal: Build a person dict and print their city with .get().
 # Your turn: finish the dict and the print.
@@ -640,6 +650,7 @@ print(person.get(???))
       'Complete the return line inside square',
       'Call square with a number you choose',
     ],
+    stretch: 'Stretch: call square with -3 after completing its return. Results should show 9 because multiplying two negative numbers gives a positive result.',
     code: `# Lesson 16 — Functions
 # Goal: Write square(n) that returns n * n and call it.
 # Your turn: finish square and call it.
@@ -716,6 +727,7 @@ a / b
       'Open “What does this mean?” if you are stuck',
       'Replace the header with Python’s for + range',
     ],
+    stretch: 'Stretch: change the repaired range to visit 1 through 10. Results should begin at 1 and finish at 10, with ten printed numbers.',
     code: `# Lesson 21 — Python for-loops (repair lab)
 # Goal: Rewrite the C-style loop as for i in range(10): and print i.
 # Your turn: rewrite this in real Python.
@@ -753,6 +765,7 @@ for(i = 0; i < 10; i++):
       'Run once and see the safety timeout',
       'Change it so it prints 0, 1, 2 and finishes',
     ],
+    stretch: 'Stretch: replace the stopped loop with a countdown from n = 3, subtracting one each time. Print n inside it to see 3, 2 and 1 before it ends.',
     code: `# Lesson 22 — Infinite loops (safety lab)
 # Goal: Stop the infinite loop by giving while a real end condition.
 # Your turn: after you see the stop, fix the loop.
@@ -790,6 +803,7 @@ while True:
       'Complete the if condition (pass if score >= passing)',
       'Keep the average print at the end',
     ],
+    stretch: 'Stretch: change passing from 60 to 80. Only score 92 should print pass; the other four should print retry, and Average should stay 65.2.',
     code: `# Lesson 23 — Capstone
 # Goal: For each score, print pass or retry; then print the average.
 # Your turn: finish the decision inside the loop.
@@ -837,6 +851,7 @@ print(f"Average: {average}")
       'Finish enumerate so numbering starts at 1',
       'Zip names with years in the second loop',
     ],
+    stretch: 'Stretch: add "Katherine" to names without adding a year. The zip loop should still print only Ada and Grace, because years has only two entries.',
     code: `# Intermediate 1 — Enumerate & zip
 # Goal: Number a list with enumerate and pair two lists with zip.
 # Your turn: complete enumerate and zip.
@@ -879,6 +894,7 @@ for name, year in zip(???, ???):
       'Fix both range(...) bounds to cover 1..4',
       'Append row * col into line',
     ],
+    stretch: 'Stretch: extend only the inner col range through 5. Each of the four printed rows should gain a fifth value: 5, 10, 15 and 20.',
     code: `# Intermediate 2 — Nested loops
 # Goal: Print a 1..4 multiplication table using nested loops.
 # Your turn: finish the ranges and the product.
@@ -917,6 +933,7 @@ for row in range(1, ???):
       'Append n * 10 inside the loop',
       'Write an expression that checks if 30 is in nums',
     ],
+    stretch: 'Stretch: change the expression passed to nums.append to n * n. The displayed list should become [1, 4, 9, 16, 25], the first five squares.',
     code: `# Intermediate 3 — List methods
 # Goal: Build a list with append and check membership with in.
 # Your turn: grow nums, then test membership.
@@ -958,6 +975,7 @@ nums
       'Complete squares = [n * n for n in ...]',
       'Complete evens with an if n % 2 == 0 filter',
     ],
+    stretch: 'Stretch: change the evens comprehension to select odd numbers instead. Its displayed result should become [1, 3, 5, 7, 9].',
     code: `# Intermediate 4 — Comprehensions
 # Goal: Build squares with a list comprehension, then only the evens.
 # Your turn: finish both comprehensions.
@@ -997,6 +1015,7 @@ evens
       'Print each name and score from .items()',
       'Finish the comprehension for boosted scores',
     ],
+    stretch: 'Stretch: change the increase in boosted from 5 to 10. The displayed dictionary should show Ada: 102, Grace: 98 and Alan: 85.',
     code: `# Intermediate 5 — Dict loops
 # Goal: Loop .items() and build a new dict that adds 5 to each score.
 # Your turn: iterate and transform.
@@ -1039,6 +1058,7 @@ boosted
       'Fill skills_b with a few skill strings',
       'Compute union | and intersection &',
     ],
+    stretch: 'Stretch: set skills_b to {"python"}. The intersection should contain only python, while the union should still contain python, git and sql.',
     code: `# Intermediate 6 — Sets
 # Goal: Create two sets and show their union and intersection.
 # Your turn: finish skills_b and the set operations.
@@ -1079,6 +1099,7 @@ skills_a & skills_b
       'Unpack point into x, y',
       'Swap a and b in one line',
     ],
+    stretch: 'Stretch: change point to (-2, 7). After unpacking, x should show -2 and y should show 7, while the later swap still shows (2, 1).',
     code: `# Intermediate 7 — Tuples
 # Goal: Unpack a point tuple into x and y, then swap two variables.
 # Your turn: unpack and swap.
@@ -1120,6 +1141,11 @@ a, b = ???
       'Give greeting a default value in the def line',
       'Call greet once with only a name',
     ],
+    taskInstructions: [
+      'In the greet definition, give greeting a quoted default string. The call with only Ada should show Hello, Ada! in Results.',
+      'Use the existing greet("Ada") call to check the default, then read greet("Ada", "Hi"). Results should show a different greeting for each call.',
+    ],
+    stretch: 'Stretch: change greet\'s default greeting to "Welcome". The one-argument call should show Welcome, Ada!, while the explicit Hi call stays Hi, Ada!.',
     code: `# Intermediate 8 — Function defaults
 # Goal: Add a default greeting and call the function two ways.
 # Your turn: add a default for greeting.
@@ -1159,6 +1185,7 @@ greet("Ada", "Hi")
       'Pass key= so sorting uses the year field',
       'Verify the oldest-to-newest order in Results',
     ],
+    stretch: 'Stretch: add reverse=True to the sorted call that creates by_year. The printed order should become Alan, Grace, Ada, from newest year to oldest.',
     code: `# Intermediate 9 — Sorting
 # Goal: Sort people by year using sorted(..., key=...).
 # Your turn: sort by year (oldest first).
@@ -1202,6 +1229,7 @@ for person in by_year:
       'Wrap int(raw) in try',
       'In except ValueError, print that raw is not a number',
     ],
+    stretch: 'Stretch: add "-4" to raw_values. Results should gain -4 -> -4 after the existing lines, showing that int accepts a signed whole number.',
     code: `# Intermediate 10 — Try / except
 # Goal: Catch ValueError when int() fails and print a friendly message.
 # Your turn: handle bad values without crashing.
@@ -1245,6 +1273,7 @@ for raw in raw_values:
       'Store start on self.value in __init__',
       'Increase self.value inside bump',
     ],
+    stretch: 'Stretch: change c = Counter() to c = Counter(10). After the existing bump calls, Results should show 11, 15 and a final value of 15.',
     code: `# Intermediate 11 — Classes
 # Goal: Finish Counter so bump increases value and returns it.
 # Your turn: complete __init__ and bump.
@@ -1291,6 +1320,7 @@ c.value
       'Import math and random',
       'Call math.sqrt on a perfect square and random.randint(1, 6)',
     ],
+    stretch: 'Stretch: pass 81 into math.sqrt. Its result should become 9.0, while the random.randint call still produces a whole number from 1 through 6.',
     code: `# Intermediate 12 — Math & random
 # Goal: Use math.sqrt and random.randint in working calls.
 # Your turn: import modules and call them.
@@ -1330,6 +1360,7 @@ random.randint(1, 6)
       'Create text with json.dumps(data)',
       'Parse with json.loads(text) and read a field',
     ],
+    stretch: 'Stretch: change data["score"] from 92 to 100 before json.dumps. The printed JSON text should contain 100, while parsed["name"] still shows Ada.',
     code: `# Intermediate 13 — JSON
 # Goal: json.dumps a dict and json.loads it back.
 # Your turn: dumps then loads.
@@ -1750,6 +1781,7 @@ len(tokens)
       'Fill counts for each token in the loop',
       'Print the finished counts dict',
     ],
+    stretch: 'Stretch: add another "cat" to tokens. The printed dictionary should count cat three times, and counts["cat"] should show 3.',
     code: `# AI 2 — Bag of words
 # Goal: Count how often each token appears.
 # This is a tiny "feature vector" models use for text.
@@ -1797,6 +1829,7 @@ counts["cat"]
       'Build vocab as token → index',
       'Encode the sentence as a list of ids and print it',
     ],
+    stretch: 'Stretch: add "cat" at the end of tokens. The ids list should gain 1, reusing cat\'s existing id, and vocab should still contain four entries.',
     code: `# AI 3 — Vocabulary ids
 # Goal: Map each unique token to a small integer id.
 # Real tokenizers also map pieces of words to ids.
@@ -1846,6 +1879,7 @@ print(ids)
       'Implement the sum of a[i] * b[i]',
       'Print the dot product of the two samples',
     ],
+    stretch: 'Stretch: replace v2 with [0, 0, 0]. The dot product should print 0 because every pairwise multiplication now contributes zero.',
     code: `# AI 4 — Dot product
 # Goal: Write dot(a, b) for equal-length vectors and use it.
 # Similarity often starts with a simple sum of products.
@@ -1955,6 +1989,7 @@ print(round(cosine(a, b), 3))
       'Replace ??? in the f-string template',
       'Print the filled prompt for the sample user',
     ],
+    stretch: 'Stretch: change task to "explain dictionaries". The printed prompt should contain that new Task line while retaining the same system and student text.',
     code: `# AI 6 — Prompt templates
 # Goal: Fill a prompt template with variables and print the final prompt.
 # Chat apps build prompts the same way — with strings, carefully.
@@ -2063,6 +2098,7 @@ print(instruction)
       'Wire the three functions in order',
       'Print tokens, counts, and the top token',
     ],
+    stretch: 'Stretch: change text to "cat cat dog". Results should show those three tokens, counts of cat: 2 and dog: 1, and cat as the winner.',
     code: `# AI 8 — Mini pipeline
 # Goal: Chain tokenize → counts → top token and print each stage.
 # AI apps are pipelines: clean text, featurize, then decide.
@@ -2585,6 +2621,7 @@ print(validate_tool_call({"name": "email", "arguments": {}}))
       'Fill the request method while preserving the /hello path',
       'Print both fields',
     ],
+    stretch: 'Stretch: change request["path"] from /hello to /health. The second printed line should become /health, while the method line stays the same.',
     code: `# API 1 — Request dict
 # Goal: Build a request dict and print method + path.
 # Frameworks like FastAPI turn HTTP into structured data you handle in Python.
@@ -2677,6 +2714,7 @@ print(ok("hello from the browser"))
       'Return 200 + item when found, else 404',
       'Print both found and missing cases',
     ],
+    stretch: 'Stretch: add "99": {"name": "Katherine"} to items. The existing get_item("99") call should now return status 200 and Katherine instead of not found.',
     code: `# API 3 — Status codes
 # Goal: Choose 200 or 404 based on whether an item exists.
 # Status codes are part of the contract with API clients.
@@ -2721,6 +2759,7 @@ print(get_item("99"))
       'Finish the if/elif path checks',
       'Print responses for both paths',
     ],
+    stretch: 'Stretch: change the last request path from /missing to /health. Its response should become status 200 with ok: True instead of the no-route error.',
     code: `# API 4 — Routing
 # Goal: Route /health and /hello to different handlers.
 # FastAPI maps paths to functions; here we do it with plain if/elif.
@@ -2768,6 +2807,7 @@ print(handle({"method": "GET", "path": "/missing"}))
       'Pull name from request["query"] with .get',
       'Return a greeting in the body',
     ],
+    stretch: 'Stretch: replace the first request\'s query with {"name": "Grace"}. Its message should become Hello, Grace!, while the empty-query request still greets world.',
     code: `# API 5 — Query params
 # Goal: Read a name from query params with a default.
 # /greet?name=Ada → query dict {"name": "Ada"}
@@ -2861,6 +2901,7 @@ print(create_user({"method": "POST", "path": "/users", "body": {"name": "Ada"}})
       'Call the inner handler',
       'Add headers["x-request-id"] before returning',
     ],
+    stretch: 'Stretch: give hello a content-type header of application/json. The wrapped response should retain that header and also contain x-request-id with req-1.',
     code: `# API 7 — Middleware
 # Goal: Wrap a handler to add an X-Request-Id header on every response.
 # FastAPI middleware runs before/after your route — here a simple wrapper.
@@ -3033,7 +3074,7 @@ const LESSON_WHY: Record<string, string> = {
   conditionals:
     'if, elif, and else let one program choose different behavior for different situations.',
   lists:
-    'Lists keep ordered groups of values together, which makes iteration and aggregation possible.',
+    'Lists keep several values in order, so you can visit them one at a time or calculate a total or average.',
   'for-loops':
     'A for loop repeats the same operation over a collection without duplicating code.',
   'while-loops':
@@ -3187,7 +3228,7 @@ function orderBeginnerTrack(drafts: LessonDraft[]): LessonDraft[] {
   return [...rest.slice(0, first), ...ordered, ...rest.slice(first)]
 }
 
-/** Strings the tracks into SECTIONS, numbering each section from 1 and keeping each starter's "# Lesson N —" header in step. */
+/** Numbers lessons by section and keeps Lesson, Beginner and Intermediate starter headers in step. */
 function numberBySection(lessons: Omit<Lesson, 'section'>[]): Lesson[] {
   const placed = new Set<string>()
   const numbered = SECTIONS.flatMap(({ id, parts }) => parts.flatMap(({ difficulty, from = 1, to = Infinity }) =>
@@ -3196,7 +3237,7 @@ function numberBySection(lessons: Omit<Lesson, 'section'>[]): Lesson[] {
   ).map((lesson, index): Lesson => {
     placed.add(lesson.id)
     const number = index + 1
-    return { ...lesson, section: id, number, code: lesson.code.replace(/^# Lesson \d+ — /, `# Lesson ${number} — `) }
+    return { ...lesson, section: id, number, code: lesson.code.replace(/^# (?:Lesson|Beginner|Intermediate) \d+ — /, `# Lesson ${number} — `) }
   }))
   const missing = lessons.filter((lesson) => !placed.has(lesson.id))
   if (missing.length) throw new Error(`Lessons outside every section: ${missing.map((lesson) => lesson.id).join(', ')}`)

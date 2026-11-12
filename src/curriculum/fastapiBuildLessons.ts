@@ -3,16 +3,13 @@ import { practice } from './studyBookPracticeLessons'
 
 /**
  * FastAPI lessons 7-22, where the learner writes the code instead of filling single words. Scaffolding fades:
- * 7-9 write the routes, 10-14 also the model and the TestClient calls, 15-22 the whole file under the given data,
+ * 7 builds one route beside a worked example, 8-9 write both routes, 10-14 also the model and TestClient calls,
+ * and 15-22 the whole file under the given data,
  * imports included. Each starter states the routes to build and the exact output to print; the hint ladder in
  * fastapiBuildAnswers.ts climbs from the idea to the shape of the code, and Solution shows a full answer.
  */
-const build = (spec: Omit<Parameters<typeof practice>[0], 'difficulty' | 'chapter' | 'bookChapter'>): LessonDraft => ({
-  ...practice({ ...spec, difficulty: 'fastapi', chapter: 'FastAPI', bookChapter: 'fastapi' }),
-  taskInstructions: spec.tasks.map(
-    (task) => `${task}. Write it where ??? stands and match the expected output in the comments; Hint starts with the idea, Solution has a full answer.`,
-  ),
-})
+const build = (spec: Omit<Parameters<typeof practice>[0], 'difficulty' | 'chapter' | 'bookChapter'>): LessonDraft =>
+  practice({ ...spec, difficulty: 'fastapi', chapter: 'FastAPI', bookChapter: 'fastapi' })
 
 export const FASTAPI_BUILD_LESSON_DRAFTS: LessonDraft[] = [
   build({
@@ -21,20 +18,23 @@ export const FASTAPI_BUILD_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Write routes: path and query parameters',
     pipeline: ['match the path', 'convert path params', 'read query params', 'return JSON'],
     goal:
-      'Write GET /books/{book_id} and GET /search yourself, so /books/2 returns Emma, /books/abc answers 422, and /search?q=e returns two titles by default.',
+      'Use the completed read_book route as an example to write search. Done when Results shows Emma for /books/2, 422 for /books/abc, and Dune plus Emma when searching for e. The shout request should show EMMA, and missing q should return 422.',
     why:
-      'From here on you write the routes, not single words. FastAPI reads the function signature: names in the path come from the URL, the rest from the query string, and the type hints decide what is converted or rejected with 422.',
+      'The completed read_book route shows where parameters come from: book_id is in the path, while shout comes from the query string. In search, both parameters come from the query string; a default makes one optional.',
     tasks: [
-      'Write read_book with an int book_id and an optional shout flag',
-      'Write search with a required q and a default limit of 2',
-      'Run and compare every line with the expected output',
+      'Write the search route and its typed parameters',
+      'Return the matching titles up to limit',
+      'Run the five example requests',
+    ],
+    taskInstructions: [
+      'At the blank below read_book, use its decorator-and-function shape to define /search with text q and an integer limit default. Missing q should give 422; q=e should succeed.',
+      'Inside search, filter BOOKS values using lowercase comparisons and slice the matches before returning a dictionary with q and results. The q=e response should contain Dune and Emma.',
+      'Read the five URL lines against the expected-output comments. The two invalid requests should give 422; three search titles mean limit was ignored, while different book output means the example changed.',
     ],
     code: `# FastAPI — write routes: path and query parameters
-# Write two routes in place of the question-mark line:
-#   GET /books/{book_id}  book_id is an int; return {"id": book_id, "title": ...}
-#                         ?shout=true returns the title in capitals
-#   GET /search           q is required, limit defaults to 2;
-#                         return {"q": q, "results": [...]} with up to limit titles containing q, any case
+# Worked example: read_book below is complete; use its shape to write search.
+# At the question-mark line, add GET /search with required text q and limit defaulting to 2.
+# Return {"q": q, "results": [...]} with up to limit titles containing q, ignoring letter case.
 #
 # Expected output:
 #   /books/2 200 {'id': 2, 'title': 'Emma'}
@@ -47,6 +47,13 @@ from fastapi.testclient import TestClient
 
 app = FastAPI()
 BOOKS = {1: "Dune", 2: "Emma", 3: "Ulysses"}
+
+# book_id comes from the path and is converted to an int.
+# shout comes from the query string; its default makes it optional.
+@app.get("/books/{book_id}")
+def read_book(book_id: int, shout: bool = False):
+    title = BOOKS.get(book_id, "unknown")
+    return {"id": book_id, "title": title.upper() if shout else title}
 
 ???
 
@@ -64,8 +71,8 @@ for url in ["/books/2", "/books/2?shout=true", "/books/abc", "/search?q=e", "/se
       '^/search 422 ',
     ],
     hints: [
-      'Without int, book_id stays the text "2", and BOOKS has no key "2".',
-      'A parameter with a default is optional; q has none, so /search without q is a 422.',
+      'The read_book example has a required typed value and an optional default. For search, make q required and limit optional.',
+      'Filter BOOKS.values() by q without letter-case differences, then return only the first limit matches.',
     ],
     predict: {
       prompt: 'GET /books/abc when the handler says book_id: int. Status?',
@@ -86,13 +93,18 @@ for url in ["/books/2", "/books/2?shout=true", "/books/abc", "/search?q=e", "/se
     topic: 'Write routes: create and list',
     pipeline: ['validate the body', 'assign the next id', 'store it', 'answer 201'],
     goal:
-      'Write POST /notes, which answers 201 with a new id, and GET /notes, which lists every note in order, so both creates and the final list match the expected output.',
+      'Write routes that create notes with new ids and list them in creation order. Done when Results shows two 201 responses and a final list containing both notes in order.',
     why:
       '201 Created tells the client a new resource exists, and returning its id lets the client fetch it later. Create plus list is the first half of every CRUD API, and the first routes you write without blanks.',
     tasks: [
       'Write the POST route that stores a note and answers 201',
       'Write the GET route that lists every note',
       'Run and check the list at the end',
+    ],
+    taskInstructions: [
+      'Below NOTES, register a POST handler taking Note and assign each new note the next id. Its decorator should set the creation status; the first two Results lines should show 201 with ids 1 and 2.',
+      'Add a GET handler for /notes that builds dictionaries from the stored NOTES entries. The final response should contain both text values in creation order.',
+      'Read the two POST lines and the final GET list. Expect Buy milk then Call mom with distinct ids; one item or a repeated id means creation overwrote an earlier note.',
     ],
     code: `# FastAPI — write routes: create and list
 # Write two routes in place of the question-mark line:
@@ -151,13 +163,18 @@ print("GET", response.status_code, response.json())
     topic: 'Write routes: update and delete',
     pipeline: ['create 201', 'read 200', 'replace 200', 'delete 204 / 404'],
     goal:
-      'Write PUT and DELETE for /todos, so updating todo 1 answers 200, deleting todo 2 answers 204 and then 404, and the final list holds only the finished todo 1.',
+      'Write PUT and DELETE handlers for the todo collection. Done when Results shows update 1 returning 200, delete 2 returning 204 then 404, and only finished todo 1 remaining.',
     why:
       'Most services are a handful of resources with create, read, update and delete. The same four verbs, a 404 for missing ids and 201/204 for create/delete come up in every API review.',
     tasks: [
       'Write PUT /todos/{todo_id} that replaces a todo or answers 404',
       'Write DELETE /todos/{todo_id} that answers 204 or 404',
       'Run and check the list at the end',
+    ],
+    taskInstructions: [
+      'At the blank after list_todos, add the PUT route with a typed id and Todo body. Check TODOS before assignment; update 1 should return 200 and retain the id.',
+      'Add the DELETE route with an existence check before removal. It should return no content on success; the two delete calls should print 204 and then 404.',
+      'Read list after the update and deletes. It should contain only id 1 with done=True; a second todo means deletion failed, and False means the replacement body was ignored.',
     ],
     code: `# FastAPI — write routes: update and delete
 # Create and list are done. Write two routes in place of the question-mark line:
@@ -235,13 +252,18 @@ print("list", client.get("/todos").json())
     topic: 'Write a model, a route and the calls',
     pipeline: ['parse JSON', 'validate the model', 'fill defaults', 'call the handler'],
     goal:
-      'Write the Signup model, the POST /signup route and the client loop yourself, so a valid signup answers 201 and a missing or non-numeric age answers 422 at body.age.',
+      'Write Signup, POST /signup and a client loop for the supplied cases. Done when Results shows 201 for valid data and 422 at body.age for missing or non-numeric ages.',
     why:
       'Now you also write the calls. A BaseModel is the contract for a JSON body: FastAPI converts "36" to 36, fills defaults and answers 422 with the exact field location before your handler runs.',
     tasks: [
       'Write the Signup model with email, age and an optional newsletter flag',
       'Write POST /signup answering 201 with the three fields',
       'Post every body in CASES and print the expected lines',
+    ],
+    taskInstructions: [
+      'At the blank below CASES, define Signup with typed email, age and newsletter fields, giving only newsletter a default. The valid response should show age 36 and newsletter False.',
+      'Register a POST handler for /signup that accepts Signup and returns its fields with a creation status. The valid request should produce 201 rather than the default 200.',
+      'Loop over CASES with TestClient, posting each body and printing its name, status and JSON or error location. Both age failures should show 422 at body, age.',
     ],
     code: `# FastAPI — write a model, a route and the calls
 # In place of the question-mark line, write:
@@ -296,13 +318,18 @@ CASES = {
     topic: 'Write a model with Field limits',
     pipeline: ['parse the body', 'check each limit', '422 with the field', 'store the review'],
     goal:
-      'Write a Review model whose titles need at least 3 characters and whose stars run from 1 to 5, plus the route and calls, so a good review answers 201 and each bad one answers 422 at its field.',
+      'Build Review with titles of at least 3 characters and stars from 1 to 5, plus its route and calls. Done when Results shows 201 for the good review and 422 at the offending field for each bad review.',
     why:
       'Types alone accept a one-letter title or 99 stars. Field(...) limits put the business rules in the model, so every route that takes a Review gets the same checks and the same clear 422.',
     tasks: [
       'Write Review with Field limits on title and stars',
       'Write POST /reviews answering 201 with the review',
       'Post every body in CASES and print the expected lines',
+    ],
+    taskInstructions: [
+      'Define Review below CASES, using Field on title and stars for the lengths and inclusive number limits in the comment. short_title and too_many_stars should both be rejected.',
+      'Register /reviews to accept a Review body and return it with status 201. The good request should show Great book and stars 5.',
+      'Post each CASES body with TestClient and print the first error location and message when rejected. Expect title for short_title and stars for too_many_stars; swapped locations indicate misplaced limits.',
     ],
     code: `# FastAPI — write a model with Field limits
 # Field(min_length=..., ge=..., le=...) adds rules on top of the type.
@@ -357,13 +384,18 @@ CASES = {
     topic: 'Write routes with Query and Path limits',
     pipeline: ['read the parameter', 'check its range', '422 out of range', 'run the handler'],
     goal:
-      'Write /books with a limit from 1 to 20 and /books/{book_id} for positive ids only, plus the calls, so in-range calls answer 200 and limit=50 or id 0 answer 422 with the rule they broke.',
+      'Build book routes accepting limits from 1 to 20 and positive book ids, then call them. Done when Results shows 200 for valid requests and 422 with the broken rule for limit=50 or id 0.',
     why:
       'Query(...) and Path(...) give URL parameters the same limits Field gives body fields. A client asking for 10,000 rows or book 0 gets a precise 422 instead of a slow query or a confusing empty result.',
     tasks: [
       'Write GET /books with limit defaulting to 3, from 1 to 20',
       'Write GET /books/{book_id} that only accepts ids above 0',
       'Call every URL in URLS and print the expected lines',
+    ],
+    taskInstructions: [
+      'Below URLS, define the /books handler using Query to declare the default and inclusive range for limit. The default request should return three titles, while limit=50 should give 422.',
+      'Define the book-id handler with Path requiring a positive integer. /books/2 should return Emma; /books/0 should show the greater-than-zero error.',
+      'Loop through URLS with TestClient and print each response or first error message. Check 200, 422, 200, 422 in that order; 200 for an invalid value means a URL constraint is missing.',
     ],
     code: `# FastAPI — write routes with Query and Path limits
 # Query(default, ge=..., le=...) and Path(gt=...) check numbers in the URL.
@@ -425,6 +457,11 @@ URLS = ["/books", "/books?limit=50", "/books/2", "/books/0"]
       'Write POST /users and GET /users/{username} with response_model=UserOut',
       'Make the calls and print the expected lines',
     ],
+    taskInstructions: [
+      'Below USERS, define the two BaseModel classes described in the comments. Keep password in UserIn only so the printed responses can expose username without credentials.',
+      'Register both user routes with UserOut as their response model. Store the incoming UserIn in USERS, but expect the POST and GET responses to show only ada\'s username.',
+      'Create ada through TestClient, fetch ada, then test both response dictionaries for password. The last line should say password leaked: False; True means a route skipped output filtering.',
+    ],
     code: `# FastAPI — write response models that hide fields
 # response_model=UserOut keeps only UserOut's fields in the response, whatever the route returns.
 # In place of the question-mark line, write:
@@ -476,13 +513,18 @@ USERS = {}
     topic: 'Write routes that raise 404 and 409',
     pipeline: ['look up the resource', 'raise on a gap', 'pick 404 / 409', 'return the body'],
     goal:
-      'Write GET and POST /users/{username} so an unknown user answers 404 and a taken username answers 409, and the five calls print 200, 404, 201, 409 and 200.',
+      'Write user lookup and creation routes that reject missing users and taken names. Done when Results prints statuses 200, 404, 201, 409 and 200 for the five supplied calls.',
     why:
       'A handler that returns {"error": ...} with status 200 tells every client it worked. HTTPException stops the handler and sends the status and detail the client can act on: 404 for missing, 409 for a clash.',
     tasks: [
       'Write GET /users/{username} that raises 404 for an unknown user',
       'Write POST /users/{username} that raises 409 for a taken name',
       'Run every call in CALLS and print the expected lines',
+    ],
+    taskInstructions: [
+      'Below CALLS, add the GET handler and check USERS before looking up username. The first get bob should return 404 with No user named bob.',
+      'Add the POST handler with a check for an existing username before storage. Creating bob should return 201; creating ada should return 409 and keep the original user.',
+      'Run CALLS through client.request and print each name, status and JSON. The final get bob must succeed; a 404 there means the successful create did not save Bob.',
     ],
     code: `# FastAPI — write routes that raise 404 and 409
 # In place of the question-mark line, write:
@@ -544,13 +586,18 @@ CALLS = [
     topic: 'Build it: a shared Depends',
     pipeline: ['call the dependency', 'read its query params', 'pass the result in', 'run the route'],
     goal:
-      'Write the whole API under the data, imports included: one pagination dependency shared by /books and /authors with Depends, and the calls that print each page.',
+      'Build the complete API with a shared pagination dependency for books and authors. Done when Results prints each requested page: two initial books, two later books, Austen alone and Morrison alone.',
     why:
       'From here you write the whole file: imports, app, routes and calls. Several routes need the same inputs, so Depends(fn) calls fn per request, resolving its own query parameters, and passes the result in. Write the rule once, reuse it everywhere.',
     tasks: [
       'Import FastAPI, Depends and TestClient and create the app',
       'Write pagination and the two routes that depend on it',
       'Call the four URLs and print the expected lines',
+    ],
+    taskInstructions: [
+      'At the blank below AUTHORS, add the imports listed in the comment and instantiate FastAPI. Both /books and /authors will use this same app and TestClient.',
+      'Define pagination with typed skip and limit defaults, then inject its returned dictionary into both routes. Slice BOOKS or AUTHORS from skip through skip plus limit; /books should return Dune and Emma.',
+      'Use TestClient to call the four URLs in the starter comment and print URL, status and JSON. /authors?skip=3&limit=5 should return only Morrison; extra authors mean the slice ignored skip.',
     ],
     code: `# FastAPI — build it: a shared Depends
 # Depends(fn) calls fn for each request and passes its return value in.
@@ -601,13 +648,18 @@ AUTHORS = ["Austen", "Eliot", "Joyce", "Morrison"]
     topic: 'Build it: a yield dependency',
     pipeline: ['open the session', 'yield it to the route', 'run the route', 'close it in finally'],
     goal:
-      'Write the whole API under the data: a get_db yield dependency that always closes its session, a note route that uses it, and the calls, so the log shows open and close for the 200 and the 404.',
+      'Build a note API using a get_db dependency that yields a session and always closes it. Done when Results shows the 200 and 404 responses, with an open and close logged for each.',
     why:
       'A database session must be closed after every request, even when the route raises. Code before yield runs first, the yielded value goes to the route, and a finally block runs afterwards whatever happened.',
     tasks: [
       'Import what you need and write get_db with yield and finally',
       'Write GET /notes/{note_id} that depends on get_db and raises 404',
       'Call both URLs, then print the log',
+    ],
+    taskInstructions: [
+      'Below FakeSession, write get_db using a session created before yield and a finally block that closes it. LOG should record one open and close for every request.',
+      'Register /notes/{note_id} and receive its session through Depends(get_db). Return the note with session_open, or raise the documented 404; /notes/1 should show session_open True.',
+      'Call /notes/1 and /notes/9, then print LOG. Expect open, close twice; a missing final close means the error path did not release its session.',
     ],
     code: `# FastAPI — build it: a yield dependency
 # Code before yield runs before the route; the yielded value is what the route gets.
@@ -663,13 +715,18 @@ class FakeSession:
     topic: 'Build it: API keys in headers',
     pipeline: ['read the header', 'know the caller 401', 'check the role 403', 'run the handler'],
     goal:
-      'Write the whole API under the data: a require_user dependency that reads X-API-Key, /me and an admin-only /admin/cache, and the five calls, which print 401, 401, 200, 403 and 200.',
+      'Build require_user, /me and an admin-only /admin/cache using X-API-Key headers. Done when Results prints 401, 401, 200, 403 and 200 for the five documented calls.',
     why:
       '401 means "who are you?" and 403 means "I know you, and no". Putting the key check in one dependency means every route that needs a user gets the same rules, and none can forget them.',
     tasks: [
       'Write require_user, which reads the X-API-Key header or answers 401',
       'Write /me and an admin-only DELETE /admin/cache that answers 403',
       'Send the five calls with their headers and print the expected lines',
+    ],
+    taskInstructions: [
+      'Below ADMINS, define require_user with an optional Header value and validate it against API_KEYS. Missing and unknown keys should produce the two distinct 401 details in the comments.',
+      'Inject require_user into /me and the cache route, checking ADMINS before clearing. Alice should see her name; Bob should receive 403 for cache deletion.',
+      'Send the five documented requests using X-API-Key headers and print status plus JSON. A 200 for Bob would mean authentication succeeded but the admin check was skipped.',
     ],
     code: `# FastAPI — build it: API keys in headers
 # Header(None) reads an optional header; a parameter named x_api_key reads X-API-Key.
@@ -723,13 +780,18 @@ ADMINS = {"alice"}
     topic: 'Build it: current user and admin-only',
     pipeline: ['read Authorization', 'look up the token', '401 or the user', 'check the role 403'],
     goal:
-      'Write the whole API under the data: current_user and admin_only dependencies for Bearer tokens, /me and an admin-only DELETE /cache, and the five calls, which print 401, 200, 401, 403 and 200.',
+      'Build current_user, admin_only, /me and DELETE /cache using Bearer tokens. Done when Results prints 401, 200, 401, 403 and 200 for the five documented calls.',
     why:
       'Most APIs need "who is calling?" on almost every route. A current_user dependency answers it once; an admin_only dependency builds on it, and dependencies=[...] protects a route that does not need the user value.',
     tasks: [
       'Write current_user, which reads "Authorization: Bearer <token>"',
       'Write admin_only on top of it, then /me and DELETE /cache',
       'Send the five calls and print the expected lines',
+    ],
+    taskInstructions: [
+      'Below TOKENS, define current_user to read the Authorization header, check its Bearer prefix and look up the remaining token. Missing credentials and nope should produce different 401 details.',
+      'Make admin_only depend on current_user and reject non-admin roles, then attach it to DELETE /cache. Bob should get 403 while Ada gets cleared=True.',
+      'Print method, path, token, status and JSON for the five listed calls. Expect 401, 200, 401, 403, 200; Bob succeeding would reveal a missing role check.',
     ],
     code: `# FastAPI — build it: current user and admin-only
 # In place of the question-mark line, write the whole API:
@@ -785,13 +847,18 @@ TOKENS = {
     topic: 'Build it: split the app with APIRouter',
     pipeline: ['group routes in a router', 'give it a prefix', 'include it in the app', 'call the full paths'],
     goal:
-      'Write the whole API under the data as two routers, notes and users, each with its own prefix, include both in one app, and call /notes, /notes/1 and /users.',
+      'Build notes and users routers with their own prefixes and include both in one app. Done when Results shows successful responses for /notes, /notes/1 and /users with the documented data.',
     why:
       'One file with fifty routes is hard to read and review. APIRouter groups related routes, usually one router per file, and the prefix keeps their paths short. The app just includes each router.',
     tasks: [
       'Write a notes router with prefix /notes and two routes',
-      'Write a users router with prefix /users and include both in the app',
+      'Register the users router alongside the notes router',
       'Call the three paths and print the expected lines',
+    ],
+    taskInstructions: [
+      'Below USERS, create an APIRouter with the notes prefix and define list and id handlers on it. /notes should return both texts and /notes/1 should return Buy milk.',
+      'Create the users router with a list handler, then include both routers in a FastAPI app. /users should return ada and grace; an unregistered router would give 404.',
+      'Call /notes, /notes/1 and /users with TestClient and print status plus JSON. All three should be 200; a doubled prefix in a decorator makes the documented URL miss its route.',
     ],
     code: `# FastAPI — build it: split the app with APIRouter
 # A router collects routes; prefix="/notes" is added in front of each of its paths.
@@ -839,13 +906,18 @@ USERS = ["ada", "grace"]
     topic: 'Build it: pagination with limit and offset',
     pipeline: ['cap the limit', 'slice the page', 'compute next_offset', 'stop at the end'],
     goal:
-      'Write the whole API under the data: GET /items with a capped limit, an offset and next_offset, and a client that walks 23 items ten at a time, then checks that limit=500 is capped at 20.',
+      'Build GET /items with capped limits, offsets and next_offset, plus a client that follows each page. Done when Results walks all 23 items ten at a time and shows limit=500 capped at 20.',
     why:
       'Every list endpoint needs paging before the data grows. A capped limit protects the server, and next_offset tells clients when to stop instead of letting them guess.',
     tasks: [
       'Write GET /items returning items, total and next_offset',
       'Walk the pages until next_offset is None',
       'Print the expected page lines and the capped size',
+    ],
+    taskInstructions: [
+      'Below MAX_LIMIT, write the items route to cap limit and slice ITEMS from offset. Return total and the next unread offset; the last page should have next_offset set to None.',
+      'After creating TestClient, request pages of ten starting at zero and replace offset with each next_offset. The walk should reach item-23 without requesting a fourth page.',
+      'Print the first and last item of each page, then request limit=500. Expect offsets 0, 10, 20 and capped 20; a repeated offset means the page walk did not advance.',
     ],
     code: `# FastAPI — build it: pagination with limit and offset
 # In place of the question-mark line, write the whole API:
@@ -896,13 +968,18 @@ MAX_LIMIT = 20
     topic: 'Build it: swap a dependency in tests',
     pipeline: ['route depends on get_db', 'override get_db in tests', 'call the route', 'clear the override'],
     goal:
-      'Write the whole file: a /notes route that depends on get_db, a fake_db, and the calls that print the real notes, the fake notes under dependency_overrides, and the real ones again after clearing it.',
+      'Build a notes route and swap its get_db dependency for fake_db in a test. Done when Results shows real notes, fake notes during the override, then real notes after clearing it.',
     why:
       'Tests must not touch the real database or call paid APIs. Because routes ask for get_db through Depends, a test can swap it for a fake without changing the route.',
     tasks: [
       'Write get_db, fake_db and GET /notes that depends on get_db',
       'Override get_db with fake_db, then clear the override',
       'Print the before, override and after lines',
+    ],
+    taskInstructions: [
+      'At the blank, define the real and fake database providers from the comments and inject get_db into /notes. Before any override, the response should contain real note.',
+      'Use get_db itself as the dependency_overrides key and fake_db as its replacement, then clear the mapping after the test call. Only the middle response should contain fake notes.',
+      'Print the notes before, during and after the override. Expect real, fake, real; fake notes in the after line mean the test replacement was left active.',
     ],
     code: `# FastAPI — build it: swap a dependency in tests
 # app.dependency_overrides[real] = fake makes every Depends(real) call fake instead.
@@ -948,13 +1025,18 @@ MAX_LIMIT = 20
     topic: 'Build it: tests that assert on responses',
     pipeline: ['call the route', 'assert the status', 'assert the body', 'report pass or fail'],
     goal:
-      'Write three tests for the given API, one each for the health check, a missing note and creating a note, and a runner loop that prints PASS or FAIL for each, so all three print PASS.',
+      'Write response assertions for health, a missing note and note creation, plus a runner. Done when Results prints PASS for all three tests instead of FAIL.',
     why:
       'A test is a function that calls the API and asserts on what comes back. Run with pytest, each failing assert names the broken behavior before a user finds it. Printing a response is not a test.',
     tasks: [
       'Write test_health and test_missing_note with status and body asserts',
       'Write test_create_note that checks 201 and the returned text',
       'Run the three tests in a loop and print PASS or FAIL',
+    ],
+    taskInstructions: [
+      'Below client, define test_health and test_missing_note with separate status and response-body assertions. Both should print PASS when the runner invokes them.',
+      'Define test_create_note to post a text body and assert its status and returned text. PASS test_create_note should require both 201 and Buy milk.',
+      'Loop over the three test functions, catching AssertionError to print FAIL plus the function name. Results should show three PASS lines; a FAIL identifies the response check that disagrees.',
     ],
     code: `# FastAPI — build it: tests that assert on responses
 # pytest runs every function named test_*; here you write the tests and a small loop that runs them.

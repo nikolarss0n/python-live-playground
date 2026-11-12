@@ -1403,7 +1403,7 @@ print("shifted", assess(baseline, shifted_window))
     topic: 'Production AI endpoint capstone',
     chapter: 'Production capstone',
     goal:
-      'Reject an unknown identity with 401, fallback from a simulated 503 primary to backup, and replay the keyed success without another provider call or quota charge.',
+      'Build a guarded provider fallback with keyed replay and quota tracking. Done when Results shows 401 for unknown identity, recovery from primary 503 through backup, and replay without another provider call or quota charge.',
     why:
       'A production AI endpoint is a chain of deterministic controls around probabilistic work, and their ordering decides whether failures stay safe.',
     tasks: [

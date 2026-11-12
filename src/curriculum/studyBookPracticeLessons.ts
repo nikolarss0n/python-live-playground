@@ -15,6 +15,7 @@ export function practice(spec: {
   goal: string
   why: string
   tasks: [string, string, string]
+  taskInstructions: [string, string, string]
   code: string
   codeIncludes: string[]
   printPatterns: string[]
@@ -34,10 +35,7 @@ export function practice(spec: {
     goal: spec.goal,
     why: spec.why,
     tasks: spec.tasks,
-    taskInstructions: spec.tasks.map(
-      (task) =>
-        `${task}. Replace the matching ??? with the smallest valid Python, run the file, and confirm the printed evidence before moving on.`,
-    ),
+    taskInstructions: spec.taskInstructions,
     code: spec.code,
     goalCheck: {
       requireSuccess: true,
@@ -76,6 +74,11 @@ export const STUDY_BOOK_PRACTICE_LESSON_DRAFTS: LessonDraft[] = [
       'Fill picks with the four pattern ids in order',
       'Keep the zip loop so each prompt prints ok or WRONG',
       'Run and confirm four ok lines in Results',
+    ],
+    taskInstructions: [
+      'In picks, use quoted ids from the comment and match each to the constraint in prompts: contiguous text, sorted pairs, repeated range queries or a feasible minimum. Each row should print ok.',
+      'Trace the three zip inputs in the loop without rearranging them. Each prompt must be compared with the pick at the same index, so a misplaced choice will print WRONG.',
+      'Read the four prompt lines in Results. Expect four ok labels; WRONG want= identifies which pattern choice disagrees with the corresponding prompt.',
     ],
     code: `# Study book practice — Which array pattern?
 # Pair with DSA & SQL screens in the study book (the L/R tapes).
@@ -129,13 +132,18 @@ for name, got, expected in zip(prompts, picks, want):
     chapter: 'Array patterns',
     bookChapter: 'dsa-sql',
     goal:
-      'Finish the unique-substring window so L only moves forward, each index enters and leaves at most once, and abcabcbb / bbbbb / pwwkew print 3, 1, and 3.',
+      'Finish a unique-substring window whose left edge only moves forward, visiting each index at most once per edge. Done when Results shows abcabcbb, bbbbb and pwwkew with lengths 3, 1 and 3.',
     why:
       'Sliding window is the default for longest or shortest subarray/substring with a constraint. Restarting a new window from scratch is O(n²) and not the pattern the tape showed.',
     tasks: [
       'Advance L by one when the new character is already in seen',
       'Keep seen and best updates intact',
       'Run the three cases and match 3, 1, 3',
+    ],
+    taskInstructions: [
+      'The blank is on the l += line inside the while loop. Write how far the left edge moves after removing one repeated character. When correct, abcabcbb prints 3.',
+      'Trace seen.add and the best update after the while loop in longest_unique. They should count the current duplicate-free span; bbbbb should produce 1.',
+      'Read abcabcbb, bbbbb and pwwkew in Results. Their lengths should be 3, 1 and 3; a larger result usually means a repeated character stayed inside the window.',
     ],
     code: `# Study book practice — Sliding window
 # Longest substring without repeating characters (the abcabcbb tape).
@@ -184,13 +192,18 @@ print("pwwkew", longest_unique("pwwkew"))
     chapter: 'Array patterns',
     bookChapter: 'dsa-sql',
     goal:
-      'Finish sorted two-sum so a sum that is too large decrements R, a sum that is too small increments L, and [2, 7, 11, 15] with target 9 returns indices that add to 9.',
+      'Finish sorted two-sum by moving the right pointer for excessive sums and the left pointer for smaller sums. Done when Results shows indices [0, 1] selecting values 2 and 7 from [2, 7, 11, 15] for target 9.',
     why:
       'When the array is sorted, two pointers use O(1) extra space. A hash map still works but spends O(n) memory. Interviewers want you to name that trade.',
     tasks: [
       'Decrement R when the pair sum is above the target',
       'Keep the L++ branch for sums that are too small',
       'Print the index pair and the values that add to 9',
+    ],
+    taskInstructions: [
+      'In two_sum_sorted, fill the decrement after r with the amount needed to move one position left. The returned indices should be [0, 1].',
+      'Trace the else branch that advances l when the sum is too small. Moving toward larger values should eventually find the pair whose printed values are 2 and 7.',
+      'Read indices and values together. Expect [0, 1] followed by 2 and 7; indices without the matching values indicate confusion between positions and the numbers stored there.',
     ],
     code: `# Study book practice — Two pointers (sorted two-sum)
 
@@ -238,13 +251,18 @@ print("values", nums[pair[0]], nums[pair[1]])
     chapter: 'Array patterns',
     bookChapter: 'dsa-sql',
     goal:
-      'Build a prefix array whose slot i is the sum of the first i items, then answer range sum with one subtraction so nums[1..3] on [2, 3, 5, 1] prints 9.',
+      'Build prefix totals so slot i sums the first i items and each range query needs one subtraction. Done when Results shows 9 for indices 1 through 3 of [2, 3, 5, 1].',
     why:
       'If you will answer many range-sum queries, looping l..r each time is O(n) per query. One O(n) preprocess plus O(1) lookups is the prefix pattern.',
     tasks: [
       'Return prefix[r + 1] minus prefix[l] from range_sum',
       'Keep prefix[0] = 0 in make_prefix',
       'Print the range 1..3 result and the full prefix row',
+    ],
+    taskInstructions: [
+      'In range_sum, use an index one position beyond the inclusive right endpoint. Subtracting the prefix at l should make sum_1_3 print 9.',
+      'Trace make_prefix starting from its initial zero. The prefix line should show [0, 2, 5, 10, 11], with each position storing the sum before that array index.',
+      'Read prefix and sum_1_3 in Results. The total for indices 1 through 3 should be 9; getting 8 means the rightmost value was left out.',
     ],
     code: `# Study book practice — Prefix sums
 
@@ -289,13 +307,18 @@ print("sum_1_3", range_sum(prefix, 1, 3))
     chapter: 'Array patterns',
     bookChapter: 'dsa-sql',
     goal:
-      'Search eating speed k, not an array index: if mid is too slow, set lo to mid+1, otherwise pull hi to mid, and print the minimum k that finishes piles [3, 6, 7, 11] in 8 hours.',
+      'Search for the smallest eating speed, raising lo above an infeasible midpoint and keeping a feasible midpoint as hi. Done when Results shows speed 4 finishing piles [3, 6, 7, 11] in 8 hours.',
     why:
       'The piles are not a sorted search key. You search the integer answer. The predicate “can we finish at speed k?” is monotonic, so binary search still applies.',
     tasks: [
       'Set lo to mid + 1 when hours(mid) exceeds h',
       'Keep hi = mid when mid is feasible',
       'Print the min speed and the hours that speed needs',
+    ],
+    taskInstructions: [
+      'In min_speed\'s else branch, set lo to the first candidate strictly above mid. The min_speed line should finish at 4 instead of getting stuck on an infeasible candidate.',
+      'Trace the feasible branch where hi becomes mid. Keeping that candidate available should find the smallest speed; Results should show min_speed 4.',
+      'Read min_speed and hours together. Expect 4 and 8; fewer hours at a larger speed means the search found a feasible answer without proving it was the smallest.',
     ],
     code: `# Study book practice — Binary search on the answer (koko)
 
@@ -347,13 +370,18 @@ print("hours", hours(piles, k))
     chapter: 'Array patterns',
     bookChapter: 'dsa-sql',
     goal:
-      'For a mixed list of tiny jobs, store the pattern name, implement the one marked run, and print both the pattern and the numeric answer so a wrong pick cannot hide behind a lucky loop.',
+      'Choose the pattern for repeated range sums and finish the marked calculation. Done when Results shows the pattern id prefix and the numeric answer 9 together.',
     why:
       'On a real screen you do not get a chapter title. You read the prompt, name the pattern, then write ten lines. This lesson forces both.',
     tasks: [
       'Set pattern to prefix because the job is many range sums',
       'Finish range_sum using the prefix row',
       'Print the pattern id and the range result 9',
+    ],
+    taskInstructions: [
+      'Set pattern to the quoted id for precomputed running totals. Repeated sums on an unchanged array should produce the pattern label prefix.',
+      'In range_sum, select the prefix index immediately before the requested interval begins. The supplied range from 1 through 3 should print answer 9.',
+      'Read pattern and answer in Results. Expect prefix and 9; a different total means the subtraction removed too many or too few values before the requested range.',
     ],
     code: `# Study book practice — Pick then code
 # Job: answer sum(nums[1..3]) quickly on a static array.
@@ -403,13 +431,18 @@ print("answer", answer)
     bookChapter: 'fastapi',
     pipeline: ['read the failure', 'name the layer', 'pick 404 / 422 / 401 / 200', 'print the map'],
     goal:
-      'Map four FastAPI-shaped failures to status codes: unknown path 404, missing body field 422, missing Bearer 401, valid POST /query 200, and print ok for each.',
+      'Map request failures to HTTP status codes by their layer. Done when Results prints ok for unknown path 404, missing field 422, missing Bearer 401 and valid POST /query 200.',
     why:
       'The study-book FastAPI gates are Route → Pydantic → Depends → handler. Status codes are how those gates talk. Mixing 401 and 422 is the usual junior miss.',
     tasks: [
       'Fill codes in the same order as cases',
       'Keep the zip so each row prints ok or WRONG',
       'Run until all four lines say ok',
+    ],
+    taskInstructions: [
+      'In codes, put an integer HTTP status beside each corresponding case. Use the layer notes above the list; each case should print ok when its code matches the failure location.',
+      'Trace how zip pairs cases, codes and want before running. Each printed row should refer to its own case; changing the order of one list would produce WRONG labels.',
+      'Read all four case lines in Results. Each should end in ok; WRONG want= names the status to reconsider for that layer.',
     ],
     code: `# Study book practice — FastAPI status map
 # Layers: path (404) · Pydantic body (422) · Depends/auth (401) · handler (200)
@@ -460,13 +493,18 @@ for name, got, expected in zip(cases, codes, want):
     bookChapter: 'fastapi',
     pipeline: ['match route', 'validate body', 'Depends tenant', 'return envelope'],
     goal:
-      'Finish a tiny dispatcher so missing q returns 422, missing tenant returns 401, unknown path returns 404, and a valid query returns 200 with the tenant echoed.',
+      'Finish a local dispatcher that validates paths, query bodies and tenants. Done when Results shows 422 for missing q, 401 for missing tenant, 404 for unknown paths and 200 for valid queries. The successful query response must echo its tenant.',
     why:
       'FastAPI is path + Pydantic + Depends, not “if request then call OpenAI.” This local dispatcher is the same order as the study-book gates, without pretending Pyodide is uvicorn.',
     tasks: [
       'Return 422 when the POST body is missing q',
       'Keep 401 when x-tenant is absent',
       'Print the four case statuses including 200 for the happy path',
+    ],
+    taskInstructions: [
+      'In dispatch\'s missing-q branch, fill status with the validation-error code described by the task. The missing_q line should show 422.',
+      'Trace the tenant check after body validation and leave its rejection path in place. no_tenant should show 401 while a request with both tenant and q reaches 200.',
+      'Read every cases entry in Results: health and ok should be 200, missing_q 422, no_tenant 401 and ghost 404. A wrong label points to the corresponding dispatch branch.',
     ],
     code: `# Study book practice — FastAPI-shaped dispatcher (local, no server)
 

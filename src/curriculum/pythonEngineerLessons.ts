@@ -8,21 +8,21 @@ export const PYTHON_ENGINEER_LESSON_DRAFTS: LessonDraft[] = [
     topic: 'Missing data & None',
     chapter: 'Data for AI',
     goal:
-      'Normalize absent and None labels without crashing, and print four labels with a missing count of 2.',
+      'Finish a function that handles labels missing from a dictionary. Done when Results shows helpful, missing, missing, helpful and Missing: 2.',
     why:
-      'Real datasets contain absent and null fields, so AI pipelines need an explicit, testable missing-data policy.',
+      'A dictionary may leave out a key, or store None to mean no value. Using get lets you check either case without stopping the program.',
     tasks: [
-      'Read the optional label without raising KeyError',
-      'Convert both an absent label and None into "missing"',
-      'Count every normalized missing label while collecting results',
+      'Read the label with get',
+      'Fill the check for a missing value',
+      'Count the missing labels',
     ],
     taskInstructions: [
-      'Pass the string "label" to result.get(...), so a record without that key safely produces None instead of stopping the batch.',
-      'Complete the identity check with None and return "missing" from that branch; keep real label strings unchanged.',
-      'Increase missing_count by one only when the normalized label is "missing", then confirm the final count is exactly 2.',
+      'In normalized_label, give result.get the quoted key for the label. Results should keep the helpful labels and handle the dictionary with no label key.',
+      'In the if inside normalized_label, compare label with Python\'s no-value marker. The two entries without a usable label should print as missing.',
+      'In the loop over results, add one to missing_count when label is missing. After all four entries, the final print should say Missing: 2.',
     ],
     code: `# Beginner 17 — Missing data & None
-# Goal: apply one clear policy to absent and explicit null labels.
+# Goal: Finish a function that handles labels missing from a dictionary.
 
 results = [
     {"text": "great answer", "label": "helpful"},
@@ -58,7 +58,8 @@ print("Missing:", missing_count)
       minNonEmptyPrints: 2,
     },
     hints: [
-      'Use result.get("label"), compare with `is None`, and add 1 for each normalized missing value.',
+      'The key you want is "label"; get returns None when that key is absent.',
+      'Use is None to check for no value. Count each missing label with one added to missing_count.',
     ],
     predict: {
       prompt: 'What does a dictionary .get call return when its key is absent and no fallback is supplied?',
@@ -71,7 +72,7 @@ print("Missing:", missing_count)
       fixed: 'label = result.get("label")',
     },
     stretch:
-      'Stretch: return "unlabeled" for absent keys but "invalid" for a key explicitly set to None.',
+      'Stretch: add {"text": "no label yet"} to results. The Labels list should gain another missing entry and Missing should become 3.',
   },
   {
     id: 'nested-records',
@@ -80,18 +81,18 @@ print("Missing:", missing_count)
     topic: 'Nested records',
     chapter: 'Data for AI',
     goal:
-      'Safely filter nested run records at confidence 0.8, printing selected ["r1"] and skipped ["r2", "r3"].',
+      'Finish a loop that reads scores stored inside dictionaries. Done when Results shows Selected: ["r1"] and Skipped: ["r2", "r3"].',
     why:
-      'Model responses and datasets are commonly lists of nested records whose optional fields must be handled deliberately.',
+      'A dictionary can hold another dictionary: here metrics holds confidence, a score from zero to one. Some entries lack that score, so check before comparing.',
     tasks: [
-      'Read confidence through both dictionary levels safely',
-      'Select only non-missing confidence values at or above 0.8',
-      'Collect every other run id in a separate skipped list',
+      'Read confidence from the inner dictionary',
+      'Set the smallest selected score to 0.8',
+      'Save the other ids in skipped',
     ],
     taskInstructions: [
-      'Pass "confidence" to the inner .get(...); the outer .get("metrics", {}) already protects a missing metrics object.',
-      'Use 0.8 as the inclusive threshold while preserving the `is not None` guard, so missing values are never compared to numbers.',
-      'Append rejected ids to skipped rather than selected, then verify that r2 and r3 appear there in their original order.',
+      'In the second get call, name the confidence key as text. The r2 entry should go to skipped without causing an error when that key is absent.',
+      'After confidence >=, write 0.8 as the smallest score to select. The score 0.91 should select r1, while 0.72 should leave r3 out.',
+      'In the else branch, append the id to the list for entries you did not select. Results should show r2 and r3 in Skipped, in that order.',
     ],
     code: `# Beginner 18 — Nested records
 # Goal: filter nested model-run data without assuming every field exists.
@@ -125,7 +126,8 @@ print("Skipped:", skipped)
       minNonEmptyPrints: 2,
     },
     hints: [
-      'Read `.get("confidence")`, compare against `0.8`, and append rejected ids to `skipped`.',
+      'The first get finds metrics. The second get looks for "confidence" inside it.',
+      'Keep the is not None check before comparing with 0.8, and use skipped in the else branch.',
     ],
     predict: {
       prompt: 'Why check confidence is not None before comparing it with 0.8?',
@@ -142,7 +144,7 @@ print("Skipped:", skipped)
       fixed: 'confidence = run.get("metrics", {}).get("confidence")',
     },
     stretch:
-      'Stretch: add a run with no metrics key and prove it is skipped without changing the filtering code.',
+      'Stretch: add {"id": "r4"} to runs. Selected should stay ["r1"], and Skipped should gain r4 even though it has no metrics dictionary.',
   },
   {
     id: 'text-normalization',
@@ -151,18 +153,18 @@ print("Skipped:", skipped)
     topic: 'Text normalization',
     chapter: 'Data for AI',
     goal:
-      'Normalize casing, punctuation, and repeated whitespace while preserving an empty input as the empty string.',
+      'Finish a function that cleans capitals, punctuation and extra spaces from text. Done when Results shows "hello model", "needs sources" and an empty string.',
     why:
-      'Consistent text reduces accidental vocabulary differences and makes downstream matching and evaluation more reliable.',
+      'Text normalization means making differently written text look alike. Here you remove extra spaces and punctuation, then use lowercase so matching words is easier.',
     tasks: [
-      'Strip surrounding whitespace and lowercase the input',
-      'Remove the four listed punctuation marks and split into tokens',
-      'Join tokens with one space and preserve the empty-input boundary',
+      'Clean the outside spaces and capitals',
+      'Split cleaned into separate words',
+      'Join the words with single spaces',
     ],
     taskInstructions: [
-      'Set cleaned from text.strip().lower(), so leading spaces disappear before punctuation and token handling begins.',
-      'Set tokens from cleaned.split(); split with no argument collapses repeated whitespace and safely returns [] for empty text.',
-      'Return " ".join(tokens), which creates single spacing and naturally returns "" when the token list is empty.',
+      'Set cleaned inside normalize_text by removing outside spaces and converting text to lowercase. The first sample should eventually print as hello model.',
+      'Set tokens by splitting cleaned without a separator after the punctuation loop. Repeated spaces should disappear, so the second sample prints needs sources.',
+      'Return the tokens joined with one space between them. The whitespace-only sample should print two quote marks with nothing between them.',
     ],
     code: `# Beginner 19 — Text normalization
 # Goal: make equivalent text use one predictable representation.
@@ -193,7 +195,8 @@ for sample in samples:
       minNonEmptyPrints: 3,
     },
     hints: [
-      'Use `text.strip().lower()`, then `cleaned.split()`, then `" ".join(tokens)`.',
+      'Start with text.strip().lower(); the supplied loop removes punctuation for you.',
+      'Use cleaned.split() to get the words, then join tokens with " " between them.',
     ],
     predict: {
       prompt: 'What does "   ".split() return when split has no separator argument?',
@@ -206,7 +209,7 @@ for sample in samples:
       fixed: 'cleaned = " ".join(cleaned.split())',
     },
     stretch:
-      'Stretch: preserve apostrophes in "don’t" while also removing colons and semicolons.',
+      'Stretch: add "  GREAT,   work! " to samples. The extra Results line should be "great work", with lowercase letters and one space.',
   },
   {
     id: 'assertions-as-tests',
@@ -215,21 +218,21 @@ for sample in samples:
     topic: 'Assertions as tests',
     chapter: 'Correctness',
     goal:
-      'Clamp confidence into 0..1 and print evidence that four normal and boundary assertions all pass.',
+      'Finish a function that keeps a score between zero and one. Done when Results shows four passed lines followed by "4 checks passed".',
     why:
-      'Small executable examples turn an expectation into evidence and catch regressions immediately after a change.',
+      'An assertion is a check that stops Python when a result is wrong. Testing several inputs helps you notice mistakes when you change a function.',
     tasks: [
-      'Return the lower and upper boundary for out-of-range values',
-      'Complete the table with an expected value for the high case',
-      'Assert actual equals expected for every case before reporting success',
+      'Fill the returns for scores outside zero to one',
+      'Set the expected result for 1.4',
+      'Compare actual with expected in the assertion',
     ],
     taskInstructions: [
-      'Return 0.0 below the valid range and 1.0 above it; leave values already between those boundaries unchanged.',
-      'Set the expected result for input 1.4 to 1.0, so the table covers both an ordinary value and each boundary direction.',
-      'Assert actual == expected inside the loop and keep the diagnostic message, so a failure identifies the input and both values.',
+      'In clamp_confidence, return the nearest allowed endpoint for values below zero or above one. The first passed line should show -0.2 becoming 0.0.',
+      'In cases, fill the expected number beside 1.4 with the highest allowed score. That case should print passed: 1.4 -> 1.0.',
+      'After assert, write an equality comparison between actual and expected. Results should reach 4 checks passed only if every comparison succeeds.',
     ],
     code: `# Beginner 20 — Assertions as tests
-# Goal: encode the contract for a confidence-normalization helper.
+# Goal: Finish a function that keeps a score between zero and one.
 
 def clamp_confidence(value):
     if value < 0:
@@ -262,7 +265,8 @@ print(f"{len(cases)} checks passed")
       minNonEmptyPrints: 5,
     },
     hints: [
-      'The two clamped returns are 0.0 and 1.0; the assertion compares `actual == expected`.',
+      'The lowest allowed result is 0.0 and the highest is 1.0; scores between them stay as they are.',
+      'Use == to compare actual and expected. A wrong result will stop at assert instead of printing success.',
     ],
     predict: {
       prompt: 'What happens when a Python assert condition is False?',
@@ -279,7 +283,7 @@ print(f"{len(cases)} checks passed")
       fixed: 'assert actual == expected',
     },
     stretch:
-      'Stretch: add cases for exactly 1.0 and 0.333, then confirm neither valid value is changed.',
+      'Stretch: add (1.0, 1.0) to cases. The new passed line should show the score unchanged and the last line should say 5 checks passed.',
   },
   {
     id: 'feedback-classifier-capstone',
@@ -288,21 +292,21 @@ print(f"{len(cases)} checks passed")
     topic: 'Feedback classifier capstone',
     chapter: 'Beginner capstone',
     goal:
-      'Normalize five feedback records, classify positive/negative/neutral/unknown, and prove counts of 2/1/1/1.',
+      'Finish a program that labels five pieces of feedback using their words. Done when Results counts 2 positive, 1 negative, 1 neutral and 1 unknown.',
     why:
-      'This small deterministic classifier combines text cleaning, functions, loops, decisions, dictionaries, and tests.',
+      'A classifier puts items into named groups. This one uses word checks, so you can see how functions, loops and dictionaries work together to label feedback.',
     tasks: [
-      'Implement one-space lowercase normalization for every record',
-      'Classify empty, positive-keyword, negative-keyword, and neutral text',
-      'Aggregate labels into counts and assert the complete expected summary',
+      'Clean the feedback text inside normalize_text',
+      'Fill the positive and negative labels',
+      'Count each label and check the totals',
     ],
     taskInstructions: [
-      'Return lowercased tokens joined by one space; this must turn whitespace-only feedback into the empty string.',
-      'Return "positive" and "negative" from their keyword branches while preserving "unknown" for empty and "neutral" otherwise.',
-      'Increment the selected label count by one, then compare the entire counts dictionary with all four expected categories.',
+      'In normalize_text, return lowercase words joined with single spaces. The entry containing only spaces should become empty and print f3: unknown.',
+      'Inside classify, return a quoted group name from each word-check branch. Results should label f1 and f5 positive, f2 negative and f4 neutral.',
+      'In the feedback loop, add one for each label, then compare counts with the expected dictionary after assert. The Counts line should show all five entries counted.',
     ],
     code: `# Beginner 21 — Feedback classifier capstone
-# Goal: build and verify a tiny, inspectable text-classification pipeline.
+# Goal: Finish a program that labels five pieces of feedback using their words.
 
 feedback = [
     {"id": "f1", "text": " Great explanation "},
@@ -345,7 +349,9 @@ print("Counts:", counts)
       minNonEmptyPrints: 6,
     },
     hints: [
-      'Normalize with `" ".join(text.lower().split())`; return the two label strings, add 1, and assert against expected.',
+      'Lowercase the text, split it into words, then join those words with one space.',
+      'The great/helpful branch returns "positive"; needs/wrong returns "negative".',
+      'Increase the current label\'s count by one, then assert counts == expected.',
     ],
     predict: {
       prompt: 'Which label should whitespace-only feedback receive after normalization?',
@@ -358,7 +364,7 @@ print("Counts:", counts)
       fixed: 'if "great" in normalize_text(text):',
     },
     stretch:
-      'Stretch: return both the label and the matched keyword, using None as the reason for neutral and unknown results.',
+      'Stretch: change f4\'s text to "Great and clear" and update expected. The printed totals should become 3 positive, 1 negative and 1 unknown.',
   },
 
   {
@@ -819,7 +825,7 @@ except ValueError as error:
     topic: 'Async timeouts/retries',
     chapter: 'Production patterns',
     goal:
-      'Complete an async/await retry controller that recovers after one simulated timeout, caps attempts at two, and returns fallback on repeated failure; both outcomes and three timeout lines must print.',
+      'Finish an async retry controller that allows at most two attempts. Done when Results shows recovery after one timeout, fallback after repeated failure, and three timeout lines.',
     why:
       'Real provider calls need event-loop timeout primitives; this deterministic browser simulation isolates the same retry and fallback decisions without making network or wall-clock timing part of the lesson.',
     tasks: [

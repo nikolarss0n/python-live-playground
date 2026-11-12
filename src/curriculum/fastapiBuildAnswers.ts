@@ -2,16 +2,12 @@ import type { AlgorithmLadder } from './algorithmLayers'
 
 /**
  * Full answers for the FastAPI lessons where the learner writes the code (lessons 7-22). Each lesson has one ???;
- * its answer is everything that goes there. Lessons 7-9 write routes, 10-14 also the model and the calls,
+ * its answer is everything that goes there. Lesson 7 writes search beside a worked read_book example;
+ * 8-9 write both routes, 10-14 also the model and the calls,
  * 15-22 the whole file under the data: imports, app, routes, TestClient calls and prints.
  */
 export const FASTAPI_BUILD_ANSWERS: Readonly<Record<string, readonly string[]>> = {
-  'api-fastapi-path-query': [`@app.get("/books/{book_id}")
-def read_book(book_id: int, shout: bool = False):
-    title = BOOKS.get(book_id, "unknown")
-    return {"id": book_id, "title": title.upper() if shout else title}
-
-@app.get("/search")
+  'api-fastapi-path-query': [`@app.get("/search")
 def search(q: str, limit: int = 2):
     found = [title for title in BOOKS.values() if q.lower() in title.lower()]
     return {"q": q, "results": found[:limit]}`],
@@ -323,10 +319,10 @@ for test in [test_health, test_missing_note, test_create_note]:
 /** Hint ladders for the same lessons: the idea, what to use, a plan, then the shape of the code. */
 export const FASTAPI_BUILD_LADDERS: Readonly<Record<string, AlgorithmLadder>> = {
   'api-fastapi-path-query': {
-    idea: 'Names in the path come from the URL; every other parameter comes from the query string. The type hint converts the text and rejects what does not fit.',
-    tool: '`@app.get("/books/{book_id}")` with `book_id: int`, a `shout: bool = False` query flag, and `q: str` plus `limit: int = 2` on /search.',
-    plan: 'read_book looks the id up in BOOKS and upper-cases the title when shout is true. search keeps titles that contain q in any case and slices the first limit.',
-    shape: '`def read_book(book_id: int, shout: bool = False):` returning `{"id": ..., "title": ...}`, and `def search(q: str, limit: int = 2):` with a list comprehension and `found[:limit]`.',
+    idea: 'Use the completed read_book route as your example. The search path has no placeholders, so q and limit both come from the query string.',
+    tool: 'Register search with `@app.get("/search")`. Give it required `q: str` and optional `limit: int = 2`, following the typed parameters in read_book.',
+    plan: 'Inside search, keep BOOKS titles containing q after lowercasing both sides. Return q and a results list sliced to the first limit matches.',
+    shape: '`def search(q: str, limit: int = 2):` builds `found` with a list comprehension over `BOOKS.values()`, then returns `{"q": q, "results": found[:limit]}`.',
   },
   'fastapi-post-create': {
     idea: 'Create answers 201 with the new id; list returns every stored note in order.',

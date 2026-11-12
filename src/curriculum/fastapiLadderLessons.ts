@@ -22,6 +22,11 @@ export const FASTAPI_LADDER_LESSON_DRAFTS: LessonDraft[] = [
       'Return "ok" as the status',
       'Run and compare the 200 and 404 lines',
     ],
+    taskInstructions: [
+      'Inside @app.get, put a quoted URL path matching the first client.get call. GET /health should reach health and return status 200.',
+      'In health, set the status value to a quoted success message. The first response JSON should contain status with value ok.',
+      'Read GET /health and GET /healthz in Results. Expect 200 then 404; two 404 responses mean the registered path does not match the first request.',
+    ],
     code: `# FastAPI — your first endpoint
 # @app.get(path) registers the function below it for GET requests to that path.
 # The dict the function returns is sent back to the caller as JSON.
@@ -76,6 +81,11 @@ print("GET /healthz", missing.status_code, missing.json())
       'Add a name parameter to the function',
       'Run and check all three lines',
     ],
+    taskInstructions: [
+      'Inside the decorator path, put name in curly braces so it captures the URL segment. The Ada and Grace requests should both reach hello.',
+      'In hello\'s parameter list, declare the captured name as text with the same spelling as the path placeholder. Results should greet Ada and Grace separately.',
+      'Read the /hello/Ada, /hello/Grace and /hello lines. Expect two greetings with 200, then 404; a 422 suggests the function parameter does not match the path name.',
+    ],
     code: `# FastAPI — path parameters
 # {name} in the path captures that part of the URL.
 # The function needs a parameter with the same name to receive it.
@@ -120,13 +130,18 @@ for url in ["/hello/Ada", "/hello/Grace", "/hello"]:
     number: 3,
     topic: 'Query parameters: /ask?q=',
     pipeline: ['read ?q= from the URL', 'look up the answer', 'fall back politely', 'return JSON'],
-    goal: 'Make GET /ask read the question from ?q= and answer from the FAQ, so known questions get their answer, unknown ones get the fallback, and a call without q answers 422.',
+    goal: 'Make GET /ask answer FAQ questions supplied through the q query parameter. Done when Results shows answers for known questions, the fallback for unknown questions, and 422 when q is missing.',
     why:
       'A function parameter that is not in the path is read from the query string. Without a default it is required, so FastAPI rejects a call that leaves it out with 422 before your code runs.',
     tasks: [
       'Declare q as a text query parameter',
       'Look the question up in lowercase so "Refund" matches',
       'Run and compare the 200 and 422 lines',
+    ],
+    taskInstructions: [
+      'After q in ask\'s signature, supply the Python text type without a default. Requests with q should return 200; the bare /ask request should return 422.',
+      'Use a lowercase version of q as the FAQ.get key. The Refund request should receive Refunds take 3 days. while preserving its original question text.',
+      'Read the four /ask lines: hours, Refund and parking should return 200, while /ask prints 422 missing q. A fallback for Refund means the lookup still distinguishes letter case.',
     ],
     code: `# FastAPI — query parameters
 # A parameter that is not in the path comes from the query string: /ask?q=hours
@@ -178,13 +193,18 @@ for url in ["/ask?q=hours", "/ask?q=Refund", "/ask?q=parking", "/ask"]:
     number: 4,
     topic: 'POST /ask with a JSON body',
     pipeline: ['read the JSON body', 'validate it as Question', 'answer from the FAQ', 'return JSON'],
-    goal: 'Move the question into a JSON body: POST /ask takes a Question model, answers known and unknown questions with 200, and rejects an empty body with 422.',
+    goal: 'Build POST /ask to read a Question model from a JSON body. Done when Results shows 200 for known and unknown questions, and 422 for an empty body.',
     why:
       'Real questions are long and may hold private text, so they go in the request body, not the URL. A Pydantic model describes that body; FastAPI parses the JSON and checks every field before your function runs.',
     tasks: [
       'Annotate the parameter with the Question model',
       'Send the requests with the client post method',
       'Run and read the 422 for the empty body',
+    ],
+    taskInstructions: [
+      'Use the existing Question class as ask\'s parameter type. Sending text in the JSON body should produce a 200 answer instead of a missing-query error.',
+      'Choose the TestClient method matching @app.post for the loop over body. The hours body should receive the FAQ answer and parking should receive the fallback.',
+      'Read the line for the empty dictionary in Results. Expect 422 with body and text in the error location; a query location means the parameter is not typed as Question.',
     ],
     code: `# FastAPI — a JSON request body
 # A parameter typed with a BaseModel is read from the JSON body and validated.
@@ -244,6 +264,11 @@ for body in [{"text": "hours"}, {"text": "parking"}, {}]:
       'Raise it with status 404 for an unknown id',
       'Run and compare the 200 and 404 lines',
     ],
+    taskInstructions: [
+      'Complete the import beside FastAPI with the request-error class named in the starter comment. This lets the missing-note branch return an HTTP response instead of crashing.',
+      'In read_note, raise the imported exception when note_id is absent from NOTES. The /notes/3 response should contain 404 and Note not found.',
+      'Read /notes/1 and /notes/3 side by side. Expect 200 with Buy milk, then 404 with the error detail; a traceback means the missing id was indexed before checking it.',
+    ],
     code: `# FastAPI — raising a 404
 # raise HTTPException(status_code=..., detail=...) ends the request with that error.
 from fastapi import FastAPI, ???
@@ -296,6 +321,11 @@ for url in ["/notes/1", "/notes/3"]:
       'Declare the route function with async def',
       'Await the fake model call',
       'Run and check both answers',
+    ],
+    taskInstructions: [
+      'Before def ask, add the keyword that allows this function to wait for another coroutine. The two POST requests should still return ordinary JSON answers.',
+      'Before fake_model(question.text), add the keyword that obtains the completed result. Each answer should contain You asked about followed by the submitted text.',
+      'Read the refunds and opening hours responses. Both should show 200 and their own sentence; a coroutine error means fake_model was called without waiting for its result.',
     ],
     code: `# FastAPI — async def routes
 # async def lets the server serve other requests while this one waits.

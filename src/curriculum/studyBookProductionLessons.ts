@@ -266,7 +266,7 @@ print("registry", REGISTRY)
     topic: 'LLMOps canary & observability',
     chapter: 'Model serving & operations',
     goal:
-      'Advance a healthy LLM canary and roll back an unsafe one using separate quality, safety, refusal, latency, and cost signals while preserving feedback, traces, alerts, and golden cases.',
+      'Gate an LLM rollout using quality, safety, refusal, latency and cost signals. Done when Results expands the healthy canary and rolls back the unsafe one, preserving feedback, traces, alerts and golden cases.',
     why:
       'LLM releases can regress semantically without crashing, so a safe rollout needs staged traffic, a unified dashboard, replayable traces, explicit alert thresholds, and real failures added to evaluation data.',
     tasks: [
@@ -667,7 +667,7 @@ print("queue-full", admit(8))
     topic: 'MCP tool contracts',
     chapter: 'Agentic integration',
     goal:
-      'Model MCP host, client, and server responsibilities, discover tools/resources/prompts by owner, validate a secure tool schema, and require explicit approval plus token exchange for delegated work.',
+      'Model MCP responsibilities, discovery and secure tool invocation. Done when Results assigns tools/resources/prompts to their owners, validates the schema, and requires explicit approval plus token exchange for delegated work.',
     why:
       'MCP standardizes discovery and invocation but does not replace authorization: narrow typed contracts, audience-bound credentials, explicit delegation, and structured errors remain deterministic security boundaries.',
     tasks: [
@@ -820,7 +820,7 @@ print("delegation", delegation({"audience": "records-server", "upstream": "archi
     topic: 'AWS agentic stack',
     chapter: 'Agentic integration',
     goal:
-      'Validate a Quick Suite and AgentCore architecture, enforce approved-model and tenant token quotas through an LLM gateway, and emit actionable guardrail, cost, throttle, and trace monitoring evidence.',
+      'Validate a Quick Suite and AgentCore architecture with gateway admission controls. Done when Results accepts approved models within tenant request/token quotas, rejects forbidden or excessive requests, and reports guardrail, cost, throttle and trace signals.',
     why:
       'An AWS agent architecture succeeds through governed composition rather than one model call: clients, tools, identity, memory, policy, evaluation, quotas, and telemetry need explicit ownership and boundaries.',
     tasks: [
@@ -1105,7 +1105,7 @@ print("alerts", [alert_level({"kind": "security"}), alert_level({"kind": "qualit
     topic: 'Solution architecture craft',
     chapter: 'Architecture & capstones',
     goal:
-      'Review a stakeholder-driven solution design for C4, sequence, ER, API/MCP, NFR, and ADR artifacts, then separate deterministic rules from an agent introduced through shadow mode and gated canary rollout.',
+      'Review stakeholder requirements through C4, sequence, ER, API/MCP, NFR and ADR artifacts. Done when Results validates the design, keeps hard rules explicit, and places judgment work behind shadow mode, review and canary gates.',
     why:
       'A developer-ready design is a defended chain of requirements, diagrams, contracts, measurable qualities, and recorded trade-offs; uncertain agent behavior should earn authority through evidence, not launch directly.',
     tasks: [
@@ -1408,7 +1408,7 @@ print("time-series", by_name["time-series validation"])
     topic: 'Document RAG capstone',
     chapter: 'Architecture & capstones',
     goal:
-      'Complete a simulated browser-local document RAG artifact that deduplicates ingestion, filters tenant and role before retrieval, cites or abstains, evaluates evidence, blocks injection, and emits traceable operations evidence.',
+      'Build a simulated local document RAG workflow with deduplicated ingestion and tenant/role filtering before retrieval. Done when Results shows cited or abstaining answers, citation evaluation, blocked injection and traceable operations.',
     why:
       'A credible RAG capstone integrates quality, security, and operations around retrieval instead of presenting only a similarity demo; each answer must be authorized, supported, replayable, and honest about simulation limits.',
     tasks: [
