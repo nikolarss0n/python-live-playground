@@ -52,6 +52,7 @@ npm run verify:apply-fix  # Apply fix, then checks the fixed program's output
 npm run verify:jev        # live TypeSafe call; needs TYPESAFE_API_KEY
 npm run verify:jev-goal   # live Jev goal judging on lesson tasks; needs TYPESAFE_API_KEY
 npm run verify:goal-checks -- http://localhost:5173  # browser: green goal checks at desktop and narrow widths
+npm run verify:design -- http://127.0.0.1:5173      # browser: both themes and four sizes; Jev is stubbed (no paid calls)
 npm run verify:no-flicker -- http://localhost:5173   # browser: an edit re-renders only the changed result
 npm run verify:pyodide-errors  # 240 error programs through the app runner on Pyodide's Python 3.12
 ```

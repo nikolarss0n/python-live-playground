@@ -2,13 +2,17 @@
   color-scheme: light;
   --font-ui: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-size-label: 0.6875rem;
+  --font-size-small: 0.75rem;
+  --font-size-body: 0.8125rem;
+  --font-size-emphasis: 0.875rem;
 
   /* Clean docs look: white surfaces, green-tinted grays, one green accent */
   --bg: #f3f7f5;
   --surface: #ffffff;
   --text: #171b19;
   --muted: #646866;
-  --gutter: #9fa3a0;
+  --gutter: #696E6B;
   --border: #dfe3e0;
   --border-subtle: #eef2f0;
   --hover: rgb(23 27 25 / 5%);
@@ -16,12 +20,12 @@
   --accent-deep: #166534;
   --on-accent: #ffffff;
   --expr: #9a5b0c;
-  --ok: #2f8f5b;
-  --warn: #b7791f;
+  --ok: #297B4F;
+  --warn: #956219;
   --solution: #7c3aed;
   --coll-tuple: #2563eb;
-  --coll-set: #c026d3;
-  --danger: #b54a3c;
+  --coll-set: #B524C7;
+  --danger: #8d392f;
   --danger-soft: rgb(181 74 60 / 8%);
 }
 
@@ -31,7 +35,7 @@
   --surface: #0a0d1a;
   --text: #f3f7f5;
   --muted: #9fa3a0;
-  --gutter: #505452;
+  --gutter: #7A807D;
   --border: #22273a;
   --border-subtle: #161a29;
   --hover: rgb(255 255 255 / 5%);
@@ -44,7 +48,7 @@
   --solution: #a78bfa;
   --coll-tuple: #60a5fa;
   --coll-set: #e879f9;
-  --danger: #f07167;
+  --danger: #f28279;
   --danger-soft: rgb(240 113 103 / 12%);
 }
 
@@ -75,6 +79,12 @@ button,
 select,
 input {
   font: inherit;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--muted);
+  opacity: 1;
 }
 
 :focus:not(:focus-visible) {

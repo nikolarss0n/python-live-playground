@@ -56,7 +56,7 @@
   background: color-mix(in srgb, var(--accent) 18%, transparent);
   color: var(--accent-deep);
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-style: italic;
 }
 
@@ -105,16 +105,31 @@
 
 .lesson-goal-details {
   position: absolute;
-  top: calc(100% + 0.2rem);
-  left: 0.75rem;
+  top: var(--lesson-top);
+  left: var(--lesson-left);
   z-index: 40;
-  width: min(46rem, calc(100vw - 1.5rem));
-  max-height: min(70vh, 34rem);
-  overflow: auto;
+  width: var(--lesson-width);
+  max-height: var(--lesson-height);
+  min-width: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  overflow-wrap: anywhere;
+  container: lesson-details / inline-size;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  box-shadow: 0 12px 32px rgb(0 0 0 / 22%);
+  box-shadow: 0 6px 18px rgb(0 0 0 / 16%);
+}
+
+/* Keep the box in the Lesson pill's tab order, positioned against the workspace. */
+.workspace .pane-editor > .pane-head:has(> .lesson-goal) {
+  position: static;
+}
+
+.lesson-goal-details[data-more-below='true'] {
+  box-shadow: 0 6px 18px rgb(0 0 0 / 16%), inset 0 -14px 12px -14px color-mix(in srgb, var(--text) 60%, transparent);
 }
 
 .lesson-popover-head {
@@ -151,7 +166,7 @@
   gap: 0.5rem;
   align-items: baseline;
   margin: 0 0 0.7rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-body);
   color: var(--muted);
 }
 
@@ -160,7 +175,7 @@
 }
 
 .lesson-summary-label {
-  font-size: 0.62rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.07em;
   line-height: 1;
@@ -170,11 +185,16 @@
 
 .lesson-goal-details {
   padding: 0.75rem 1rem 0.85rem;
+  font-size: var(--font-size-body);
+}
+
+.lesson-goal-details :is(.linkish, .compare-toggle, .compare-note, .compare-code, .pipeline-strip, .model-run-bar, .model-run-hint, .model-run-ready, .model-run-note) {
+  font-size: var(--font-size-body);
 }
 
 .lesson-goal-grid {
   display: grid;
-  grid-template-columns: minmax(12rem, 1.35fr) minmax(11rem, 1fr) minmax(12rem, 1.1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 0.85rem 1.75rem;
   align-items: start;
 }
@@ -185,7 +205,7 @@
 
 .lesson-goal-col-label {
   margin: 0 0 0.4rem;
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.07em;
   text-transform: uppercase;
@@ -198,7 +218,7 @@
   min-width: 0;
   max-width: none;
   overflow: hidden;
-  font-size: 0.84rem;
+  font-size: var(--font-size-emphasis);
   font-weight: 500;
   line-height: 1.35;
   color: var(--text);
@@ -209,14 +229,14 @@
 .lesson-goal-why {
   margin: 0;
   max-width: 38rem;
-  font-size: 0.78rem;
+  font-size: var(--font-size-body);
   line-height: 1.42;
   color: var(--muted);
 }
 
 .lesson-goal-book {
   margin: 0.55rem 0 0;
-  font-size: 0.75rem;
+  font-size: var(--font-size-body);
   color: var(--muted);
 }
 
@@ -252,7 +272,7 @@
 .lesson-goal-hint,
 .lesson-stretch {
   margin: 0;
-  font-size: 0.82rem;
+  font-size: var(--font-size-body);
   color: var(--text);
   line-height: 1.4;
 }
@@ -276,7 +296,7 @@
 
 .lesson-goal-stuck {
   margin: 0;
-  font-size: 0.8rem;
+  font-size: var(--font-size-body);
 }
 
 .lesson-goal-compare {
@@ -300,7 +320,7 @@
   grid-template-columns: 1rem minmax(0, 1fr);
   gap: 0.4rem;
   align-items: start;
-  font-size: 0.82rem;
+  font-size: var(--font-size-body);
   color: var(--muted);
   line-height: 1.4;
 }
@@ -346,14 +366,14 @@
   display: grid;
   gap: 0.12rem;
   max-width: 34rem;
-  font-size: 0.74rem;
+  font-size: var(--font-size-body);
   font-weight: 400;
   line-height: 1.45;
   color: var(--muted);
 }
 
 .lesson-task-instruction-label {
-  font-size: 0.6rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.06em;
   line-height: 1.15;
@@ -362,7 +382,7 @@
 }
 
 .lesson-task:not(.is-current) .lesson-task-instruction {
-  opacity: 0.72;
+  opacity: 1;
 }
 
 /* Wrong vs fix */
@@ -390,60 +410,32 @@
   gap: 0.5rem;
 }
 
-@media (max-width: 1100px) {
+@container lesson-details (min-width: 32rem) {
   .lesson-goal-grid {
-    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     gap: 0.75rem 1.25rem;
   }
 
   .lesson-goal-col-guide {
     grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: auto 1fr;
-    gap: 0.35rem 1rem;
-    align-items: start;
+  }
+}
+
+@container lesson-details (min-width: 44rem) {
+  .lesson-goal-grid {
+    grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr) minmax(0, 1fr);
   }
 
-  .lesson-goal-col-guide .lesson-goal-col-label {
-    margin: 0;
-    padding-top: 0.15rem;
-  }
+  .lesson-goal-col-guide { grid-column: auto; }
+}
 
-  .lesson-goal-guide-body {
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 0.5rem 1.25rem;
-    align-items: baseline;
-  }
-
-  .lesson-goal-compare {
-    flex: 1 1 100%;
-    margin-top: 0;
-    padding-top: 0.35rem;
-  }
+@container lesson-details (max-width: 28rem) {
+  .compare-cols { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 800px) {
   .lesson-goal-details {
     padding: 0.7rem 0.9rem;
-  }
-
-  .lesson-goal-grid {
-    grid-template-columns: 1fr;
-    gap: 0.85rem;
-  }
-
-  .lesson-goal-col-guide {
-    display: block;
-  }
-
-  .lesson-goal-col-guide .lesson-goal-col-label {
-    margin-bottom: 0.35rem;
-  }
-
-  .lesson-goal-guide-body {
-    flex-direction: column;
-    gap: 0.4rem;
   }
 
   .compare-cols {
@@ -469,7 +461,7 @@
 
 .compare-col-label {
   display: block;
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -616,7 +608,7 @@
 }
 
 .http-card-simulated {
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -695,7 +687,7 @@
 .http-card-headers-label {
   display: block;
   font-family: var(--font-ui);
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -725,7 +717,7 @@
 }
 
 .local-api-badge {
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -817,7 +809,7 @@
 
 .local-api-openapi-label {
   display: block;
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -951,7 +943,7 @@
 
 .settings-help code {
   font-family: var(--font-mono);
-  font-size: 0.9em;
+  font-size: var(--font-size-small);
 }
 
 .settings-actions {
@@ -1417,7 +1409,7 @@
 }
 
 .pane-label {
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1478,7 +1470,7 @@
 }
 
 .goal-checks-title {
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1490,7 +1482,7 @@
 }
 
 .goal-checks-count {
-  font-size: 0.72rem;
+  font-size: var(--font-size-body);
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
@@ -1507,7 +1499,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.55rem;
-  font-size: 0.8rem;
+  font-size: var(--font-size-body);
   line-height: 1.4;
   color: var(--text);
 }
@@ -1526,7 +1518,7 @@
   height: 1.1rem;
   margin-top: 0.05rem;
   border-radius: 50%;
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   line-height: 1;
 }
@@ -1554,13 +1546,13 @@
 .goal-check-text small {
   display: block;
   margin-top: 0.1rem;
-  font-size: 0.74rem;
+  font-size: var(--font-size-body);
   color: var(--muted);
 }
 
 .goal-check-kind {
   margin-right: 0.4rem;
-  font-size: 0.66rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1619,7 +1611,7 @@
 
 .inputs-field label {
   padding-top: 0.35rem;
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -1673,7 +1665,7 @@
 
 .sim-api-caption {
   margin: 0 0 0.3rem;
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1698,7 +1690,7 @@
 
 .sim-api-method {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--accent-deep);
@@ -1754,7 +1746,7 @@
 }
 
 .sim-api-field-label {
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1888,11 +1880,17 @@
 }
 
 .coach-ask-input::placeholder {
-  color: color-mix(in srgb, var(--muted) 78%, transparent);
+  color: var(--muted);
+  opacity: 1;
 }
 
 .coach-ask-input:focus {
   border-bottom-color: color-mix(in srgb, var(--accent) 55%, var(--border));
+}
+
+.coach-ask-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
 }
 
 .coach-ask-input:disabled {
@@ -1969,6 +1967,11 @@
   line-height: 1.65;
 }
 
+.results-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
 .result-row.is-updated .result-text,
 .result-row.is-updated .coll-atom-value {
   box-decoration-break: clone;
@@ -2015,7 +2018,8 @@
 }
 
 .results-placeholder {
-  margin: 0.5rem 0 0;
+  /* Match the header's 1.15rem inset after the scroller's 0.35rem padding. */
+  margin: 0.5rem 0 0 0.8rem;
   color: var(--muted);
   font-family: var(--font-ui);
   font-size: 0.9rem;
@@ -2133,7 +2137,7 @@
 .coll-type-chip,
 .result-type-chip {
   display: inline-block;
-  font-size: 0.65rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: lowercase;
@@ -2248,7 +2252,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--coll-hue) 8%, var(--surface));
   font-family: var(--font-ui);
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   line-height: 1.25rem;
   white-space: nowrap;
@@ -2311,7 +2315,7 @@
   background: color-mix(in srgb, var(--coll-hue) 12%, transparent);
   color: color-mix(in srgb, var(--coll-hue) 75%, var(--text));
   font-family: var(--font-ui);
-  font-size: 0.66rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.15rem;
@@ -2459,7 +2463,7 @@
 
 .error-card-tip-label {
   display: block;
-  font-size: 0.62rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2530,7 +2534,7 @@
 
 .error-card-section-label {
   display: block;
-  font-size: 0.62rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2696,14 +2700,29 @@
 }
 
 .footer-hint {
-  color: color-mix(in srgb, var(--muted) 85%, transparent);
+  color: var(--muted);
 }
+
+.footer-shortcuts {
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.footer-shortcuts:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
 
 .footer-hint kbd {
   display: inline-block;
   min-width: 1.1rem;
   font-family: var(--font-ui);
-  font-size: 0.64rem;
+  font-size: var(--font-size-label);
   font-weight: 500;
   line-height: 1.35;
   text-align: center;
@@ -2856,6 +2875,17 @@
   border-bottom: 2px solid var(--danger);
   border-radius: 2px;
 }
+
+/* Overlapping blank/error decorations keep their tints and underline, but use readable glyphs. */
+.cm-problem-mark .cm-blank-token,
+.cm-problem-mark .cm-blank-token *,
+.cm-blank-token .cm-problem-mark,
+.cm-blank-token .cm-problem-mark *,
+.cm-blank-token.cm-problem-mark,
+.cm-blank-token.cm-problem-mark * {
+  color: var(--text);
+}
+
 .cm-problem-caret {
   display: inline-block;
   width: 0.55ch;
@@ -2890,7 +2920,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--danger) 15%, transparent);
   color: var(--danger);
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
 }
 .cm-problem-fix {
@@ -2942,7 +2972,7 @@
   border-radius: 999px;
   background: var(--warn);
   color: var(--surface);
-  font-size: 0.66rem;
+  font-size: var(--font-size-label);
   line-height: 1.15rem;
   text-align: center;
 }
@@ -2990,7 +3020,7 @@
 .cm-hint-head { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
 .cm-hint-kicker {
   color: color-mix(in srgb, var(--warn) 80%, var(--text));
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 700;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -3206,7 +3236,7 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--accent) 12%, transparent);
   color: var(--accent-deep);
-  font-size: 0.66rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1.15rem;
@@ -3228,7 +3258,7 @@
   background: var(--surface);
   color: var(--muted);
   font-family: var(--font-ui);
-  font-size: 0.68rem;
+  font-size: var(--font-size-label);
   font-weight: 600;
   line-height: 1.25rem;
   white-space: nowrap;
@@ -3453,7 +3483,7 @@
   border-radius: 4px;
   background: color-mix(in srgb, var(--coll-tuple) 10%, transparent);
   color: color-mix(in srgb, var(--coll-tuple) 80%, var(--muted));
-  font-size: 0.64rem;
+  font-size: var(--font-size-label);
   font-weight: 500;
 }
 
@@ -3639,7 +3669,7 @@
 
 .data-chart .data-chart-value {
   fill: var(--text);
-  font-size: 10.5px;
+  font-size: var(--font-size-label);
 }
 
 .data-chart-axis {

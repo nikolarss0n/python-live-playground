@@ -25,6 +25,7 @@ import { isExerciseId, SERVICE_EXERCISE_IDS, GENAI_EXERCISE_IDS } from './servic
 import { evaluateServiceProgress } from './serviceProgress'
 import { LocalApiStrip } from './components/LocalApiStrip'
 import { SettingsModal } from './components/SettingsModal'
+import { ShortcutsModal } from './components/ShortcutsModal'
 import { ModelRunBar } from './components/ModelRunBar'
 import { loadSettings, type AppSettings } from './settings'
 import {
@@ -473,6 +474,8 @@ export default function App() {
   // Keyboard: Run / Stop / help
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      if (e.key === 'Escape' && e.target instanceof Element && e.target.closest('#lesson-details')) return
       const meta = e.metaKey || e.ctrlKey
       if (meta && e.key === 'Enter') {
         e.preventDefault()
@@ -850,44 +853,11 @@ export default function App() {
         <span className="footer-hint">
           Code runs automatically after a short pause ·{' '}
           <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> run · <kbd>Esc</kbd>{' '}
-          stop · <kbd>?</kbd> shortcuts
+          stop · <button type="button" className="footer-shortcuts" aria-label="Open shortcuts" onClick={() => setShowHelp(true)}><kbd>?</kbd> shortcuts</button>
         </span>
       </footer>
 
-      {showHelp && (
-        <div
-          className="help-overlay"
-          role="dialog"
-          aria-label="Keyboard shortcuts"
-          onClick={() => setShowHelp(false)}
-        >
-          <div
-            className="help-card"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h2 className="help-title">Shortcuts</h2>
-            <ul className="help-list">
-              <li>
-                <kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> Run now
-              </li>
-              <li>
-                <kbd>Esc</kbd> Stop / close this help
-              </li>
-              <li>
-                <kbd>?</kbd> Toggle shortcuts
-              </li>
-            </ul>
-            <p className="help-note">{HELP_HINT}</p>
-            <button
-              type="button"
-              className="btn btn-primary"
-              onClick={() => setShowHelp(false)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+      <ShortcutsModal open={showHelp} onClose={() => setShowHelp(false)} hint={HELP_HINT} />
     </div>
   )
 }

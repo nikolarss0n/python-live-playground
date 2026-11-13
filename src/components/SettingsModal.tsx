@@ -1,4 +1,6 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
+import { useModalFocus } from './useModalFocus'
 import type { AppSettings } from '../settings'
 import {
   companionModeLabel,
@@ -26,6 +28,7 @@ type SettingsModalProps = {
  * Keys stay in localStorage on this device only.
  */
 export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }: SettingsModalProps) {
+  const dialog = useModalFocus(open, onClose)
   const [draft, setDraft] = useState<AppSettings>(() => defaultSettings())
   const [showKey, setShowKey] = useState(false)
   const [companionNote, setCompanionNote] = useState<string | null>(null)
@@ -40,15 +43,6 @@ export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }:
       setShowKey(false)
     }
   }, [open])
-
-  useEffect(() => {
-    if (!open) return
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [open, onClose])
 
   if (!open) return null
 
@@ -100,7 +94,7 @@ export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }:
     }
   }
 
-  return (
+  return createPortal(
     <div
       className="settings-overlay"
       role="presentation"
@@ -111,6 +105,8 @@ export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }:
         role="dialog"
         aria-modal="true"
         aria-label="Settings"
+        ref={dialog}
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="settings-header">
@@ -273,6 +269,6 @@ export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }:
           </button>
         </footer>
       </div>
-    </div>
+    </div>, document.body,
   )
 }

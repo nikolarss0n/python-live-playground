@@ -20,6 +20,7 @@
     "verify:jev-goal": "npx tsx scripts/verify-jev-goal.mts",
     "verify:apply-fix": "node scripts/verify-apply-fix.mjs",
     "verify:goal-checks": "node scripts/verify-goal-checks.mjs",
+    "verify:design": "node scripts/verify-design.mjs",
     "verify:no-flicker": "node scripts/verify-no-flicker.mjs",
     "verify:pyodide-errors": "npx tsx scripts/verify-pyodide-errors.mts"
   },

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
 import type { Lesson } from '../examples'
 import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
@@ -25,6 +25,10 @@ type LessonGoalProps = {
 /** Avoid “Stretch Stretch: …” when content already starts with the word. */
 function stretchBody(text: string): string {
   return text.replace(/^stretch:\s*/i, '').trim()
+}
+
+function updateScrollCue(element: HTMLDivElement | null) {
+  if (element) element.dataset.moreBelow = String(element.scrollHeight - element.clientHeight - element.scrollTop > 1)
 }
 
 /**
@@ -60,9 +64,50 @@ export function LessonGoal({
     currentTaskIndex >= 0 ? view.tasks[currentTaskIndex] : null
 
   const root = useRef<HTMLDivElement>(null)
+  const pill = useRef<HTMLButtonElement>(null)
+  const details = useRef<HTMLDivElement>(null)
+  useLayoutEffect(() => {
+    if (!expanded) return
+    const box = details.current
+    const workspace = root.current?.closest('.workspace')
+    const results = workspace?.querySelector('.pane-results')
+    const header = results?.querySelector('.results-head')
+    if (!box || !workspace || !results || !header) return
+    const place = () => {
+      const origin = workspace.getBoundingClientRect()
+      const pane = results.getBoundingClientRect()
+      const top = Math.max(pane.top, header.getBoundingClientRect().bottom) + 8
+      box.style.setProperty('--lesson-left', `${pane.left - origin.left + 8}px`)
+      box.style.setProperty('--lesson-top', `${top - origin.top}px`)
+      box.style.setProperty('--lesson-width', `${Math.max(0, pane.width - 16)}px`)
+      box.style.setProperty('--lesson-height', `${Math.max(0, pane.bottom - top - 8)}px`)
+      updateScrollCue(box)
+    }
+    const observer = new ResizeObserver(place)
+    for (const element of [workspace, results, header, box, box.querySelector('.lesson-goal-grid')]) {
+      if (element) observer.observe(element)
+    }
+    window.addEventListener('resize', place)
+    place()
+    return () => { observer.disconnect(); window.removeEventListener('resize', place) }
+  }, [expanded, lesson.id])
+
+  const closeDetails = () => {
+    const returnFocus = details.current?.contains(document.activeElement)
+    onToggleExpanded()
+    if (returnFocus) pill.current?.focus()
+  }
   useEffect(() => {
     if (!expanded) return
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onToggleExpanded() }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (details.current?.contains(document.activeElement)) {
+        event.preventDefault()
+        event.stopPropagation()
+        pill.current?.focus()
+      }
+      onToggleExpanded()
+    }
     const onPointer = (event: PointerEvent) => {
       if (root.current && event.target instanceof Node && !root.current.contains(event.target)) onToggleExpanded()
     }
@@ -79,6 +124,7 @@ export function LessonGoal({
       <button
         type="button"
         className={`lesson-pill${expanded ? ' is-open' : ''}${view.allTasksDone ? ' is-done' : ''}`}
+        ref={pill}
         aria-expanded={expanded}
         aria-controls="lesson-details"
         aria-label={expanded ? 'Hide lesson' : 'Show lesson'}
@@ -99,21 +145,19 @@ export function LessonGoal({
           </span>
         ) : null}
       </button>
-      {onRestart ? (
-        <ResetPill lessonId={lesson.id} atStarter={code === lesson.code} onReset={onRestart} onUndo={onRestore} canUndo={Boolean(canRestore)} />
-      ) : null}
-
       <div
         className="lesson-goal-details"
         id="lesson-details"
+        ref={details}
         role="group"
         aria-label="Lesson details"
         hidden={!expanded}
+        onScroll={(event) => updateScrollCue(event.currentTarget)}
       >
         <div className="lesson-popover-head">
           <span className="lesson-summary-label">Goal</span>
           <p className="lesson-goal-statement">{lesson.goal}</p>
-          <button type="button" className="lesson-popover-close" aria-label="Close lesson" onClick={onToggleExpanded}>×</button>
+          <button type="button" className="lesson-popover-close" aria-label="Close lesson" onClick={closeDetails}>×</button>
         </div>
         {currentTask ? (
           <p className="lesson-popover-now">
@@ -271,6 +315,9 @@ export function LessonGoal({
         </div>
         {children}
       </div>
+      {onRestart ? (
+        <ResetPill lessonId={lesson.id} atStarter={code === lesson.code} onReset={onRestart} onUndo={onRestore} canUndo={Boolean(canRestore)} />
+      ) : null}
     </div>
   )
 }

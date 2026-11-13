@@ -5,7 +5,8 @@ import { Prec } from '@codemirror/state'
 import { acceptCompletion } from '@codemirror/autocomplete'
 import { HighlightStyle, LanguageSupport, syntaxHighlighting } from '@codemirror/language'
 import { styleTags, tags as t } from '@lezer/highlight'
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useId, useMemo, useRef } from 'react'
+import { EDITOR_EXIT_HINT } from './ShortcutsModal'
 import {
   setVariablePathNames,
   variablePathColors,
@@ -45,13 +46,13 @@ const richPython = new LanguageSupport(
 )
 
 const lightHighlight = HighlightStyle.define([
-  { tag: t.comment, color: '#8A8478', fontStyle: 'italic' },
-  { tag: t.string, color: '#9A6700' },
+  { tag: t.comment, color: '#6B665D', fontStyle: 'italic' },
+  { tag: t.string, color: '#8C5D00' },
   { tag: [t.escape, t.special(t.string)], color: '#0E7490' },
-  { tag: t.number, color: '#C2410C' },
+  { tag: t.number, color: '#B83D0B' },
   { tag: [t.keyword, t.operatorKeyword, t.definitionOperator, t.arithmeticOperator, t.compareOperator, t.meta], color: '#C2185B' },
   { tag: [t.separator, t.derefOperator, t.punctuation], color: '#6B6560' },
-  { tag: [t.paren, t.squareBracket], color: '#A16207' },
+  { tag: [t.paren, t.squareBracket], color: '#935A06' },
   { tag: t.brace, color: '#A21CAF' },
   { tag: [t.variableName, t.propertyName], color: '#1C1B19' },
   { tag: t.local(t.variableName), color: '#B91C1C' },
@@ -61,7 +62,7 @@ const lightHighlight = HighlightStyle.define([
 ])
 
 const darkHighlight = HighlightStyle.define([
-  { tag: t.comment, color: '#7A7F9A', fontStyle: 'italic' },
+  { tag: t.comment, color: '#888DA5', fontStyle: 'italic' },
   { tag: t.string, color: '#F6D98E' },
   { tag: [t.escape, t.special(t.string)], color: '#7DCFFF' },
   { tag: t.number, color: '#FAB387' },
@@ -98,7 +99,7 @@ function buildTheme(mode: ThemeMode) {
       '.cm-gutters': {
         backgroundColor: 'transparent',
         border: 'none',
-        color: isDark ? '#5C5852' : '#B0A99E',
+        color: isDark ? '#847E75' : '#746B5E',
         minWidth: '2.75rem',
       },
       '.cm-lineNumbers .cm-gutterElement': {
@@ -132,7 +133,7 @@ function buildTheme(mode: ThemeMode) {
       },
       '.cm-activeLineGutter': {
         backgroundColor: 'transparent',
-        color: isDark ? '#5C5852' : '#B0A99E',
+        color: isDark ? '#847E75' : '#746B5E',
       },
       '&.cm-focused .cm-activeLineGutter': {
         color: isDark ? '#A8A29E' : '#6B6560',
@@ -167,12 +168,14 @@ export function CodeEditor({
   readOnly = false,
 }: CodeEditorProps) {
   const ref = useRef<ReactCodeMirrorRef>(null)
+  const keyboardHelpId = useId()
   const onGeometryChangeRef = useRef(onGeometryChange)
   onGeometryChangeRef.current = onGeometryChange
 
   const extensions = useMemo(
     () => [
       richPython,
+      EditorView.contentAttributes.of({ 'aria-label': ariaLabel, 'aria-describedby': keyboardHelpId }),
       dotCompletionExtension(),
       docstringExtension,
       callParens,
@@ -196,7 +199,7 @@ export function CodeEditor({
         }
       }),
     ],
-    [theme],
+    [theme, ariaLabel, keyboardHelpId],
   )
 
   useEffect(() => {
@@ -212,6 +215,7 @@ export function CodeEditor({
 
   return (
     <div className="code-editor" role="region" aria-label={ariaLabel}>
+      <span id={keyboardHelpId} className="sr-only">{EDITOR_EXIT_HINT}</span>
       <CodeMirror
         ref={ref}
         value={value}
