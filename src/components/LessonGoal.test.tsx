@@ -88,15 +88,22 @@ describe('LessonGoal task guidance', () => {
   })
 
   it.each([
-    { label: 'two columns', x: 721, y: 100, width: 719, height: 700, header: 42 },
-    { label: 'stacked', x: 0, y: 420, width: 320, height: 270, header: 48 },
-  ])('places the box inside Results under its header at $label widths', ({ x, y, width, height, header }) => {
+    { label: 'two-column fallback', x: 721, y: 100, width: 719, height: 700, header: 42, evidence: 0, bodyGap: null },
+    { label: 'stacked fallback', x: 0, y: 420, width: 320, height: 270, header: 48, evidence: 0, bodyGap: null },
+    { label: 'fallback with a status line', x: 721, y: 100, width: 719, height: 700, header: 42, evidence: 24, bodyGap: null },
+    { label: 'stacked fallback with a wrapped status line', x: 0, y: 420, width: 320, height: 270, header: 48, evidence: 48, bodyGap: null },
+    { label: 'two-column Results body', x: 721, y: 100, width: 719, height: 700, header: 42, evidence: 24, bodyGap: 0 },
+    { label: 'stacked Results body', x: 0, y: 420, width: 390, height: 270, header: 48, evidence: 24, bodyGap: 0 },
+    { label: 'Results body below additional content', x: 721, y: 100, width: 719, height: 700, header: 42, evidence: 0, bodyGap: 32 },
+  ])('places the box at the body top or preserves the fallback: $label', ({ x, y, width, height, header, evidence, bodyGap }) => {
     const rectangle = (left: number, top: number, rectWidth: number, rectHeight: number) =>
       new DOMRect(left, top, rectWidth, rectHeight)
     const bounds = vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
       if (this.classList.contains('workspace')) return rectangle(0, 100, 1440, 700)
       if (this.classList.contains('pane-results')) return rectangle(x, y, width, height)
       if (this.classList.contains('results-head')) return rectangle(x, y, width, header)
+      if (this.classList.contains('results-task-evidence')) return rectangle(x, y + header, width, evidence)
+      if (this.classList.contains('results-body')) return rectangle(x, y + header + evidence + (bodyGap ?? 0), width, height - header - evidence - (bodyGap ?? 0))
       return rectangle(0, 0, 0, 0)
     })
     try {
@@ -106,13 +113,17 @@ describe('LessonGoal task guidance', () => {
             view={{ tasks: [], next: null, extraHint: null, showStuckControl: false, allTasksDone: false, goalMet: false }}
             onRevealStuck={vi.fn()} expanded onToggleExpanded={vi.fn()} />
         </div></div>
-        <div className="pane-results"><div className="results-head">Results</div></div>
+        <div className="pane-results"><div className="results-head">Results</div>
+          {evidence > 0 ? <p className="results-task-evidence">Fix the execution error before the behavior checks can finish.</p> : null}
+          {bodyGap !== null ? <div className="results-body">Results content</div> : null}
+        </div>
       </main>)
       const box = screen.getByRole('group', { name: 'Lesson details' })
       expect(box.style.getPropertyValue('--lesson-left')).toBe(`${x + 8}px`)
-      expect(box.style.getPropertyValue('--lesson-top')).toBe(`${y + header + 8 - 100}px`)
+      const offset = bodyGap ?? 8
+      expect(box.style.getPropertyValue('--lesson-top')).toBe(`${y + header + evidence + offset - 100}px`)
       expect(box.style.getPropertyValue('--lesson-width')).toBe(`${width - 16}px`)
-      expect(box.style.getPropertyValue('--lesson-height')).toBe(`${height - header - 16}px`)
+      expect(box.style.getPropertyValue('--lesson-height')).toBe(`${height - header - evidence - offset - 8}px`)
       Object.defineProperties(box, { scrollHeight: { value: 700 }, clientHeight: { value: 200 } })
       fireEvent.scroll(box)
       expect(box).toHaveAttribute('data-more-below', 'true')

@@ -1,0 +1,26 @@
+.app-error {
+  min-height: 100dvh;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: var(--font-size-body);
+}
+
+.app-error-message {
+  width: min(100%, 30rem);
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.app-error-message h1 {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-emphasis);
+}
+
+.app-error-message p {
+  margin: 0 0 1rem;
+  line-height: 1.5;
+}

@@ -65,21 +65,12 @@ import type { ErrorAdvice } from './errorAdvice'
 import { refresherEvidence } from './refresher/evidence'
 import './App.css'
 
-type ThemeMode = 'light' | 'dark'
+import { applyTheme, preferredTheme, type ThemeMode } from './theme'
 
 const COACH_KEY = 'plp-seen-success'
 const LESSON_DETAILS_KEY = 'plp-lesson-details-open'
 const HELP_HINT =
   'Shortcuts: ⌘/Ctrl+Enter Run · Esc Stop · ? help'
-
-function preferredTheme(): ThemeMode {
-  if (typeof window === 'undefined') return 'light'
-  const stored = readPreference('plp-theme')
-  if (stored === 'light' || stored === 'dark') return stored
-  return window.matchMedia('(prefers-color-scheme: dark)').matches
-    ? 'dark'
-    : 'light'
-}
 
 function preferredLessonDetailsOpen(): boolean {
   if (typeof window === 'undefined') return false
@@ -247,7 +238,7 @@ export default function App() {
   )
 
   useEffect(() => {
-    document.documentElement.dataset.theme = theme
+    applyTheme(theme)
     writePreference('plp-theme', theme)
   }, [theme])
 
@@ -475,7 +466,7 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
-      if (e.key === 'Escape' && e.target instanceof Element && e.target.closest('#lesson-details')) return
+      if (e.key === 'Escape' && e.target instanceof Element && e.target.closest('#lesson-details, #refresher-session-content')) return
       const meta = e.metaKey || e.ctrlKey
       if (meta && e.key === 'Enter') {
         e.preventDefault()

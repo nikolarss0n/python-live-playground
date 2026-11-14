@@ -104,32 +104,10 @@
 }
 
 .lesson-goal-details {
-  position: absolute;
-  top: var(--lesson-top);
-  left: var(--lesson-left);
-  z-index: 40;
-  width: var(--lesson-width);
-  max-height: var(--lesson-height);
-  min-width: 0;
-  overflow-y: auto;
-  overflow-x: hidden;
-  overscroll-behavior: contain;
-  scrollbar-gutter: stable;
-  overflow-wrap: anywhere;
-  container: lesson-details / inline-size;
+  container-name: lesson-details;
   border: 1px solid var(--border);
   border-radius: 10px;
   background: var(--surface);
-  box-shadow: 0 6px 18px rgb(0 0 0 / 16%);
-}
-
-/* Keep the box in the Lesson pill's tab order, positioned against the workspace. */
-.workspace .pane-editor > .pane-head:has(> .lesson-goal) {
-  position: static;
-}
-
-.lesson-goal-details[data-more-below='true'] {
-  box-shadow: 0 6px 18px rgb(0 0 0 / 16%), inset 0 -14px 12px -14px color-mix(in srgb, var(--text) 60%, transparent);
 }
 
 .lesson-popover-head {
@@ -2870,19 +2848,14 @@
 /* Jev / AI problem marks inside the editor */
 .cm-problem-line { background: color-mix(in srgb, var(--danger) 7%, transparent); }
 .cm-problem-mark {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 22%, transparent);
+  background: color-mix(in srgb, var(--danger) 6%, transparent);
   border-bottom: 2px solid var(--danger);
   border-radius: 2px;
 }
 
-/* Overlapping blank/error decorations keep their tints and underline, but use readable glyphs. */
-.cm-problem-mark .cm-blank-token,
-.cm-problem-mark .cm-blank-token *,
-.cm-blank-token .cm-problem-mark,
-.cm-blank-token .cm-problem-mark *,
-.cm-blank-token.cm-problem-mark,
-.cm-blank-token.cm-problem-mark * {
+/* Syntax colors remain unchanged elsewhere; marked glyphs must also pass on tinted lines. */
+.cm-editor .cm-problem-mark,
+.cm-editor .cm-problem-mark * {
   color: var(--text);
 }
 

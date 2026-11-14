@@ -5,6 +5,7 @@ type Color = readonly [number, number, number, number]
 type Theme = 'light' | 'dark'
 const css = readFileSync('src/index.css', 'utf8')
 const appCss = readFileSync('src/App.css', 'utf8')
+const refresherCss = readFileSync('src/refresher/refresher.css', 'utf8')
 const editor = readFileSync('src/components/CodeEditor.tsx', 'utf8')
 
 function parts(text: string): string[] {
@@ -71,15 +72,15 @@ function contrast(a: Color, b: Color): number {
 function declarations(source: string): Record<string, string> {
   return Object.fromEntries([...source.matchAll(/(--[\w-]+)\s*:\s*([^;]+);/g)].map((match) => [match[1], match[2].trim()]))
 }
-function rule(selector: string): string {
-  const source = appCss.replace(/\/\*[\s\S]*?\*\//g, '')
+function rule(selector: string, stylesheet = appCss): string {
+  const source = stylesheet.replace(/\/\*[\s\S]*?\*\//g, '')
   for (const match of source.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
     if (match[1].split(',').some((candidate) => candidate.trim() === selector)) return match[2]
   }
   throw new Error(`Missing rule ${selector}`)
 }
-function declaration(selector: string, property: string): string {
-  const match = new RegExp(`(?:^|[;\\n])\\s*${property}:\\s*([^;]+);`).exec(rule(selector))
+function declaration(selector: string, property: string, stylesheet = appCss): string {
+  const match = new RegExp(`(?:^|[;\\n])\\s*${property}:\\s*([^;]+);`).exec(rule(selector, stylesheet))
   if (!match) throw new Error(`Missing ${property} for ${selector}`)
   return match[1].trim()
 }
@@ -100,15 +101,12 @@ function palette(theme: Theme): Record<string, string> {
 }
 
 describe('design contrast from shipped styles', () => {
-  it('preserves error colors and limits normal text to overlapping blank/error glyphs', () => {
+  it('preserves the error palette and gives marked code readable glyphs', () => {
     expect(palette('light')['--danger']).toBe('#8d392f')
     expect(palette('dark')['--danger']).toBe('#f28279')
-    expect(declaration('.cm-problem-mark', 'color')).toBe('var(--danger)')
     expect(declaration('.cm-problem-mark', 'border-bottom')).toBe('2px solid var(--danger)')
-    for (const selector of ['.cm-problem-mark .cm-blank-token', '.cm-blank-token .cm-problem-mark', '.cm-blank-token.cm-problem-mark']) {
-      expect(declaration(selector, 'color')).toBe('var(--text)')
-      expect(declaration(`${selector} *`, 'color')).toBe('var(--text)')
-    }
+    expect(declaration('.cm-editor .cm-problem-mark', 'color')).toBe('var(--text)')
+    expect(declaration('.cm-editor .cm-problem-mark *', 'color')).toBe('var(--text)')
   })
 
   it('uses alpha compositing and WCAG linear-light luminance', () => {
@@ -129,6 +127,10 @@ describe('design contrast from shipped styles', () => {
       check(`${token} on bg`, color(`var(${token})`), bg)
     }
     check('primary button', color('var(--on-accent)'), color('var(--accent)'))
+    const minutesOpacity = Number(declaration('.refresher-stages button span', 'opacity', refresherCss))
+    check('upcoming refresher stage minutes', color(declaration('.refresher-stages button', 'color', refresherCss)), surface, minutesOpacity)
+    check('current refresher stage minutes', color(declaration('.refresher-stages button[aria-current="step"]', 'color', refresherCss)),
+      over(color(declaration('.refresher-stages button[aria-current="step"]', 'background', refresherCss)), surface), minutesOpacity)
     const opacity = Number(declaration('.lesson-task:not(.is-current) .lesson-task-instruction', 'opacity'))
     check('upcoming task', color(declaration('.lesson-task-instruction', 'color')), surface, opacity)
     const label = color(declaration('.lesson-task-instruction-label', 'color'))
@@ -138,25 +140,33 @@ describe('design contrast from shipped styles', () => {
     const footer = over(color(declaration('.app-footer', 'background')), bg)
     check('footer hint', color(declaration('.footer-hint', 'color')), footer)
     const problemLine = over(color(declaration('.cm-problem-line', 'background')), surface)
-    check('marked error token', color(declaration('.cm-problem-mark', 'color')),
+    check('marked error token', color(declaration('.cm-editor .cm-problem-mark', 'color')),
       over(color(declaration('.cm-problem-mark', 'background')), problemLine))
     const blankTint = color(editorColor('.cm-blank-token', 'backgroundColor', theme))
     const problemTint = color(declaration('.cm-problem-mark', 'background'))
-    check('unfilled blank inside an error mark', color(declaration('.cm-problem-mark .cm-blank-token', 'color')),
+    check('unfilled blank inside an error mark', color(declaration('.cm-editor .cm-problem-mark *', 'color')),
       over(blankTint, over(problemTint, problemLine)))
-    check('error mark inside an unfilled blank', color(declaration('.cm-blank-token .cm-problem-mark', 'color')),
+    check('error mark inside an unfilled blank', color(declaration('.cm-editor .cm-problem-mark', 'color')),
       over(problemTint, over(blankTint, problemLine)))
     const backgrounds: [string, Color][] = [
       ['white/surface', surface],
       ['active line', over(color(editorColor('&.cm-focused .cm-activeLine', 'backgroundColor', theme)), surface)],
       ['run pulse', over(color(editorColor('.cm-run-pulse-line', 'backgroundColor', theme)), surface)],
       ['problem line', problemLine],
+      ['problem on active line', over(color(declaration('.cm-problem-line', 'background')),
+        over(color(editorColor('&.cm-focused .cm-activeLine', 'backgroundColor', theme)), surface))],
     ]
     const highlight = new RegExp(`const ${theme}Highlight = HighlightStyle.define\\(\\[([\\s\\S]*?)\\]\\)`).exec(editor)?.[1]
     if (!highlight) throw new Error(`Missing ${theme} highlight style`)
     const highlights = [...highlight.matchAll(/color: '([^']+)'/g)]
     expect(highlights.length).toBeGreaterThan(10)
-    for (const match of highlights) for (const [name, background] of backgrounds) check(`syntax ${match[1]} on ${name}`, color(match[1]), background)
+    for (const match of highlights) for (const [name, background] of backgrounds) {
+      check(`syntax ${match[1]} on ${name}`, color(match[1]), background)
+      check(`syntax ${match[1]} inside problem mark on ${name}`,
+        color(declaration('.cm-editor .cm-problem-mark *', 'color')), over(problemTint, background))
+    }
+    for (const [name, background] of backgrounds) check(`problem text on ${name}`,
+      color(declaration('.cm-editor .cm-problem-mark', 'color')), over(problemTint, background))
     check('editor gutter', color(editorColor('.cm-gutters', 'color', theme)), surface)
     expect(failures, `${theme} rendered pairs below 4.5:1`).toEqual([])
   })

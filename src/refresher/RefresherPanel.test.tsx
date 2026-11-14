@@ -48,6 +48,36 @@ async function showSession() {
 }
 
 describe('RefresherPanel practice flow', () => {
+  it.each(['Escape', 'Close task'])('%s closes the Task box, restores focus and preserves typed notes', async (method) => {
+    const user = userEvent.setup()
+    mount(day('refresher-01'), session())
+    const task = screen.getByRole('button', { name: 'Task', exact: true })
+    const note = screen.getByLabelText('Recall note')
+    await user.type(note, 'Return passes a value to the caller.')
+    if (method === 'Escape') await user.keyboard('{Escape}')
+    else await user.click(screen.getByRole('button', { name: 'Close task', exact: true }))
+    expect(task).toHaveFocus()
+    expect(task).toHaveAttribute('aria-expanded', 'false')
+    expect(document.getElementById('refresher-session-content')).toHaveAttribute('hidden')
+    expect(note).toBeInTheDocument()
+    await user.click(task)
+    expect(note).toBeVisible()
+    expect(note).toHaveValue('Return passes a value to the caller.')
+  })
+
+  it('tabs from Task into the open box and opens it again when the stage changes', async () => {
+    const user = userEvent.setup()
+    const state = session()
+    mount(day('refresher-01'), state)
+    const task = screen.getByRole('button', { name: 'Task', exact: true })
+    task.focus(); await user.tab()
+    expect(screen.getByRole('button', { name: 'Close task', exact: true })).toHaveFocus()
+    await user.keyboard('{Escape}')
+    await user.click(screen.getByRole('button', { name: 'Explain', exact: true }))
+    expect(state.changeStage).toHaveBeenCalledWith('explain')
+    expect(task).toHaveAttribute('aria-expanded', 'true')
+  })
+
   it('starts with visible recall, saves the note, and advances only after a meaningful note', async () => {
     const state = session()
     mount(day('refresher-01'), state)

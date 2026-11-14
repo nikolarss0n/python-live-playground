@@ -5,6 +5,7 @@ import { getRefresherDay, REFRESHER_DAYS, refresherChecksFor } from './catalog'
 import { isPracticeDayId, STUDY_STAGES, type PracticeDay, type PracticeDayId, type RefresherDay, type StudyStage } from './types'
 import type { Mistake, Rubric, SaveStatus } from './sessionStore'
 import type { useRefresherSession } from './useRefresherSession'
+import { updateScrollCue, useResultsPopover } from '../components/useResultsPopover'
 import './refresher.css'
 
 type Session = ReturnType<typeof useRefresherSession>
@@ -320,13 +321,34 @@ function SessionPanel(props: RefresherPanelProps) {
   const { day, session } = props
   const [expanded, setExpanded] = useState(session.stage === 'recall' || day.kind === 'mock')
   const panelRef = useRef<HTMLElement>(null)
+  const taskRef = useRef<HTMLButtonElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
+  useResultsPopover({ open: expanded, scope: session.contextKey, root: panelRef, details: contentRef })
+  const closeTask = () => {
+    const returnFocus = contentRef.current?.contains(document.activeElement)
+    setExpanded(false)
+    if (returnFocus) taskRef.current?.focus()
+  }
   useEffect(() => {
     if (!expanded) return
     const closeOutside = (event: PointerEvent) => {
       if (event.target instanceof Node && !panelRef.current?.contains(event.target)) setExpanded(false)
     }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return
+      if (contentRef.current?.contains(document.activeElement)) {
+        event.preventDefault()
+        event.stopPropagation()
+        taskRef.current?.focus()
+      }
+      setExpanded(false)
+    }
     document.addEventListener('pointerdown', closeOutside)
-    return () => document.removeEventListener('pointerdown', closeOutside)
+    document.addEventListener('keydown', onKey)
+    return () => {
+      document.removeEventListener('pointerdown', closeOutside)
+      document.removeEventListener('keydown', onKey)
+    }
   }, [expanded])
   const [message, setMessage] = useState<string | null>(null)
   const budget = day.kind === 'consolidation' ? LIGHT_BUDGET : PRACTICE_BUDGET
@@ -348,14 +370,15 @@ function SessionPanel(props: RefresherPanelProps) {
           {STAGE_LABELS[stage]}<span>{budget[stage]}m</span>
         </button>)}
       </nav> : null}
-      <button type="button" className="btn btn-ghost refresher-toggle" aria-expanded={expanded} aria-controls="refresher-session-content" onClick={() => setExpanded((value) => !value)}>
+      <button type="button" className="btn btn-ghost refresher-toggle" ref={taskRef} aria-expanded={expanded} aria-controls="refresher-session-content" onClick={() => setExpanded((value) => !value)}>
         Task<span aria-hidden="true">{expanded ? ' ↑' : ' ↓'}</span>
       </button>
     </div>
     {storageWarning ? <p role="status" className="refresher-notice refresher-storage">{storageWarning}</p> : null}
     {session.loadStatus === 'invalid' ? <p role="status" className="refresher-notice refresher-storage">Saved refresher data could not be read. This session starts with fresh drafts.</p> : null}
     {message ? <p role="alert" className="refresher-notice refresher-storage">{message}</p> : null}
-    <div id="refresher-session-content" className="refresher-content" role="region" aria-labelledby="refresher-card-title" hidden={!expanded}>
+    <div id="refresher-session-content" className="refresher-content" role="region" aria-labelledby="refresher-card-title" hidden={!expanded}
+      ref={contentRef} onScroll={(event) => updateScrollCue(event.currentTarget)}>
       <header className="refresher-card-head">
         <div>
           <strong id="refresher-card-title">Day {day.day} · {day.title}</strong>
@@ -365,7 +388,7 @@ function SessionPanel(props: RefresherPanelProps) {
               : `${STAGE_LABELS[session.stage]} · ${day.minutes} min day · ${completed}/5 stages done`}
           </span>
         </div>
-        <button type="button" className="refresher-card-close" aria-label="Close task" onClick={() => setExpanded(false)}>×</button>
+        <button type="button" className="refresher-card-close" aria-label="Close task" onClick={closeTask}>×</button>
       </header>
       {day.kind === 'consolidation' ? <ConsolidationChoices session={session} /> : null}
       {day.kind === 'mock' ? <MockContent key={session.mock?.startedAt ?? 'not-started'} {...props} />

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 
 describe('design text sizes', () => {
-  it.each(['src/App.css', 'src/index.css'])('%s has no absolute font size below 11px', (file) => {
+  it.each(['src/App.css', 'src/index.css', 'src/refresher/refresher.css'])('%s has no absolute font size below 11px', (file) => {
     const css = readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, '')
     const failures = [...css.matchAll(/font-size:\s*([\d.]+)(rem|px)\b/g)]
       .filter((match) => Number(match[1]) * (match[2] === 'rem' ? 16 : 1) < 11)

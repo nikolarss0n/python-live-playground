@@ -4,7 +4,9 @@ import { chromium } from 'playwright'
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 const sizes = [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }, { width: 320, height: 700 }]
 const failures = []
-const checks = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7']
+const checks = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10']
+const lessonBox = { selector: '#lesson-details', trigger: '.lesson-pill', closeName: 'Close lesson' }
+const taskBox = { selector: '#refresher-session-content', trigger: '.refresher-toggle', closeName: 'Close task' }
 const executed = new Set()
 function report(check, state, issues) {
   executed.add(check)
@@ -143,58 +145,84 @@ function measureText() {
   return { D1: [...new Set(issues.D1)], D2: [...new Set(issues.D2)] }
 }
 
-function measureBox() {
-  const box = document.querySelector('#lesson-details')
-  if (!box || box.hidden) return ['#lesson-details is not open']
+function measureBox({ selector }) {
+  const box = document.querySelector(selector)
+  if (!box || box.hidden) return [`${selector} is not open`]
   const rect = box.getBoundingClientRect(), issues = []
+  const visiblePiece = (element, piece) => {
+    if (element.closest('.sr-only')) return false
+    let left = Math.max(0, piece.left), right = Math.min(innerWidth, piece.right)
+    let top = Math.max(0, piece.top), bottom = Math.min(innerHeight, piece.bottom)
+    for (let parent = element; parent; parent = parent.parentElement) {
+      const style = getComputedStyle(parent), clip = parent.getBoundingClientRect()
+      if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) return false
+      if (/auto|scroll|hidden|clip/.test(style.overflowX)) { left = Math.max(left, clip.left); right = Math.min(right, clip.right) }
+      if (/auto|scroll|hidden|clip/.test(style.overflowY)) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom) }
+    }
+    if (right - left <= 0.5 || bottom - top <= 0.5) return false
+    const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2)
+    return Boolean(hit && element.contains(hit))
+  }
   const intersects = (a, b) => Math.min(a.right, b.right) - Math.max(a.left, b.left) > 0.5 && Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top) > 0.5
-  for (const selector of ['.code-editor', '.editor-pills', '.pane-editor > .pane-head', '.results-head', '.toolbar', '.app-footer']) {
-    for (const element of document.querySelectorAll(selector)) if (intersects(rect, element.getBoundingClientRect())) issues.push(`#lesson-details overlaps ${selector}`)
+  for (const protectedSelector of ['.code-editor', '.editor-pills', '.pane-editor > .pane-head', '.results-head', '.toolbar', '.app-footer']) {
+    for (const element of document.querySelectorAll(protectedSelector)) if (intersects(rect, element.getBoundingClientRect())) issues.push(`${selector} overlaps ${protectedSelector}`)
   }
   const pane = document.querySelector('.pane-results').getBoundingClientRect()
   const header = document.querySelector('.results-head').getBoundingClientRect()
-  if (rect.left < pane.left - 1 || rect.right > pane.right + 1 || rect.top < header.bottom - 1 || rect.bottom > pane.bottom + 1) issues.push('#lesson-details crosses the Results pane bounds or header')
-  if (rect.width <= 0 || rect.height <= 0) issues.push('#lesson-details has no usable area')
-  if (box.scrollWidth > box.clientWidth + 1) issues.push(`#lesson-details sideways scroll: ${box.scrollWidth - box.clientWidth}px`)
+  if (rect.left < pane.left - 1 || rect.right > pane.right + 1 || rect.top < header.bottom - 1 || rect.bottom > pane.bottom + 1) issues.push(`${selector} crosses the Results pane bounds or header`)
+  if (rect.width <= 0 || rect.height <= 0) issues.push(`${selector} has no usable area`)
+  if (box.scrollWidth > box.clientWidth + 1) issues.push(`${selector} sideways scroll: ${box.scrollWidth - box.clientWidth}px`)
   if (document.documentElement.scrollWidth > innerWidth + 1) issues.push(`page sideways scroll: ${document.documentElement.scrollWidth - innerWidth}px`)
   const results = document.querySelector('.results-panel')
+  const evidence = results.querySelector('.results-task-evidence')?.getBoundingClientRect()
+  const stripTop = Math.max(header.bottom, evidence && evidence.height > 0 ? evidence.bottom : 0)
+  if (rect.top > stripTop + 0.5) {
+    for (const element of results.querySelectorAll('.results-body *')) {
+      const bounds = element.getBoundingClientRect()
+      const strip = { left: Math.max(pane.left, bounds.left), right: Math.min(pane.right, bounds.right), top: Math.max(stripTop, bounds.top), bottom: Math.min(rect.top, bounds.bottom) }
+      if (visiblePiece(element, strip)) issues.push(`${element.tagName.toLowerCase()}.${[...element.classList].join('.')} is visible in the strip above ${selector}: strip y=${stripTop.toFixed(1)}–${rect.top.toFixed(1)}, element y=${bounds.top.toFixed(1)}–${bounds.bottom.toFixed(1)}`)
+    }
+  }
   const walker = document.createTreeWalker(results, NodeFilter.SHOW_TEXT)
   while (walker.nextNode()) {
     const node = walker.currentNode, element = node.parentElement
     if (!element || !node.textContent.trim() || element.closest('.sr-only, [aria-hidden="true"]')) continue
     const range = document.createRange(); range.selectNodeContents(node)
     for (const textRect of range.getClientRects()) {
-      let left = Math.max(0, textRect.left), right = Math.min(innerWidth, textRect.right, rect.left)
-      let top = Math.max(0, textRect.top, rect.top), bottom = Math.min(innerHeight, textRect.bottom, rect.bottom)
-      for (let parent = element; parent; parent = parent.parentElement) {
-        const style = getComputedStyle(parent), clip = parent.getBoundingClientRect()
-        if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0) { right = left; break }
-        if (/auto|scroll|hidden|clip/.test(style.overflowX)) { left = Math.max(left, clip.left); right = Math.min(right, clip.right) }
-        if (/auto|scroll|hidden|clip/.test(style.overflowY)) { top = Math.max(top, clip.top); bottom = Math.min(bottom, clip.bottom) }
+      const pieces = [{ edge: 'left', left: textRect.left, right: Math.min(textRect.right, rect.left), top: Math.max(textRect.top, rect.top), bottom: Math.min(textRect.bottom, rect.bottom) }]
+      if (textRect.top < rect.top - 0.5 && textRect.bottom > rect.top + 0.5) {
+        pieces.push({ edge: 'top', left: Math.max(textRect.left, rect.left), right: Math.min(textRect.right, rect.right), top: textRect.top, bottom: rect.top })
       }
-      if (right - left <= 0.5 || bottom - top <= 0.5) continue
-      const hit = document.elementFromPoint((left + right) / 2, (top + bottom) / 2)
-      if (hit && element.contains(hit)) issues.push(`${element.tagName.toLowerCase()}.${[...element.classList].join('.')} ${JSON.stringify(node.textContent.trim().slice(0, 70))} peeks left of #lesson-details: text x=${textRect.left.toFixed(1)}, box x=${rect.left.toFixed(1)}`)
+      for (const piece of pieces) {
+        if (visiblePiece(element, piece)) issues.push(`${element.tagName.toLowerCase()}.${[...element.classList].join('.')} ${JSON.stringify(node.textContent.trim().slice(0, 70))} is cut at the ${piece.edge} edge of ${selector}: text (${textRect.left.toFixed(1)}, ${textRect.top.toFixed(1)}–${textRect.bottom.toFixed(1)}), box (${rect.left.toFixed(1)}, ${rect.top.toFixed(1)})`)
+      }
     }
   }
   return [...new Set(issues)]
 }
 
-async function boxFocus(page) {
+async function boxFocus(page, { selector, trigger, closeName }, checkCloseButton = false) {
   const issues = []
-  await page.locator('.lesson-pill').focus()
+  await page.locator(trigger).focus()
   let inside = false
   for (let i = 0; i < 15; i++) {
     await page.keyboard.press('Tab')
-    const where = await page.evaluate(() => ({ box: Boolean(document.activeElement?.closest('#lesson-details')), editor: Boolean(document.activeElement?.closest('.cm-editor')) }))
+    const where = await page.evaluate((boxSelector) => ({ box: Boolean(document.activeElement?.closest(boxSelector)), editor: Boolean(document.activeElement?.closest('.cm-editor')) }), selector)
     if (where.box) { inside = true; break }
     if (where.editor) break
   }
-  if (!inside) issues.push('Tab from .lesson-pill did not reach a box control before .cm-content')
+  if (!inside) issues.push(`Tab from ${trigger} did not reach a box control before .cm-content`)
   else {
     await page.keyboard.press('Escape')
-    if (await page.locator('#lesson-details').isVisible()) issues.push('Escape did not close #lesson-details')
-    if (!await page.locator('.lesson-pill').evaluate((el) => el === document.activeElement)) issues.push('Escape did not return focus to .lesson-pill')
+    if (await page.locator(selector).isVisible()) issues.push(`Escape did not close ${selector}`)
+    if (!await page.locator(trigger).evaluate((el) => el === document.activeElement)) issues.push(`Escape did not return focus to ${trigger}`)
+  }
+  if (checkCloseButton) {
+    if (!await page.locator(selector).isVisible()) await page.locator(trigger).click()
+    await page.getByRole('button', { name: closeName, exact: true }).focus()
+    await page.keyboard.press('Enter')
+    if (await page.locator(selector).isVisible()) issues.push(`${closeName} did not close ${selector}`)
+    if (!await page.locator(trigger).evaluate((el) => el === document.activeElement)) issues.push(`${closeName} did not return focus to ${trigger}`)
   }
   return issues
 }
@@ -264,22 +292,49 @@ async function focusRings(page) {
 
 const browser = await chromium.launch()
 try {
-  for (const theme of ['light', 'dark']) for (const viewport of sizes) for (const lesson of ['printing', 'missing-data-none']) {
-    const states = ['starter', 'lesson-open', ...(viewport.width === 1440 ? ['valid', 'syntax-error', ...(lesson === 'printing' ? ['blank-error'] : []), 'settings', 'shortcuts'] : [])]
+  for (const theme of ['light', 'dark']) for (const viewport of sizes) for (const lesson of ['printing', 'missing-data-none', 'refresher-01', 'refresher-12']) {
+    const isRefresher = lesson.startsWith('refresher-')
+    const errorViewport = viewport.width === 1440 || viewport.width === 390
+    const states = isRefresher
+      ? ['task-open', ...(viewport.width === 1440 && lesson === 'refresher-01' ? ['task-closed', 'explain'] : []), ...(errorViewport && lesson === 'refresher-01' ? ['guided'] : [])]
+      : ['starter', 'lesson-open', ...(viewport.width === 1440 ? ['valid', 'syntax-error', ...(lesson === 'printing' ? ['blank-error'] : []), 'settings', 'shortcuts'] : []), ...(errorViewport && lesson === 'printing' ? ['syntax-error-lesson-open'] : [])]
     for (const state of states) {
       const label = `${theme} ${viewport.width}x${viewport.height} ${lesson} ${state}`
       const context = await browser.newContext({ viewport, serviceWorkers: 'block' })
       await context.route('**/api/jev/**', (route) => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'Jev is stubbed by verify:design.' }) }))
       await context.addInitScript((mode) => localStorage.setItem('plp-theme', mode), theme)
       const page = await context.newPage()
+      const pageErrors = []
+      page.on('pageerror', (error) => pageErrors.push(error.message))
       try {
         await page.goto(`${baseUrl}/?lesson=${lesson}`)
         await page.locator('.cm-content').waitFor()
         await page.evaluate(() => document.fonts.ready)
         let opened
         if (state === 'lesson-open') await page.locator('.lesson-pill').click()
+        if (isRefresher) {
+          if (await page.locator(taskBox.trigger).getAttribute('aria-expanded') !== 'true') throw new Error('Task box must open on load')
+          await page.locator(taskBox.selector).waitFor()
+          if (state === 'task-closed') {
+            await page.locator(taskBox.trigger).click()
+            await page.locator(taskBox.selector).waitFor({ state: 'hidden' })
+          } else if (state === 'explain' || state === 'guided') {
+            const stage = state === 'explain' ? 'Explain' : 'Guided'
+            await page.getByRole('navigation', { name: 'Session stages' }).getByRole('button', { name: stage, exact: true }).click()
+            await page.locator('.refresher-stages button[aria-current="step"]').filter({ hasText: stage }).waitFor()
+            await page.locator(taskBox.selector).waitFor()
+          }
+        }
         if (state === 'settings' || state === 'shortcuts') opened = await openDialog(page, state)
-        if (state === 'valid' || state === 'syntax-error' || state === 'blank-error') {
+        if (state === 'guided') {
+          await page.locator('.cm-content').focus()
+          await page.keyboard.press('ControlOrMeta+Home')
+          await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown')
+          await page.keyboard.press('ControlOrMeta+Enter')
+          await page.locator('.error-card').waitFor({ timeout: 60000 })
+          await page.locator('.cm-problem-mark').first().waitFor({ timeout: 60000 })
+        }
+        if (state === 'valid' || state.startsWith('syntax-error') || state === 'blank-error') {
           let source = 'print("Hello"'
           if (state === 'valid') {
             const starter = await page.locator('.cm-content').innerText()
@@ -300,18 +355,27 @@ try {
             await page.locator('.cm-problem-line .cm-problem-mark .cm-blank-token, .cm-problem-line .cm-blank-token .cm-problem-mark, .cm-problem-line .cm-blank-token.cm-problem-mark').first().waitFor({ timeout: 60000 })
           }
         }
+        if (state === 'syntax-error-lesson-open') await page.locator(lessonBox.trigger).click()
         await page.waitForTimeout(250) // Let existing short transitions settle; do not measure an animation frame.
         const text = await page.evaluate(measureText)
         report('D1', label, text.D1); report('D2', label, text.D2)
-        if (state === 'lesson-open') {
-          report('D3', label, await page.evaluate(measureBox)); report('D4', label, await boxFocus(page))
+        if (state === 'lesson-open' || state === 'syntax-error-lesson-open') {
+          report('D3', label, await page.evaluate(measureBox, lessonBox)); report('D4', label, await boxFocus(page, lessonBox))
           if (!await page.locator('#lesson-details').isVisible()) await page.locator('.lesson-pill').click()
+        }
+        if (isRefresher && state !== 'task-closed') {
+          report('D8', label, await page.evaluate(measureBox, taskBox))
+          report('D9', label, await boxFocus(page, taskBox, true))
+          if (!await page.locator(taskBox.selector).isVisible()) await page.locator(taskBox.trigger).click()
         }
         if (state === 'starter') report('D6', label, await editorExit(page))
         report('D7', label, await focusRings(page))
         if (opened) report('D5', label, await dialogFocus(page, opened.dialog, opened.trigger, opened.initialFocusInside))
       } catch (error) { report('SETUP', label, [error.message]) }
-      finally { await context.close() }
+      finally {
+        await context.close()
+        report('D10', label, pageErrors)
+      }
     }
   }
 } finally { await browser.close() }

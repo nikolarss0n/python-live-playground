@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useRef, type ReactNode } from 'react'
 import type { Lesson } from '../examples'
 import type { GoalProgress } from '../goalCheck'
 import type { LessonProgressView } from '../lessonProgress'
 import { CompareSnippet } from './CompareSnippet'
 import { PipelineStrip } from './PipelineStrip'
 import { ResetPill } from './ResetPill'
+import { updateScrollCue, useResultsPopover } from './useResultsPopover'
 
 type LessonGoalProps = {
   lesson: Lesson
@@ -25,10 +26,6 @@ type LessonGoalProps = {
 /** Avoid “Stretch Stretch: …” when content already starts with the word. */
 function stretchBody(text: string): string {
   return text.replace(/^stretch:\s*/i, '').trim()
-}
-
-function updateScrollCue(element: HTMLDivElement | null) {
-  if (element) element.dataset.moreBelow = String(element.scrollHeight - element.clientHeight - element.scrollTop > 1)
 }
 
 /**
@@ -66,31 +63,7 @@ export function LessonGoal({
   const root = useRef<HTMLDivElement>(null)
   const pill = useRef<HTMLButtonElement>(null)
   const details = useRef<HTMLDivElement>(null)
-  useLayoutEffect(() => {
-    if (!expanded) return
-    const box = details.current
-    const workspace = root.current?.closest('.workspace')
-    const results = workspace?.querySelector('.pane-results')
-    const header = results?.querySelector('.results-head')
-    if (!box || !workspace || !results || !header) return
-    const place = () => {
-      const origin = workspace.getBoundingClientRect()
-      const pane = results.getBoundingClientRect()
-      const top = Math.max(pane.top, header.getBoundingClientRect().bottom) + 8
-      box.style.setProperty('--lesson-left', `${pane.left - origin.left + 8}px`)
-      box.style.setProperty('--lesson-top', `${top - origin.top}px`)
-      box.style.setProperty('--lesson-width', `${Math.max(0, pane.width - 16)}px`)
-      box.style.setProperty('--lesson-height', `${Math.max(0, pane.bottom - top - 8)}px`)
-      updateScrollCue(box)
-    }
-    const observer = new ResizeObserver(place)
-    for (const element of [workspace, results, header, box, box.querySelector('.lesson-goal-grid')]) {
-      if (element) observer.observe(element)
-    }
-    window.addEventListener('resize', place)
-    place()
-    return () => { observer.disconnect(); window.removeEventListener('resize', place) }
-  }, [expanded, lesson.id])
+  useResultsPopover({ open: expanded, scope: lesson.id, root, details })
 
   const closeDetails = () => {
     const returnFocus = details.current?.contains(document.activeElement)
