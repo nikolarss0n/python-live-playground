@@ -22,7 +22,9 @@
     "verify:goal-checks": "node scripts/verify-goal-checks.mjs",
     "verify:design": "node scripts/verify-design.mjs",
     "verify:no-flicker": "node scripts/verify-no-flicker.mjs",
-    "verify:pyodide-errors": "npx tsx scripts/verify-pyodide-errors.mts"
+    "verify:pyodide-errors": "npx tsx scripts/verify-pyodide-errors.mts",
+    "build:mac": "bash scripts/build-mac.sh",
+    "test:mac": "swift test --package-path macos && bash scripts/build-mac.sh && bash scripts/self-test-mac.sh"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

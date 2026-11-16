@@ -74,6 +74,22 @@ Learner Python can reach JavaScript through Pyodide, so the worker is treated as
 - Messages from the worker are rebuilt field by field before the page uses them (`src/execution/workerMessages.ts`).
 - Code opened from a shared link is untrusted until you press Run, even after you edit it: it does not run on its own, your own draft is kept as a restorable backup, and the next run after it starts a fresh worker.
 
+## macOS app (spike)
+
+A SwiftUI app that hosts this web app in a `WKWebView` and runs offline. It needs macOS 27 and Xcode 27 (Swift 6.4). See `docs/macos-app-plan.md`.
+
+```bash
+npm run build:mac   # web build with Pyodide bundled + Swift shell → build/mac/Python Live Playground.app
+npm run test:mac    # Swift unit tests, then the app's --self-test: run, Stop an endless loop, run again, with http(s) blocked
+open "build/mac/Python Live Playground.app"
+open macos/Package.swift   # edit the Swift code in Xcode
+```
+
+- The app serves the build from `app://local/` (`macos/Sources/PlaygroundCore/WebBundle.swift`). Pyodide and the `sqlite3` wheel ship inside the app; the first build downloads the wheel once into `macos/.cache` and checks its SHA-256.
+- The Python worker gets the same lockdown as on the web, limited to the app's own files: `default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'self'`.
+- The app runs in the App Sandbox with only `network.client`, which WebKit needs to start its networking process even for `app://` pages.
+- AI help is off in the app for now: there is no `/api/jev` route.
+
 ## What this MVP includes
 
 - Two-pane layout: Python editor + live results aligned beside source lines (wide), hover path ribbons + var chips

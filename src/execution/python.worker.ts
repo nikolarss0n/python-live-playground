@@ -19,7 +19,11 @@ import type {
   RunCheckOptions,
 } from './protocol'
 
-const PYODIDE_INDEX = 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/'
+const PYODIDE_CDN_INDEX = 'https://cdn.jsdelivr.net/pyodide/v0.27.7/full/'
+// The Mac app bundles Pyodide and serves it from its own origin, so it runs offline.
+const PYODIDE_INDEX = import.meta.env.VITE_PYODIDE_INDEX
+  ? new URL(import.meta.env.VITE_PYODIDE_INDEX, self.location.href).href
+  : PYODIDE_CDN_INDEX
 
 let pyodide: PyodideInterface | null = null
 let initPromise: Promise<void> | null = null

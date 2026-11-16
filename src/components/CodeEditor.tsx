@@ -20,6 +20,7 @@ import { dotCompletionExtension } from '../editor/dotCompletion'
 import { docstringExtension } from '../editor/docstring'
 import { callParens } from '../editor/callParens'
 import { indentDotsExtension } from '../editor/indentDots'
+import { remeasureOnShow } from '../editor/remeasureOnShow'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -185,6 +186,7 @@ export function CodeEditor({
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
       ...variablePathColors(theme === 'dark'),
       indentDotsExtension,
+      remeasureOnShow,
       blankHighlightExtension(),
       ...blankHintExtension(),
       ...runPulseExtension(),
