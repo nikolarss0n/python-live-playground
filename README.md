@@ -74,21 +74,31 @@ Learner Python can reach JavaScript through Pyodide, so the worker is treated as
 - Messages from the worker are rebuilt field by field before the page uses them (`src/execution/workerMessages.ts`).
 - Code opened from a shared link is untrusted until you press Run, even after you edit it: it does not run on its own, your own draft is kept as a restorable backup, and the next run after it starts a fresh worker.
 
-## macOS app (spike)
+## macOS app
 
-A SwiftUI app that hosts this web app in a `WKWebView` and runs offline. It needs macOS 27 and Xcode 27 (Swift 6.4). See `docs/macos-app-plan.md`.
+An AppKit app that hosts this web app in a `WKWebView` and runs offline. It needs macOS 27 and Xcode 27 (Swift 6.4). See `docs/macos-app-plan.md`.
 
 ```bash
 npm run build:mac   # web build with Pyodide bundled + Swift shell → build/mac/Python Live Playground.app
-npm run test:mac    # Swift unit tests, then the app's --self-test: run, Stop an endless loop, run again, with http(s) blocked
+npm run test:mac    # Swift unit tests, then the app's --self-test (open a file, run, stop, save, slider, web blocked)
 open "build/mac/Python Live Playground.app"
 open macos/Package.swift   # edit the Swift code in Xcode
 ```
 
-- The app serves the build from `app://local/` (`macos/Sources/PlaygroundCore/WebBundle.swift`). Pyodide and the `sqlite3` wheel ship inside the app; the first build downloads the wheel once into `macos/.cache` and checks its SHA-256.
-- The Python worker gets the same lockdown as on the web, limited to the app's own files: `default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; connect-src 'self'; worker-src 'self'`.
-- The app runs in the App Sandbox with only `network.client`, which WebKit needs to start its networking process even for `app://` pages.
-- AI help is off in the app for now: there is no `/api/jev` route.
+- **Menus:**
+  - File: Open… (⌘O), Open Recent, Save (⌘S) and Save As… (⇧⌘S). An opened `.py` file lands in Playground, and `.py` files can also be opened from Finder.
+  - Edit: the standard menu.
+  - Run: Run (⌘↩) and Stop (⌘.).
+  - View: Background Transparency.
+- **Frosted window:** this follows int-ai-m's recipe. The window blurs the desktop behind it. The View › Background Transparency slider thins the page colour first and then fades the blur. Text and code keep full colour, and macOS's Reduce Transparency turns the effect off.
+- **Bridge:** the page and the shell talk through a typed protocol in `src/host/macHost.ts` and `macos/Sources/PlaygroundCore/HostProtocol.swift`. A Swift test checks that both sides agree.
+- **Serving and security:**
+  - The app serves the build from `app://local/` (`WebBundle.swift`). Pyodide and the `sqlite3` wheel ship inside the app; the first build downloads the wheel once into `macos/.cache` and checks its SHA-256.
+  - Nothing in the window can load from the web, including the Python worker, whose CSP allows only the app's own files.
+  - Web and mail links open in the default apps (`LinkPolicy.swift`).
+  - The Mac build drops Google Fonts and uses SF Pro and SF Mono.
+- **Sandbox permissions:** `network.client`, which WebKit needs to start even for `app://` pages, plus user-selected file access and app-scoped bookmarks for Open Recent.
+- **AI help:** off in the app for now, because there is no `/api/jev` route.
 
 ## What this MVP includes
 

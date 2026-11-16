@@ -66,6 +66,8 @@ import { refresherEvidence } from './refresher/evidence'
 import './App.css'
 
 import { applyTheme, preferredTheme, type ThemeMode } from './theme'
+import { installMacHost, postHostEvent, type HostActions } from './host/macHost'
+import { PLAYGROUND_LESSON_ID } from './curriculum/playgroundLessons'
 
 const COACH_KEY = 'plp-seen-success'
 const LESSON_DETAILS_KEY = 'plp-lesson-details-open'
@@ -240,6 +242,7 @@ export default function App() {
   useEffect(() => {
     applyTheme(theme)
     writePreference('plp-theme', theme)
+    postHostEvent({ type: 'theme', theme })
   }, [theme])
 
   useEffect(() => {
@@ -506,6 +509,20 @@ export default function App() {
     window.addEventListener('keydown', onKey, true)
     return () => window.removeEventListener('keydown', onKey, true)
   }, [runNow, stop, showHelp, editorView, solutionFor])
+
+  // The macOS app drives Run, Stop, Open and Save through this entry point (src/host/macHost.ts).
+  const hostActions = useRef<HostActions | null>(null)
+  hostActions.current = {
+    run: () => void runNow(),
+    stop,
+    // The editor holds the newest keystrokes; the code state catches up a moment later.
+    getCode: () => editorView?.state.doc.toString() ?? code,
+    openFile: (_name, fileCode) => {
+      select(PLAYGROUND_LESSON_ID)
+      setCode(fileCode)
+    },
+  }
+  useEffect(() => installMacHost(() => hostActions.current!), [])
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))

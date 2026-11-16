@@ -17,7 +17,8 @@ CONFIG="${CONFIG:-release}"
 
 echo "Web build (Pyodide $PYODIDE_VERSION served from the app)"
 rm -rf "$WEB"
-(cd "$ROOT" && VITE_PYODIDE_INDEX=/pyodide/ npx tsc -b && VITE_PYODIDE_INDEX=/pyodide/ npx vite build --outDir "$WEB" --emptyOutDir)
+(cd "$ROOT" && npx tsc -b && VITE_TARGET=mac VITE_PYODIDE_INDEX=/pyodide/ npx vite build --outDir "$WEB" --emptyOutDir)
+if grep -q 'fonts.googleapis' "$WEB/index.html"; then echo 'The Mac build still links Google Fonts' >&2; exit 1; fi
 
 mkdir -p "$WEB/pyodide" "$CACHE"
 for file in pyodide.asm.js pyodide.asm.wasm pyodide.mjs pyodide.js python_stdlib.zip pyodide-lock.json; do
@@ -53,6 +54,15 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>LSMinimumSystemVersion</key><string>27.0</string>
   <key>LSApplicationCategoryType</key><string>public.app-category.education</string>
   <key>NSHighResolutionCapable</key><true/>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict>
+      <key>CFBundleTypeName</key><string>Python script</string>
+      <key>CFBundleTypeRole</key><string>Editor</string>
+      <key>LSHandlerRank</key><string>Alternate</string>
+      <key>LSItemContentTypes</key><array><string>public.python-script</string></array>
+    </dict>
+  </array>
 </dict>
 </plist>
 PLIST

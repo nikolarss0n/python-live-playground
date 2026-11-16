@@ -3844,3 +3844,30 @@
 @media (forced-colors: active) {
   .cm-editor .cm-indent-dots { background-image: none; }
 }
+
+/* macOS app: the window blurs the desktop behind the page, and the Background Transparency slider sets how much of
+   the page colour covers that blur (--glass-tint, 0–1). Text, code and controls keep their full colour. */
+html[data-host='mac'] {
+  background: color-mix(in srgb, var(--bg) calc(var(--glass-tint, 1) * 100%), transparent);
+}
+
+html[data-host='mac'] body,
+html[data-host='mac'] .app-shell {
+  background: transparent;
+}
+
+html[data-host='mac'] .pane {
+  background: transparent;
+}
+
+/* The window already blurs what is behind it, so the bars drop their own blur and thin with the slider. */
+html[data-host='mac'] .toolbar,
+html[data-host='mac'] .app-footer {
+  background: color-mix(in srgb, var(--surface) calc(var(--glass-tint, 1) * 82%), transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+html[data-host='mac'] .coach-ask {
+  background: transparent;
+}

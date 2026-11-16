@@ -4,9 +4,12 @@ import type { LessonDraft } from '../examples'
  * Playground: free space with no goal or checks. Plain Python, the practice database (playdb), FastAPI routes and the
  * Data · API · View tabs are all available, so anything from the lessons can be tried in one place.
  */
+/** Free play: where files opened in the Mac app land. */
+export const PLAYGROUND_LESSON_ID = 'playground'
+
 export const PLAYGROUND_DRAFTS: LessonDraft[] = [
   {
-    id: 'playground',
+    id: PLAYGROUND_LESSON_ID,
     difficulty: 'playground',
     number: 1,
     topic: 'Everything is available',
