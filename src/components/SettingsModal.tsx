@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalFocus } from './useModalFocus'
 import type { AppSettings } from '../settings'
+import type { Section } from '../curriculum/sections'
+import { LearningSwitches } from './LearningSwitches'
 import {
   companionModeLabel,
   defaultSettings,
@@ -21,13 +23,14 @@ type SettingsModalProps = {
   onClose: () => void
   onSaved?: (settings: AppSettings) => void
   allowModelTest?: boolean
+  learning?: { enabled: ReadonlySet<Section>; onToggle: (section: Section, on: boolean) => void }
 }
 
 /**
  * Quiet settings: companion URL, API key, optional OpenAI-compatible LLM.
  * Keys stay in localStorage on this device only.
  */
-export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }: SettingsModalProps) {
+export function SettingsModal({ open, onClose, onSaved, allowModelTest = true, learning }: SettingsModalProps) {
   const dialog = useModalFocus(open, onClose)
   const [draft, setDraft] = useState<AppSettings>(() => defaultSettings())
   const [showKey, setShowKey] = useState(false)
@@ -117,6 +120,7 @@ export function SettingsModal({ open, onClose, onSaved, allowModelTest = true }:
         </header>
 
         <div className="settings-body">
+          {learning ? <LearningSwitches enabled={learning.enabled} onToggle={learning.onToggle} /> : null}
           <section className="settings-section">
             <h3 className="settings-section-title">API key</h3>
             <label className="settings-field">

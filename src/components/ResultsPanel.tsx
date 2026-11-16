@@ -3,6 +3,7 @@ import type { EditorView } from '@codemirror/view'
 import type { ExecutionStatus, ResultEvent } from '../execution/protocol'
 import { cleanErrorDetail, explainError } from '../execution/errorExplain'
 import { loopSlots, type LoopSlot } from './loopSlots'
+import { branchesOf, type Branch } from './branchOf'
 import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
 import {
@@ -24,6 +25,8 @@ import type { GoalChecks as GoalChecksView } from '../jev/useJevGoalCheck'
 
 type ResultsPanelProps = {
   events: ResultEvent[]
+  /** The code that produced `events`; lets each row show the if/elif/else branch it came from. */
+  sourceCode?: string | null
   status: ExecutionStatus
   durationMs: number | null
   activeIndex?: number | null
@@ -110,16 +113,35 @@ function TypeChip({ label }: { label: string }) {
   )
 }
 
+/** True when both rows belong to the same round of the same loop card (or are the same row). */
+function sameRound(a: LoopSlot | null | undefined, b: LoopSlot | null | undefined, aIndex: number, bIndex: number): boolean {
+  if (aIndex === bIndex) return true
+  return a != null && b != null && a.group === b.group && a.iteration === b.iteration
+}
+
+/** Which if/elif/else printed this row, so a learner can tell the branches apart. */
+function BranchChip({ branch }: { branch: Branch }) {
+  return (
+    <span className={`branch-chip branch-${branch.keyword}`} title={`From the ${branch.keyword} on line ${branch.line}`}>
+      {branch.keyword}
+      <span className="sr-only"> branch, line {branch.line}:</span>
+    </span>
+  )
+}
+
 function PlainValue({
   text,
   tone,
+  branch,
 }: {
   text: string
   tone: 'print' | 'expr' | 'warning'
+  branch?: Branch
 }) {
   const typeLabel = tone === 'warning' ? null : inferTypeLabel(text)
   return (
     <div className="result-value-wrap">
+      {branch ? <BranchChip branch={branch} /> : null}
       <pre className="result-text">{text}</pre>
       {typeLabel ? <TypeChip label={typeLabel} /> : null}
     </div>
@@ -139,6 +161,7 @@ function EventRow({
   loop,
   focused,
   onToggleFocus,
+  branch,
 }: {
   event: ResultEvent
   index: number
@@ -152,6 +175,7 @@ function EventRow({
   loop?: LoopSlot | null
   focused?: boolean
   onToggleFocus?: () => void
+  branch?: Branch
 }) {
   const [showTrace, setShowTrace] = useState(false)
   const [showExample, setShowExample] = useState(false)
@@ -167,8 +191,9 @@ function EventRow({
     updated ? 'is-updated' : '',
     ghost ? 'is-ghost' : '',
     loop ? 'in-loop' : '',
-    loop?.iteration === 1 ? 'loop-first' : '',
-    loop && loop.iteration === loop.total ? 'loop-last' : '',
+    loop?.first ? 'loop-first' : '',
+    loop?.last ? 'loop-last' : '',
+    loop && !loop.firstInRound ? 'loop-same-round' : '',
     focused ? 'is-focused' : '',
   ]
     .filter(Boolean)
@@ -198,7 +223,7 @@ function EventRow({
   const lineSpan = loop ? (
     <>
       <span className="result-line" aria-hidden="true">
-        {loop.iteration === 1 ? (
+        {loop.first ? (
           <span className="loop-head">
             <span className="loop-head-line">{loop.line}</span>
             <span className="loop-badge">
@@ -209,16 +234,16 @@ function EventRow({
         ) : null}
       </span>
       <span className="loop-iteration">
-        <button
+        {loop.firstInRound ? <button
           type="button"
           className="loop-iteration-num"
           aria-pressed={focused ?? false}
-          aria-label={`Focus loop round ${loop.iteration} of ${loop.total} from line ${loop.line}`}
+          aria-label={`Focus round ${loop.iteration} of ${loop.total} of the loop on line ${loop.line}`}
           title={focused ? 'Show all rounds' : 'Show only this round'}
           onClick={onToggleFocus}
         >
           {loop.iteration}
-        </button>
+        </button> : null}
       </span>
     </>
   ) : (
@@ -248,7 +273,7 @@ function EventRow({
             <CollectionTree node={event.structure} tone="print" />
           </div>
         ) : (
-          <PlainValue text={event.text} tone="print" />
+          <PlainValue text={event.text} tone="print" branch={branch} />
         )}
       </div>
     )
@@ -275,7 +300,7 @@ function EventRow({
             <CollectionTree node={event.structure} tone="expr" />
           </div>
         ) : (
-          <PlainValue text={event.value} tone="expr" />
+          <PlainValue text={event.value} tone="expr" branch={branch} />
         )}
       </div>
     )
@@ -441,6 +466,7 @@ function LoopIcon() {
 
 export function ResultsPanel({
   events,
+  sourceCode,
   status,
   durationMs,
   activeIndex = null,
@@ -597,7 +623,8 @@ export function ResultsPanel({
 
   const hasPrevious = (previousEvents?.length ?? 0) > 0
   const rowKeys = useMemo(() => stableRowKeys(events), [events])
-  const loops = useMemo(() => loopSlots(events), [events])
+  const loops = useMemo(() => loopSlots(events, sourceCode), [events, sourceCode])
+  const branches = useMemo(() => branchesOf(sourceCode ?? ''), [sourceCode])
 
   return (
     <section className="results-panel" aria-label="Results" aria-live="polite">
@@ -679,12 +706,13 @@ export function ResultsPanel({
             active={activeIndex === index}
             onHover={onHoverResult}
             onLayout={onGeometryChange}
-            dimmed={focusIndex != null && index !== focusIndex}
+            dimmed={focusIndex != null && !sameRound(loops[focusIndex], loops[index], focusIndex, index)}
             updated={updatedIndices?.has(index)}
             errorHelp={errorHelp}
             loop={loops[index]}
-            focused={focusIndex === index}
+            focused={focusIndex != null && sameRound(loops[focusIndex], loops[index], focusIndex, index)}
             onToggleFocus={loops[index] ? () => setFocusIndex((current) => (current === index ? null : index)) : undefined}
+            branch={event.line != null ? branches.get(event.line) : undefined}
           />
         ))}
 

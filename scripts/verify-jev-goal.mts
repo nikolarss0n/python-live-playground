@@ -1,17 +1,10 @@
 // Live check of Jev goal judging on lesson tasks. Run with `npm run verify:jev-goal` (needs TYPESAFE_API_KEY in .env.local).
-import { readFileSync } from 'node:fs'
-import { forwardJev } from '../src/jev/forward.ts'
+import { backendFetch, backendName } from './aiBackend.mts'
 import { askJevGoal, type GoalRequirement } from '../src/jev/goalJudge.ts'
 
-const env = Object.fromEntries(readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')
-  .map((line) => line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/)).filter((match) => match !== null).map((match) => [match[1], match[2].replace(/^["']|["']$/g, '')]))
-const apiKey = env.TYPESAFE_API_KEY ?? process.env.TYPESAFE_API_KEY ?? ''
-if (!apiKey) { console.error('TYPESAFE_API_KEY is not set in .env.local'); process.exit(1) }
 
-const fetchImpl = (async (_url: string, init: RequestInit) => {
-  const result = await forwardJev(String(init.body), { apiKey, model: env.TYPESAFE_MODEL ?? 'jev-latest' })
-  return new Response(result.body, { status: result.status, headers: { 'content-type': 'application/json' } })
-}) as typeof fetch
+const fetchImpl = backendFetch()
+console.log(`Model: ${backendName}`)
 
 const PRINTING_GOAL = 'Make Python show two messages that you chose yourself.'
 const PRINTING_STARTER = 'print("Hello, world!")\nprint(???)\n'

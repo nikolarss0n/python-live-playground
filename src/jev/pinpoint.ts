@@ -6,6 +6,7 @@
 import { redact } from '../errorAdvice'
 import type { ErrorFrame } from '../execution/protocol'
 import { JEV_ROUTE } from './forward'
+import { jevFetch } from './transport'
 
 const TIMEOUT_MS = 20_000
 const CONTEXT_BEFORE = 2
@@ -441,7 +442,7 @@ export function parsePinpointAnswer(payload: unknown, source: string, candidates
 }
 
 /** Whether the local dev server holds a Jev key. */
-export async function jevAvailable(fetchImpl: typeof fetch = fetch): Promise<boolean> {
+export async function jevAvailable(fetchImpl: typeof fetch = jevFetch): Promise<boolean> {
   try {
     const response = await fetchImpl(JEV_ROUTE, { headers: { accept: 'application/json' } })
     if (!response.ok) return false
@@ -476,7 +477,7 @@ export async function askJevPinpoint(source: string, problem: Problem,
   options.signal?.addEventListener('abort', abort, { once: true })
   const timer = setTimeout(abort, TIMEOUT_MS)
   try {
-    const response = await (options.fetchImpl ?? fetch)(JEV_ROUTE, {
+    const response = await (options.fetchImpl ?? jevFetch)(JEV_ROUTE, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(buildPinpointRequest(source, problem, candidates)),

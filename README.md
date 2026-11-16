@@ -53,6 +53,7 @@ npm run verify:error-help
 npm run verify:apply-fix  # Apply fix, then checks the fixed program's output
 npm run verify:jev        # live TypeSafe call; needs TYPESAFE_API_KEY
 npm run verify:jev-goal   # live Jev goal judging on lesson tasks; needs TYPESAFE_API_KEY
+npm run verify:ai-apple   # the same two checks on Apple's on-device model (macOS 27; free, offline; add --backend apple-cloud for Private Cloud Compute)
 npm run verify:goal-checks -- http://localhost:5173  # browser: green goal checks at desktop and narrow widths
 npm run verify:design -- http://127.0.0.1:5173      # browser: lesson/refresher boxes and the problem chip, both themes, four sizes; Jev is stubbed (no paid calls)
 npm run verify:no-flicker -- http://localhost:5173   # browser: an edit re-renders only the changed result
@@ -98,7 +99,11 @@ open macos/Package.swift   # edit the Swift code in Xcode
   - Web and mail links open in the default apps (`LinkPolicy.swift`).
   - The Mac build drops Google Fonts and uses SF Pro and SF Mono.
 - **Sandbox permissions:** `network.client`, which WebKit needs to start even for `app://` pages, plus user-selected file access and app-scoped bookmarks for Open Recent.
-- **AI help:** off in the app for now, because there is no `/api/jev` route.
+- **AI help:** the page's AI checks go to Swift (`src/host/macAi.ts` → `AIBridge`), which answers with Apple's on-device model using guided generation (`macos/Sources/PlaygroundAI`). It stays off until the model meets the bar in `npm run verify:ai-apple`. To try it: `defaults write dev.local.python-live-playground experimentalOnDeviceAI -bool true`.
+
+## Learning switches
+
+The app opens as a plain Python editor. Each learning section (Learn Python, Interview prep, Playground, and the rest) is a switch under Settings › Learning, and all of them are off by default. A switched-on section appears in the track menu, and turning off the current one moves to another section or back to the plain editor. A `?lesson=` or shared link still opens its lesson without turning its section on.
 
 ## What this MVP includes
 

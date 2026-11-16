@@ -5,6 +5,7 @@
 
 import { redact } from '../errorAdvice'
 import { JEV_ROUTE } from './forward'
+import { jevFetch } from './transport'
 
 const TIMEOUT_MS = 20_000
 const MAX_CODE_CHARS = 8_000
@@ -107,7 +108,7 @@ export async function askJevGoal(run: GoalRun, options: { signal?: AbortSignal; 
   options.signal?.addEventListener('abort', abort, { once: true })
   const timer = setTimeout(abort, TIMEOUT_MS)
   try {
-    const response = await (options.fetchImpl ?? fetch)(JEV_ROUTE, {
+    const response = await (options.fetchImpl ?? jevFetch)(JEV_ROUTE, {
       method: 'POST',
       headers: { 'content-type': 'application/json', accept: 'application/json' },
       body: JSON.stringify(buildGoalRequest(run)),

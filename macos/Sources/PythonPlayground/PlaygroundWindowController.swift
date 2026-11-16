@@ -1,4 +1,5 @@
 import AppKit
+import PlaygroundAI
 import PlaygroundCore
 import UniformTypeIdentifiers
 import WebKit
@@ -62,6 +63,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
 
         bridge = PageBridge(controller: self)
         configuration.userContentController.add(bridge, name: HostProtocol.messageHandlerName)
+        configuration.userContentController.addScriptMessageHandler(AIBridge(), contentWorld: .page, name: AIBridge.name)
         navigation = NavigationPolicy()
         webView.navigationDelegate = navigation
         webView.uiDelegate = navigation
@@ -272,6 +274,36 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
             FileHandle.standardError.write(Data("The page speaks a different host protocol version.\n".utf8))
         case let .theme(dark):
             controller?.pageThemeChanged(dark: dark)
+        }
+    }
+}
+
+/// Answers the page's AI checks (`src/host/macAi.ts`) with Apple's on-device model. Only the app's own main frame
+/// may ask, and every request is validated before the model sees it.
+@MainActor
+final class AIBridge: NSObject, WKScriptMessageHandlerWithReply {
+    static let name = "playgroundAI"
+    /// Off until the on-device model meets the bar in `npm run verify:ai-apple` (2026-11-16: 8/18 pinpoint,
+    /// 17/31 goal checks). Turn on for testing with `defaults write dev.local.python-live-playground experimentalOnDeviceAI -bool true`.
+    static var enabled: Bool { UserDefaults.standard.bool(forKey: "experimentalOnDeviceAI") }
+
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) async -> (Any?, String?) {
+        guard message.frameInfo.isMainFrame, message.frameInfo.securityOrigin.protocol == WebBundle.scheme,
+              let body = message.body as? [String: Any], let type = body["type"] as? String
+        else { return (nil, "Refused") }
+        switch type {
+        case "availability":
+            return (["available": Self.enabled && AppleChoiceModel.unavailableReason() == nil], nil)
+        case "answer":
+            guard Self.enabled else { return (nil, "AI help is off") }
+            do {
+                let request = try ChoiceRequest(object: body["request"] as Any)
+                return (try await AppleChoiceModel.answer(request).payload, nil)
+            } catch {
+                return (nil, "\(error)")
+            }
+        default:
+            return (nil, "Unknown request")
         }
     }
 }

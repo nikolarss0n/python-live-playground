@@ -68,6 +68,7 @@ import './App.css'
 import { applyTheme, preferredTheme, type ThemeMode } from './theme'
 import { installMacHost, postHostEvent, type HostActions } from './host/macHost'
 import { PLAYGROUND_LESSON_ID } from './curriculum/playgroundLessons'
+import { linkedLessonId, menuSections, readEnabledSections, writeEnabledSections } from './learningSwitches'
 
 const COACH_KEY = 'plp-seen-success'
 const LESSON_DETAILS_KEY = 'plp-lesson-details-open'
@@ -141,6 +142,11 @@ export default function App() {
     null,
   )
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [enabledSections, setEnabledSections] = useState(readEnabledSections)
+  // A ?lesson= or shared link opens its section even while that section's switch is off.
+  const [linkedSection] = useState<Section | null>(() => linkedLessonId() ? section : null)
+  const sectionShown = enabledSections.has(section) || section === linkedSection
+  const plainEditor = !sectionShown
   const [appSettings, setAppSettings] = useState<AppSettings>(() =>
     loadSettings(),
   )
@@ -512,6 +518,25 @@ export default function App() {
 
   // The macOS app drives Run, Stop, Open and Save through this entry point (src/host/macHost.ts).
   const hostActions = useRef<HostActions | null>(null)
+  // A section switched off leaves the menu: move to another switched-on section, or the plain editor.
+  useEffect(() => {
+    if (sectionShown) return
+    if (lessonId !== PLAYGROUND_LESSON_ID) onSelectLesson(PLAYGROUND_LESSON_ID)
+  }, [sectionShown, lessonId, onSelectLesson])
+
+  const onToggleSection = useCallback((next: Section, on: boolean) => {
+    const updated = new Set(enabledSections)
+    if (on) updated.add(next)
+    else updated.delete(next)
+    setEnabledSections(updated)
+    writeEnabledSections(updated)
+    if (on && !sectionShown) onSelectSection(next)
+    else if (!on && next === section) {
+      const other = [...updated][0]
+      if (other) onSelectSection(other)
+    }
+  }, [enabledSections, sectionShown, section, onSelectSection])
+
   hostActions.current = {
     run: () => void runNow(),
     stop,
@@ -687,6 +712,8 @@ export default function App() {
         onOpenSettings={() => setSettingsOpen(true)}
         completedIds={completedIds}
         isLessonLocked={isLocked}
+        sections={menuSections(enabledSections, section, linkedSection)}
+        plain={plainEditor}
       />
 
       <SettingsModal
@@ -694,6 +721,7 @@ export default function App() {
         allowModelTest={errorAiAllowed}
         onClose={() => setSettingsOpen(false)}
         onSaved={(s) => setAppSettings(s)}
+        learning={{ enabled: enabledSections, onToggle: onToggleSection }}
       />
 
       <LocalApiStrip
@@ -789,6 +817,7 @@ export default function App() {
           <div className="results-tab-body" hidden={activeFsTab !== 'results'}>
           <ResultsPanel
             events={displayEvents}
+            sourceCode={snapshot.executedCode}
             status={snapshot.status}
             durationMs={snapshot.durationMs}
             taskEvidence={settledEvidence}

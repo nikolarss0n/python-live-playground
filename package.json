@@ -24,7 +24,8 @@
     "verify:no-flicker": "node scripts/verify-no-flicker.mjs",
     "verify:pyodide-errors": "npx tsx scripts/verify-pyodide-errors.mts",
     "build:mac": "bash scripts/build-mac.sh",
-    "test:mac": "swift test --package-path macos && bash scripts/build-mac.sh && bash scripts/self-test-mac.sh"
+    "test:mac": "swift test --package-path macos && bash scripts/build-mac.sh && bash scripts/self-test-mac.sh",
+    "verify:ai-apple": "npx tsx scripts/verify-jev.mts --backend apple && npx tsx scripts/verify-jev-goal.mts --backend apple"
   },
   "dependencies": {
     "@codemirror/autocomplete": "^6.20.4",

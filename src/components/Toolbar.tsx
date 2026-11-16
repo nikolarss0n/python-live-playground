@@ -37,6 +37,10 @@ type ToolbarProps = {
   onOpenSettings?: () => void
   completedIds?: ReadonlySet<string>
   isLessonLocked?: (id: string) => boolean
+  /** The track menu's sections; defaults to all of them. */
+  sections?: readonly { id: Section; label: string }[]
+  /** Every learning section is off: show a plain editor bar without tracks or lessons. */
+  plain?: boolean
 }
 
 export function Toolbar({
@@ -51,6 +55,8 @@ export function Toolbar({
   onOpenSettings,
   completedIds,
   isLessonLocked,
+  sections = SECTIONS,
+  plain = false,
 }: ToolbarProps) {
   const chapters = lessonsByChapter(section)
   const serviceSteps = lessons.filter((lesson) => lesson.difficulty === 'service')
@@ -66,6 +72,11 @@ export function Toolbar({
     <header className="toolbar">
       <h1 className="sr-only">Python Live</h1>
 
+      {plain ? (
+        <div className="toolbar-lesson toolbar-plain">
+          <span className="brand-lesson-title">Python</span>
+        </div>
+      ) : <>
       <div className="toolbar-lesson" aria-label="Current lesson">
         <span className="brand-chapter">{activeLesson.chapter}</span>
         <span className="brand-lesson-title">
@@ -90,7 +101,7 @@ export function Toolbar({
             }}
             aria-label="Choose learning track"
           >
-            {SECTIONS.map((opt) => (
+            {sections.map((opt) => (
               <option key={opt.id} value={opt.id}>
                 {opt.label}
               </option>
@@ -157,6 +168,7 @@ export function Toolbar({
           </button>
         </div>
       </div>
+      </>}
 
       <div
         className="toolbar-utilities"

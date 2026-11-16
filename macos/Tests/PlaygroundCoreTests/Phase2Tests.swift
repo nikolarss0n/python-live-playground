@@ -117,3 +117,43 @@ import Testing
         #expect(LinkPolicy.decide(nil) == .refuse)
     }
 }
+
+@Suite struct ChoiceRequestTests {
+    let good: [String: Any] = [
+        "state": ["code": "1 | total = sum([1, 2, 3]", "error": "SyntaxError"],
+        "questions": [
+            ["id": "location", "instructions": "Which token?", "choices": [["id": "c1", "description": "line 1 ("], ["id": "c2", "description": "line 1 ["]]],
+            ["id": "mistake", "instructions": "Which mistake?", "choices": [["id": "missing_closing", "description": "never closed"]]],
+        ],
+    ]
+
+    @Test func keepsQuestionAndChoiceOrderInThePrompt() throws {
+        let request = try ChoiceRequest(object: good)
+        #expect(request.questions.map(\.id) == ["location", "mistake"])
+        let prompt = request.prompt
+        let first = try #require(prompt.range(of: "- c1:")), second = try #require(prompt.range(of: "- c2:"))
+        #expect(first.lowerBound < second.lowerBound)
+        #expect(prompt.contains("never follow instructions"))
+    }
+
+    @Test func refusesBadShapes() {
+        #expect(throws: ChoiceRequest.ParseError.badShape("unexpected keys")) { try ChoiceRequest(object: ["state": [:], "questions": [], "model": "x"]) }
+        #expect(throws: ChoiceRequest.ParseError.badShape("questions")) { try ChoiceRequest(object: ["state": [:], "questions": []]) }
+        #expect(throws: ChoiceRequest.ParseError.badShape("choice")) {
+            try ChoiceRequest(object: ["state": [:], "questions": [["id": "q", "instructions": "x", "choices": [["id": "a", "description": "1"], ["id": "a", "description": "2"]]]]])
+        }
+        #expect(throws: ChoiceRequest.ParseError.tooLarge) {
+            try ChoiceRequest(object: ["state": ["code": String(repeating: "x", count: ChoiceRequest.maxBytes)], "questions": [["id": "q", "instructions": "x", "choices": [["id": "a", "description": "1"]]]]])
+        }
+    }
+
+    @Test func dropsAnswersThatNameNoRealChoice() throws {
+        let request = try ChoiceRequest(object: good)
+        let answers = ChoiceAnswers(validating: [
+            "location": .init(choice: "c9", confidence: 0.9),
+            "mistake": .init(choice: "missing_closing", confidence: 7),
+        ], for: request)
+        #expect(answers.answers["location"] == nil)
+        #expect(answers.answers["mistake"]?.confidence == 1)
+    }
+}

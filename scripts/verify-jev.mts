@@ -1,15 +1,10 @@
 // Live check of the Jev fallback: errors the local diagnoser cannot place and failing behaviour checks.
 // Run with `npm run verify:jev` (needs TYPESAFE_API_KEY in .env.local and python3 on PATH).
 import { spawnSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 import { diagnose } from '../src/jev/diagnose.ts'
-import { forwardJev } from '../src/jev/forward.ts'
+import { backendFetch, backendName } from './aiBackend.mts'
 import { askJevPinpoint, type Problem } from '../src/jev/pinpoint.ts'
 
-const env = Object.fromEntries(readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n')
-  .map((line) => line.match(/^\s*([A-Z_]+)\s*=\s*(.*)\s*$/)).filter((match) => match !== null).map((match) => [match[1], match[2].replace(/^["']|["']$/g, '')]))
-const apiKey = env.TYPESAFE_API_KEY ?? process.env.TYPESAFE_API_KEY ?? ''
-if (!apiKey) { console.error('TYPESAFE_API_KEY is not set in .env.local'); process.exit(1) }
 
 const RUNNER = `
 import sys, json, traceback
@@ -51,10 +46,8 @@ const CASES: Case[] = [
   { name: 'string never closed', line: 1, code: 'name = "Ada\nprint(name)\n' },
 ]
 
-const fetchImpl = (async (_url: string, init: RequestInit) => {
-  const result = await forwardJev(String(init.body), { apiKey, model: env.TYPESAFE_MODEL ?? 'jev-latest' })
-  return new Response(result.body, { status: result.status, headers: { 'content-type': 'application/json' } })
-}) as typeof fetch
+const fetchImpl = backendFetch()
+console.log(`Model: ${backendName}`)
 
 let passed = 0
 let total = 0

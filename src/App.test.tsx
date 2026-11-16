@@ -2,6 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { turnOnAllSections } from './test/learningSections'
 
 vi.mock('./components/CodeEditor', () => ({
   CodeEditor: ({
@@ -44,6 +45,7 @@ vi.mock('./execution/usePythonExecution', () => ({
 describe('App beginner flow', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    turnOnAllSections()
     window.localStorage.setItem('plp-section', 'python')
     window.history.replaceState(null, '', '/')
   })

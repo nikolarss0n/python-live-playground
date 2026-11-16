@@ -74,6 +74,10 @@ SwiftUI app (menus, windows, files, settings, AI)
    - Port pinpoint and goal-judge prompts to guided generation.
    - Run them against `src/jev/__fixtures__/python-errors.json` and the lesson goals with the Evaluations framework.
    - Ship only if accuracy is at least what TypeSafe scores on the same set.
+   - **Built (2026-11-16):** `ChoiceRequest` (validated, ordered questions and choices), `AppleChoiceModel` (a `DynamicGenerationSchema` that limits each answer to the question's own choice ids, with greedy sampling), the `playground-ai` CLI, the `AIBridge` reply handler, and the page transport in `src/host/macAi.ts`.
+   - **Result: no-go for now.** With `npm run verify:ai-apple`, the on-device model placed 8 of 18 pinpoint cases (all 8 found by the local diagnoser; 3 calls failed) and judged 17 of 31 goal checks. It marks nearly every requirement as met with confidence 1.0, so its confidence can't gate answers. The bar is 100%, and TypeSafe has not been re-run here because it uses the paid key.
+   - AI help in the app is therefore behind the `experimentalOnDeviceAI` default and off.
+   - Private Cloud Compute reports itself available, but the first call failed with `ModelManagerError 1046`. Next steps: find out what 1046 means (likely entitlement or sign-in), then score `--backend apple-cloud`; try per-question sessions and a short reasoning field before the choice.
 4. **Distribution.** App Sandbox, hardened runtime and notarization, then the Mac App Store, joining the Small Business Program for the free cloud tier. A signed direct download is the fallback.
 
 ## Repo layout

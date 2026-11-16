@@ -2,6 +2,7 @@ import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { turnOnAllSections } from './test/learningSections'
 import { EXERCISE_CHECKS, type ExerciseId } from './serviceExercise'
 import { loadLearningState, isLessonVerified, LEARNING_DAMAGED_KEY, LEARNING_STORAGE_KEY } from './learningStorage'
 import type { ExecutionStatus } from './execution/protocol'
@@ -42,6 +43,7 @@ function edit(code: string) {
 describe('saved service learning flow', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    turnOnAllSections()
     window.localStorage.setItem('plp-section', 'python')
     window.history.replaceState(null, '', '/')
     execution.source = ''

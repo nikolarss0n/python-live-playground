@@ -2,6 +2,7 @@ import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { turnOnAllSections } from './test/learningSections'
 import type { askLessonCoach } from './lessonCoach'
 import { defaultSettings, SETTINGS_KEY } from './settings'
 
@@ -39,6 +40,7 @@ function pendingReply() {
 describe('refresher AI isolation', () => {
   beforeEach(() => {
     window.localStorage.clear()
+    turnOnAllSections()
     window.localStorage.setItem('plp-section', 'python')
     window.localStorage.setItem(SETTINGS_KEY, JSON.stringify({
       ...defaultSettings(), apiKey: 'unit-test-fixture', llmBaseUrl: 'https://example.invalid/v1',
