@@ -30,7 +30,8 @@ export const TASK_INSTRUCTIONS: Readonly<Record<string, readonly string[]>> = {
   ],
   conditionals: [
     'Replace ??? with a score from 60 through 89. That skips Excellent and enters the Passed branch.',
-    'After Passed works, change only score to 90 or more and confirm the first branch prints Excellent.',
+    'After Passed works, change score to 90 or more and confirm it prints Excellent. Keep the 90 and 60 cutoffs.',
+    'On the grade line, write a second one-line if after else: "B" if score >= 70 else "D". Run a score below 70 to see D.',
   ],
   lists: [
     'Replace all four blanks inside [ ] with numbers separated by commas. Keep the list non-empty so len and sum work.',

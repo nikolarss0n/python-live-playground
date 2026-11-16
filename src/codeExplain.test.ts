@@ -50,6 +50,27 @@ describe('explainToken', () => {
     expect(at('math', 1)?.kind).toBe('module')
   })
 
+  it('explains if and else by where they stand: a block, a one-line choice, or a filter', () => {
+    const text = (code: string, word: string, nth = 0) => {
+      let offset = -1
+      for (let count = 0; count <= nth; count += 1) offset = code.indexOf(word, offset + 1)
+      return explainToken(code, offset + 1)?.text ?? ''
+    }
+    const block = 'if score >= 90:\n    print("A")\nelse:\n    print("B")'
+    expect(text(block, 'if')).toMatch(/indented block/)
+    expect(text(block, 'else')).toMatch(/none of the conditions/)
+    const chain = 'grade = "A" if score >= 90 else "B" if score >= 70 else "D"'
+    expect(text(chain, 'if')).toMatch(/^One-line if/)
+    expect(text(chain, 'if', 1)).toMatch(/^One-line if/)
+    expect(text(chain, 'else')).toMatch(/^In a one-line if/)
+    expect(text('grade = ("A" if score >= 90\n         else "B")', 'else')).toMatch(/^In a one-line if/)
+    expect(text('evens = [n for n in numbers if n % 2 == 0]', 'if')).toMatch(/^Filter/)
+    expect(text('sizes = [n if n > 0 else 0 for n in numbers]', 'if')).toMatch(/^One-line if/)
+    expect(text('total = sum(n for n in numbers) if numbers else 0', 'if')).toMatch(/^One-line if/)
+    expect(text('found = [n for n in numbers if n] if numbers else []', 'if')).toMatch(/^Filter/)
+    expect(text('found = [n for n in numbers if n] if numbers else []', 'if', 1)).toMatch(/^One-line if/)
+  })
+
   it('ignores numbers and unknown words', () => {
     expect(explainToken('x = 42', 5)).toBeNull()
     expect(explainToken('mystery()', 2)).toBeNull()

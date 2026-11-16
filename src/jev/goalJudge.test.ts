@@ -47,7 +47,7 @@ describe('Jev goal judge', () => {
     const failed = await askJevGoal(run, {
       fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: 'Jev is not configured.' }), { status: 503 })),
     })
-    expect(failed).toMatchObject({ ok: false, error: 'Jev is not configured.' })
+    expect(failed).toMatchObject({ ok: false, error: 'The AI check failed (503).' })
   })
 
   it('names starter lines the learner changed, and sends Jev the same diff', () => {

@@ -27,13 +27,17 @@ const LOOP: GoalRequirement[] = [
 ]
 
 const IF_GOAL = 'Make the program print "Passed" for your score.'
-const IF_STARTER = 'score = ???\n\nif score >= 90:\n    print("Excellent")\nelif score >= 60:\n    print("Passed")\nelse:\n    print("Try again")\n'
+const IF_BLOCK = 'if score >= 90:\n    print("Excellent")\nelif score >= 60:\n    print("Passed")\nelse:\n    print("Try again")\n'
+const IF_GRADE = 'grade = "A" if score >= 90 else "B"\nprint("Grade:", grade)\n'
+const IF_CHAIN = 'grade = "A" if score >= 90 else "B" if score >= 70 else "D"\nprint("Grade:", grade)\n'
+const IF_STARTER = `score = ???\n\n${IF_BLOCK}\n${IF_GRADE}`
 const IF: GoalRequirement[] = [
-  { id: 'task1', text: 'Set score so the Passed branch runs (60–89)' },
-  { id: 'task2', text: 'Then change score to 90 or more so it prints Excellent' },
+  { id: 'task1', text: 'Set score so the Passed branch runs (60–89)', detail: 'Replace ??? with a score from 60 through 89. That skips Excellent and enters the Passed branch.' },
+  { id: 'task2', text: 'Then change score to 90 or more so it prints Excellent', detail: 'After Passed works, change score to 90 or more and confirm it prints Excellent. Keep the 90 and 60 cutoffs.' },
+  { id: 'task3', text: 'Then give the one-line grade a third choice', detail: 'On the grade line, write a second one-line if after else: "B" if score >= 70 else "D". Run a score below 70 to see D.' },
   { id: 'goal', text: IF_GOAL },
 ]
-const ifCode = (score: number) => IF_STARTER.replace('???', String(score))
+const ifCode = (score: number, grade = IF_GRADE) => `score = ${score}\n\n${IF_BLOCK}\n${grade}`
 
 type Case = { name: string; goal: string; starter: string; requirements: GoalRequirement[]; code: string; output: string[]; expect: Record<string, boolean> }
 const CASES: Case[] = [
@@ -50,9 +54,13 @@ const CASES: Case[] = [
   { name: 'hard-coded prints instead of a loop', goal: LOOP_GOAL, starter: 'for n in range(???):\n    print(n)\n', requirements: LOOP,
     code: 'print(1)\nprint(2)\nprint(3)\nprint(4)\nprint(5)\n', output: ['1', '2', '3', '4', '5'], expect: { task1: false, goal: false } },
   { name: 'if: passed score', goal: IF_GOAL, starter: IF_STARTER, requirements: IF,
-    code: ifCode(75), output: ['Passed'], expect: { task1: true, task2: false, goal: true } },
+    code: ifCode(75), output: ['Passed', 'Grade: B'], expect: { task1: true, task2: false, task3: false, goal: true } },
   { name: 'if: excellent score', goal: IF_GOAL, starter: IF_STARTER, requirements: IF,
-    code: ifCode(95), output: ['Excellent'], expect: { task1: false, task2: true, goal: false } },
+    code: ifCode(95), output: ['Excellent', 'Grade: A'], expect: { task1: false, task2: true, task3: false, goal: false } },
+  { name: 'if: chained one-line grade', goal: IF_GOAL, starter: IF_STARTER, requirements: IF,
+    code: ifCode(75, IF_CHAIN), output: ['Passed', 'Grade: B'], expect: { task1: true, task2: false, task3: true, goal: true } },
+  { name: 'if: excellent score and chained grade in one run', goal: IF_GOAL, starter: IF_STARTER, requirements: IF,
+    code: ifCode(95, IF_CHAIN), output: ['Excellent', 'Grade: A'], expect: { task1: false, task2: true, task3: true, goal: false } },
 ]
 
 let passed = 0

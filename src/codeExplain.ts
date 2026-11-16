@@ -247,6 +247,25 @@ function originOf(lines: readonly string[], row: number, name: string): string |
   return best
 }
 
+/** `if` and `else` inside an expression: the one-line choice, or the filter of a comprehension. */
+function inlineChoice(word: string, before: string, after: string): string | null {
+  if (word === 'else') {
+    return /\bif\b/.test(before) || (before.trim() === '' && !/^\s*:/.test(after))
+      ? 'In a one-line if: the value to use when the condition is False. Another `if` after it adds one more choice.'
+      : null
+  }
+  if (before.trim() === '') return null
+  // Drop bracket pairs that are already closed, so only the bracket this `if` sits in can make it a filter.
+  let open = before
+  for (let previous = ''; previous !== open;) {
+    previous = open
+    open = open.replace(/\([^()]*\)|\[[^[\]]*\]|\{[^{}]*\}/g, '')
+  }
+  return /\bfor\b.*\bin\b/.test(open.slice(Math.max(open.lastIndexOf('('), open.lastIndexOf('['), open.lastIndexOf('{')) + 1))
+    ? 'Filter: keeps an item only when this condition is True.'
+    : 'One-line if: gives the value on its left when the condition is True, otherwise the value after `else`.'
+}
+
 export function explainToken(code: string, offset: number): (TokenInfo & { from: number; to: number }) | null {
   const at = wordAt(code, offset)
   if (!at) return null
@@ -276,6 +295,12 @@ export function explainToken(code: string, offset: number): (TokenInfo & { from:
       'The object this method is working on. Python passes it in automatically: `c.bump()` really runs `bump(c)`, so inside the method `self` is `c`.',
       def?.owner ? `First parameter of \`${def.name}\` in class \`${def.owner}\`.` : undefined,
     )
+  }
+  if (word === 'if' || word === 'else') {
+    const line = lines[row] ?? ''
+    const column = from - (code.lastIndexOf('\n', from - 1) + 1)
+    const inline = inlineChoice(word, line.slice(0, column), line.slice(column + word.length))
+    if (inline) return result('keyword', inline)
   }
   if (KEYWORDS[word]) return result('keyword', KEYWORDS[word])
   if (DUNDERS[word]) return result('special method', DUNDERS[word])

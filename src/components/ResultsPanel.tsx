@@ -11,7 +11,6 @@ import {
   type AlignMode,
 } from './resultAlignment'
 import { CollectionTree } from './CollectionTree'
-import { looksLikeTokenList, TokenChips } from './TokenChips'
 import { HttpResponseCard } from './HttpResponseCard'
 import {
   httpResponseFromHttpEvent,
@@ -246,9 +245,6 @@ function EventRow({
           </div>
         ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
-            {looksLikeTokenList(event.structure) ? (
-              <TokenChips node={event.structure} tone="print" />
-            ) : null}
             <CollectionTree node={event.structure} tone="print" />
           </div>
         ) : (
@@ -276,9 +272,6 @@ function EventRow({
           </div>
         ) : isCollectionRoot(event.structure) ? (
           <div className="result-collection">
-            {looksLikeTokenList(event.structure) ? (
-              <TokenChips node={event.structure} tone="expr" />
-            ) : null}
             <CollectionTree node={event.structure} tone="expr" />
           </div>
         ) : (

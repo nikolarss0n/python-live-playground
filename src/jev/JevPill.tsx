@@ -6,15 +6,14 @@ export function JevPill({ state, onRecheck, onShow }: {
   onShow: () => void
 }) {
   if (state.status === 'checking') {
-    return <span className="jev-pill is-checking" role="status">Jev: finding the problem…</span>
+    return <span className="jev-pill is-checking" role="status">Finding the problem…</span>
   }
   if (state.status === 'failed') {
-    return <button type="button" className="jev-pill is-failed" title={state.message} aria-label={`${state.message} Retry Jev`} onClick={onRecheck}>
-      Jev unavailable · retry
+    return <button type="button" className="jev-pill is-failed" title={state.message} aria-label={`${state.message} Retry finding the problem`} onClick={onRecheck}>
+      Retry finding the problem
     </button>
   }
-  const who = state.source === 'Jev' ? 'Jev' : 'Problem'
-  return <button type="button" className="jev-pill is-found" onClick={onShow} aria-label={`${who} found on line ${state.pinpoint.line}. Show it again`}>
-    {who} · line {state.pinpoint.line}
+  return <button type="button" className="jev-pill is-found" onClick={onShow} aria-label={`Problem found on line ${state.pinpoint.line}. Show it again`}>
+    Problem · line {state.pinpoint.line}
   </button>
 }

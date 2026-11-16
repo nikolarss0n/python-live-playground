@@ -31,6 +31,32 @@ describe('explainError', () => {
     expect(e.title.toLowerCase()).toMatch(/wrong|type|value/)
   })
 
+  it('explains a one-line if that has no else, without asking for a colon', () => {
+    const missing = explainError('SyntaxError', "expected 'else' after 'if' expression", { sourceLine: 'grade = "A" if score >= 90' })
+    expect(missing.title).toBe('Add else to the one-line if')
+    expect(missing.tip).toContain('value if condition else other')
+    expect(missing.tip).not.toMatch(/colon/i)
+    expect(missing.example).toBe('grade = "A" if score >= 90 else "B" if score >= 70 else "D"')
+    const stray = explainError('SyntaxError', "expected 'else' after 'if' expression", { sourceLine: 'grade = "A" if score >= 90 else "B" if score >= 70 "F" else "D"' })
+    expect(stray.title).toBe(missing.title)
+  })
+
+  it('respells a choice written with ? and : the Python way', () => {
+    const assigned = explainError('SyntaxError', 'invalid syntax', { sourceLine: 'grade = score >= 90 ? "A" : "B"  # top marks?' })
+    expect(assigned.title).toBe('Write the choice with if and else')
+    expect(assigned.example).toBe('grade = "A" if score >= 90 else "B"')
+    expect(explainError('SyntaxError', 'invalid syntax', { sourceLine: '    return n > 0 ? n : -n' }).example).toBe('    return n if n > 0 else -n')
+    expect(explainError('SyntaxError', 'invalid syntax', { sourceLine: 'print(score >= 90 ? "A" : "B")' }).example).toBe('grade = "A" if score >= 90 else "B"')
+    expect(explainError('SyntaxError', 'invalid syntax', { sourceLine: 'print("ready? yes: no")' }).title).toBe('Code could not be read')
+    expect(explainError('SyntaxError', 'invalid syntax', { sourceLine: 'score = ???' }).title).toBe('Finish the starter blank')
+  })
+
+  it('explains a one-line if that starts with if', () => {
+    const e = explainError('SyntaxError', 'invalid syntax', { sourceLine: 'grade = if score >= 90: "A" else: "B"' })
+    expect(e.title).toBe('Put the value before if')
+    expect(e.example).toBe('grade = "A" if score >= 90 else "B"')
+  })
+
   it('covers SyntaxError and IndentationError', () => {
     expect(explainError('SyntaxError', 'invalid syntax').tip).toMatch(/colon|quote|bracket/i)
     expect(explainError('IndentationError', 'unexpected indent').title).toMatch(

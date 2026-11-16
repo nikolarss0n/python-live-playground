@@ -153,6 +153,46 @@
   "column": 5,
   "endColumn": 7
  },
+ "one_line_if_no_else": {
+  "code": "score = 75\ngrade = \"A\" if score >= 90\nprint(grade)\n",
+  "message": "SyntaxError: expected 'else' after 'if' expression (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 8,
+  "endColumn": 26
+ },
+ "one_line_if_stray_value": {
+  "code": "score = 75\ngrade = \"A\" if score >= 90 else \"B\" if score >= 70 \"F\" else \"D\"\nprint(grade)\n",
+  "message": "SyntaxError: expected 'else' after 'if' expression (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 32,
+  "endColumn": 50
+ },
+ "one_line_if_value_last": {
+  "code": "score = 75\ngrade = if score >= 90: \"A\" else: \"B\"\nprint(grade)\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 8,
+  "endColumn": 10
+ },
+ "question_colon_choice": {
+  "code": "score = 75\ngrade = score >= 90 ? \"A\" : \"B\"\nprint(grade)\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 20,
+  "endColumn": 21
+ },
+ "question_colon_in_call": {
+  "code": "score = 75\nprint(\"Grade:\", score >= 90 ? \"A\" : \"B\")\n",
+  "message": "SyntaxError: invalid syntax (<playground>, line 2)",
+  "line": 2,
+  "frames": [],
+  "column": 28,
+  "endColumn": 29
+ },
  "print_statement": {
   "code": "name = \"Ada\"\nprint name\n",
   "message": "SyntaxError: Missing parentheses in call to 'print'. Did you mean print(...)? (<playground>, line 2)",

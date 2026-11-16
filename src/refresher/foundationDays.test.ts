@@ -116,7 +116,7 @@ print("verified")
   it('covers every ordered foundation topic from the supplied refresher', () => {
     const expectedTerms = [
       ['file', 'indentation', 'colon', 'comment', 'variable', 'str', 'int', 'float', 'bool', 'None', 'conversion', 'print', 'f-string', 'def', 'return'],
-      ['comparison', 'if', 'elif', 'else', 'and', 'or', 'not', 'truthiness', 'is None', 'for', 'while', 'range', 'enumerate', 'break', 'continue'],
+      ['comparison', 'if', 'elif', 'else', 'one-line if', 'and', 'or', 'not', 'truthiness', 'is None', 'for', 'while', 'range', 'enumerate', 'break', 'continue'],
       ['list', 'tuple', 'set', 'index', 'slic', 'append', 'unpack', 'membership', 'in', 'add'],
       ['key', 'value', 'index', 'get', 'updat', 'items', 'list', 'missing'],
       ['parameter', 'argument', 'positional', 'keyword', 'default', 'return', 'scope', 'hint', 'mutable', 'shallow'],
@@ -127,6 +127,12 @@ print("verified")
       const content = day.concepts.map((concept) => `${concept.term} ${concept.explanation} ${concept.example}`).join(' ').toLowerCase()
       for (const term of expectedTerms[index]) expect(content, `${day.id}: ${term}`).toContain(term.toLowerCase())
     })
+  })
+
+  it('accepts a day 2 answer that chooses the counter with a one-line if', () => {
+    const oneLine = 'def count_runs(records):\n    counts = {"success": 0, "failed": 0, "skipped": 0}\n    for status in records:\n' +
+      '        key = "success" if status is True else "failed" if status is False else "skipped"\n        counts[key] += 1\n    return counts\n'
+    expect(failures('refresher-02', oneLine)).toEqual([])
   })
 
   it('rejects printing in place of returning and boolean truthiness shortcuts', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { getLesson } from './examples'
+import { evaluateGoal } from './goalCheck'
 import { explainError } from './execution/errorExplain'
 import type { ResultEvent } from './execution/protocol'
 import {
@@ -158,6 +159,40 @@ describe('evaluateEssentialsTasks — expressions', () => {
     expect(tasks[0]?.done).toBe(false)
     expect(taskEvidenceLine(lesson, run)).toMatch(/2 \+ 2/)
     expect(taskEvidenceLine(lesson, run)).not.toMatch(/advanced/i)
+  })
+})
+
+describe('evaluateEssentialsTasks — one-line if in the conditionals lesson', () => {
+  const lesson = getLesson('conditionals')
+  const block = 'if score >= 90:\n    print("Excellent")\nelif score >= 60:\n    print("Passed")\nelse:\n    print("Try again")\n'
+  const finished = (code: string, prints: string[]) => ({
+    code, executedCode: code, status: 'success' as const, events: prints.map((text, index) => print(text, index + 1)),
+  })
+  const goalMet = (run: ReturnType<typeof finished>) => evaluateGoal(lesson, { ...run, starterCode: lesson.code }).met
+
+  it('keeps the chained-grade task open until the grade line has a second if', () => {
+    const run = finished(`score = 75\n\n${block}\ngrade = "A" if score >= 90 else "B"\nprint("Grade:", grade)\n`, ['Passed', 'Grade: B'])
+    const tasks = evaluateEssentialsTasks(lesson, run)
+    expect(tasks.map((task) => task.done)).toEqual([true, true, false])
+    expect(tasks[2]?.summary).toMatch(/not in your code yet/)
+    expect(goalMet(run)).toBe(true)
+  })
+
+  it('accepts a chained one-line if on the grade line', () => {
+    const run = finished(`score = 75\n\n${block}\ngrade = "A" if score >= 90 else "B" if score >= 70 else "D"\nprint("Grade:", grade)\n`, ['Passed', 'Grade: B'])
+    expect(evaluateEssentialsTasks(lesson, run).map((task) => task.done)).toEqual([true, true, true])
+    expect(goalMet(run)).toBe(true)
+  })
+
+  it('accepts the whole decision written as one line', () => {
+    const run = finished('score = 75\nprint("Excellent" if score >= 90 else "Passed" if score >= 60 else "Try again")\n', ['Passed'])
+    expect(evaluateEssentialsTasks(lesson, run).map((task) => task.done)).toEqual([true, true, true])
+    expect(goalMet(run)).toBe(true)
+  })
+
+  it('does not count the form described in a comment', () => {
+    const run = finished(`score = 75\n${block}# grade = "A" if score >= 90 else "B" if score >= 70 else "D"\n`, ['Passed'])
+    expect(evaluateEssentialsTasks(lesson, run)[2]?.done).toBe(false)
   })
 })
 

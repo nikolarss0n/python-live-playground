@@ -14,12 +14,13 @@ function mount(doc: string) {
 describe('problem mark', () => {
   it('marks the exact token and applies the corrected line', () => {
     const editor = mount('a = 1\ndefz f():\n    pass')
-    showProblemMark(editor, { source: 'Jev', line: 2, from: 0, to: 4, message: '`defz` is not a Python keyword.', fixedLine: 'def f():' })
+    showProblemMark(editor, { source: 'AI', line: 2, from: 0, to: 4, message: '`defz` is not a Python keyword.', fixedLine: 'def f():' })
     expect(editor.dom.querySelector('.cm-problem-mark')?.textContent).toBe('defz')
     expect(editor.dom.querySelector('.cm-problem-card')).toBeNull()
     openProblemCard(editor)
     const card = editor.dom.querySelector('[aria-label="Problem on line 2"]')
     expect(card?.textContent).toContain('defz is not a Python keyword.')
+    expect(card?.querySelector('.cm-problem-source')?.textContent).toBe('AI')
     ;(card!.querySelector('.cm-problem-apply') as HTMLButtonElement).click()
     expect(editor.state.doc.toString()).toBe('a = 1\ndef f():\n    pass')
     expect(currentProblemMark(editor.state)).toBeNull()
@@ -43,7 +44,7 @@ describe('problem mark', () => {
     showProblemMark(editor, { source: 'AI', line: 1, from: 0, to: 3, message: 'x' })
     editor.dispatch({ changes: { from: 0, insert: ' ' } })
     expect(currentProblemMark(editor.state)).toBeNull()
-    showProblemMark(editor, { source: 'Jev', line: 1, from: 9, to: 9, message: 'x' })
+    showProblemMark(editor, { source: 'AI', line: 1, from: 9, to: 9, message: 'x' })
     expect(editor.dom.querySelector('.cm-problem-caret')).not.toBeNull()
     openProblemCard(editor)
     ;(editor.dom.querySelector('.cm-problem-dismiss') as HTMLButtonElement).click()

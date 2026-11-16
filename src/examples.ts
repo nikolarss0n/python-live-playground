@@ -95,6 +95,8 @@ export type Lesson = {
   tasks: string[]
   /** Actionable detail aligned by index with tasks. */
   taskInstructions?: string[]
+  /** Regular expressions aligned by index with tasks; a task that has one is done only when the code that ran matches it. */
+  taskPatterns?: (string | null)[]
   code: string
   goalCheck?: GoalCheck
   /** Extra stuck hints beyond goal-check missing steps */
@@ -448,7 +450,9 @@ score == 100
     tasks: [
       'Set score so the Passed branch runs (60–89)',
       'Then change score to 90 or more so it prints Excellent',
+      'Then give the one-line grade a third choice',
     ],
+    taskPatterns: [null, null, '\\bif\\b.+\\belse\\b.+\\bif\\b.+\\belse\\b'],
     stretch: 'Stretch: change score to 59. The program should print Try again because the score is below both the 90 and 60 cutoffs.',
     code: `# Lesson 10 — If decisions
 # Goal: Make the program print "Passed" for your score.
@@ -462,6 +466,10 @@ elif score >= 60:
     print("Passed")
 else:
     print("Try again")
+
+# One line can choose a value: value if condition else other value.
+grade = "A" if score >= 90 else "B"
+print("Grade:", grade)
 `,
     goalCheck: {
       requireSuccess: true,
@@ -3072,7 +3080,7 @@ const LESSON_WHY: Record<string, string> = {
   booleans:
     'Boolean comparisons turn facts into True or False so a program can make decisions.',
   conditionals:
-    'if, elif, and else let one program choose different behavior for different situations.',
+    'if, elif, and else let one program choose different behavior for different situations. The one-line form chooses a value the same way.',
   lists:
     'Lists keep several values in order, so you can visit them one at a time or calculate a total or average.',
   'for-loops':

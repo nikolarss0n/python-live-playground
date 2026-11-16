@@ -729,24 +729,26 @@ export default function App() {
               onRun={() => void runNow()}
             /> : null}
           </div>
-          {(showConceptPills && refresherDay) || jev.state.status !== 'off' || learning.starterUpdated || sharedNotRun || learning.skippedLink || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
+          {(showConceptPills && refresherDay) || learning.starterUpdated || sharedNotRun || learning.skippedLink || blankCount > 0 || solutionAnswers ? <div className="editor-pills">
             {blankCount > 0 ? <HintPill blanks={blankCount} onClick={showNextHint} /> : null}
             {solutionAnswers ? <SolutionPill starter={activeLesson.code} answers={solutionAnswers} open={solutionOpen} onToggle={() => setSolutionFor(solutionOpen ? null : activeLesson.id)} /> : null}
             {sharedNotRun ? <SharedCodePill onRun={() => void runNow()} /> : null}
             {learning.skippedLink ? <SharedLinkSkippedPill onDismiss={learning.dismissSkippedLink} /> : null}
             {learning.starterUpdated ? <StarterUpdatedPill onRestart={restartLesson} onKeep={learning.keepDraft} /> : null}
-            {jev.state.status !== 'off' ? <JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /> : null}
             {showConceptPills && refresherDay ? <ConceptPills key={refresherDay.id} concepts={refresherDay.concepts} /> : null}
           </div> : null}
-          <CodeEditor
-            value={code}
-            readOnly={Boolean(refresherDay && (study.isReadOnly || study.stage === 'review'))}
-            onChange={onEditorChange}
-            theme={theme}
-            onViewReady={setEditorView}
-            onGeometryChange={onGeometryChange}
-            pathNames={pathNames}
-          />
+          <div className="editor-stage">
+            <CodeEditor
+              value={code}
+              readOnly={Boolean(refresherDay && (study.isReadOnly || study.stage === 'review'))}
+              onChange={onEditorChange}
+              theme={theme}
+              onViewReady={setEditorView}
+              onGeometryChange={onGeometryChange}
+              pathNames={pathNames}
+            />
+            {jev.state.status !== 'off' ? <div className="editor-float"><JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /></div> : null}
+          </div>
           {showInputs ? <InputsField value={inputsText} onChange={setInputsText} /> : null}
         </div>
 

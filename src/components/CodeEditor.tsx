@@ -19,6 +19,7 @@ import { codeHoverExtension } from '../editor/codeHover'
 import { dotCompletionExtension } from '../editor/dotCompletion'
 import { docstringExtension } from '../editor/docstring'
 import { callParens } from '../editor/callParens'
+import { indentDotsExtension } from '../editor/indentDots'
 
 type ThemeMode = 'light' | 'dark'
 
@@ -183,6 +184,7 @@ export function CodeEditor({
       buildTheme(theme),
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
       ...variablePathColors(theme === 'dark'),
+      indentDotsExtension,
       blankHighlightExtension(),
       ...blankHintExtension(),
       ...runPulseExtension(),

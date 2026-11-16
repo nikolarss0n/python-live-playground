@@ -5,7 +5,8 @@ import { showProblemMark } from '../editor/problemMark'
 import { diagnose, diagnoseTimeout, markReported, otherSuspects } from './diagnose'
 import { askJevPinpoint, jevAvailable, type Pinpoint } from './pinpoint'
 
-export type PinpointSource = 'Fix' | 'Jev'
+/** Shown as the problem card's badge: a rule-based fix, or the AI check's answer. */
+export type PinpointSource = 'Fix' | 'AI'
 export type JevPinpointState =
   | { status: 'off' }
   | { status: 'checking' }
@@ -90,7 +91,7 @@ export function useJevPinpoint({ view, code, error, timedOut = false, failedChec
         else setState({ status: 'failed', message: result.error })
         return
       }
-      show(result.pinpoint, 'Jev')
+      show(result.pinpoint, 'AI')
     })
   }, [ready, enabled, view, code, message, line, column, endColumn, frames, timedOut, checkLabel, checkDetail])
 

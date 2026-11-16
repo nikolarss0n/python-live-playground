@@ -484,13 +484,13 @@ export async function askJevPinpoint(source: string, problem: Problem,
     })
     const body: unknown = await response.json().catch(() => null)
     if (!response.ok) {
-      return { ok: false, error: isRecord(body) && typeof body.error === 'string' ? body.error : `Jev request failed (${response.status}).`, durationMs: elapsed() }
+      return { ok: false, error: `The AI check failed (${response.status}).`, durationMs: elapsed() }
     }
     const answer = parsePinpointAnswer(body, source, candidates, problem.line, Boolean(problem.check))
     const pinpoint = answer && problem.check ? { ...answer, message: `Check failed: ${problem.check.label}. ${answer.message}` } : answer
-    return pinpoint ? { ok: true, pinpoint, durationMs: elapsed() } : { ok: false, error: 'Jev returned an answer this app could not read.', durationMs: elapsed() }
+    return pinpoint ? { ok: true, pinpoint, durationMs: elapsed() } : { ok: false, error: 'The AI check returned an answer this app could not read.', durationMs: elapsed() }
   } catch {
-    return { ok: false, error: controller.signal.aborted ? 'Jev did not answer in time.' : 'Jev could not be reached. It works only with npm run dev or npm run preview.', durationMs: elapsed() }
+    return { ok: false, error: controller.signal.aborted ? 'The AI check did not answer in time.' : 'The AI check could not be reached. It works only with npm run dev or npm run preview.', durationMs: elapsed() }
   } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', abort)

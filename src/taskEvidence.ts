@@ -130,12 +130,13 @@ function fillNextEdit(lesson: Lesson): string {
 function missingForTask(input: {
   lesson: Lesson
   run: RunInput
+  taskIndex: number
   taskText: string
   instruction: string | null
   prints: string[]
   exprs: string[]
 }): string[] {
-  const { lesson, run, taskText, instruction, prints, exprs } = input
+  const { lesson, run, taskIndex, taskText, instruction, prints, exprs } = input
   const missing: string[] = []
   const hasBlank = run.code.includes(BLANK)
   const fill = isFillTask(taskText) || hasBlank
@@ -157,6 +158,11 @@ function missingForTask(input: {
 
   if (hasBlank && fill && !missing.some((item) => item.includes('???'))) {
     missing.push(fillNextEdit(lesson))
+  }
+
+  const pattern = lesson.taskPatterns?.[taskIndex]
+  if (pattern && !new RegExp(pattern, 'm').test(normalizeCode(run.code))) {
+    missing.push('this step is not in your code yet')
   }
 
   if (needsPrintedEvidence(taskText, instruction) && prints.length === 0) {
@@ -227,6 +233,7 @@ export function evaluateEssentialsTasks(
     const missing = missingForTask({
       lesson,
       run,
+      taskIndex,
       taskText,
       instruction,
       prints,

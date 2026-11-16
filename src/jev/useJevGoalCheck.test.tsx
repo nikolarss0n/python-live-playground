@@ -99,7 +99,8 @@ describe('useJevGoalCheck', () => {
       { id: 'goal', label: 'Two messages', status: 'pass', note: null, isGoal: true },
     ] }} />)
     expect(screen.getByRole('region', { name: 'Goal checks' })).toHaveTextContent('Goal complete')
-    expect(screen.getByText('3/3 passed · Jev')).toBeInTheDocument()
+    expect(screen.getByText('3/3 passed · AI')).toBeInTheDocument()
+    expect(document.body).not.toHaveTextContent(/jev/i)
     expect(screen.getAllByText('Passed:')).toHaveLength(3)
   })
 })

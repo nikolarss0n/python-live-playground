@@ -123,6 +123,9 @@ describe('Jev pinpoint request', () => {
     const failed = await askJevPinpoint('defz f():', { message: 'SyntaxError', line: 1 }, {
       fetchImpl: vi.fn<typeof fetch>().mockResolvedValue(new Response(JSON.stringify({ error: 'Jev is not configured.' }), { status: 503 })),
     })
-    expect(failed).toMatchObject({ ok: false, error: 'Jev is not configured.' })
+    expect(failed).toMatchObject({ ok: false, error: 'The AI check failed (503).' })
+    const unreachable = await askJevPinpoint('defz f():', { message: 'SyntaxError', line: 1 }, { fetchImpl: vi.fn<typeof fetch>().mockRejectedValue(new TypeError('offline')) })
+    expect(unreachable).toMatchObject({ ok: false })
+    expect(JSON.stringify([failed, unreachable])).not.toMatch(/jev|typesafe/i)
   })
 })

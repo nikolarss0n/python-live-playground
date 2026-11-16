@@ -12,7 +12,7 @@ export function GoalChecks({ checks }: { checks: GoalChecksView }) {
       <header className="goal-checks-head">
         <span className="goal-checks-title">{allPass ? 'Goal complete' : 'Checks'}</span>
         <span className={`goal-checks-count${refreshing ? ' is-refreshing' : ''}`} role="status">
-          {checking ? 'Jev is checking…' : `${passed}/${rows.length} passed${source === 'Jev' ? ' · Jev' : ''}`}
+          {checking ? 'Checking…' : `${passed}/${rows.length} passed${source === 'Jev' ? ' · AI' : ''}`}
         </span>
       </header>
       <ul className="goal-checks-list">

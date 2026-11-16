@@ -262,6 +262,13 @@ function diagnoseLine(input: DiagnoseInput): Pinpoint | null {
     const elseIf = /\belse\s+if\b/.exec(text)
     if (elseIf) return explain(reported!, { from: elseIf.index, to: elseIf.index + 4, text: 'else' }, 'token', 'foreign_syntax')
     if (/^expected ':'/.test(detail)) return explain(reported!, null, 'eol', 'missing_colon')
+    if (/^expected 'else' after 'if' expression/.test(detail)) {
+      const at = span ?? find(reported!, 'if')
+      const next = at ? tokensOf(reported!).find((token) => token.from >= at.to) : null
+      const found = next ? `found ${code(next.text.length > 24 ? `${next.text.slice(0, 23)}…` : next.text)}` : 'the line ends'
+      return at ? pin(reported!, at.from, at.to, 'other',
+        `A one-line ${code('if')} needs both outcomes: ${code('value if condition else other')}. After the condition Python expects ${code('else')}, but ${found}.`) : null
+    }
     if (/^'\{' was never closed/.test(detail) && tokensOf(reported!).at(-1)?.text === '{' && /^\s*(if|elif|else|while|for|def|class|try|except|finally|with)\b/.test(text)) {
       return explain(reported!, tokensOf(reported!).at(-1)!, 'token', 'foreign_syntax')
     }
@@ -372,6 +379,11 @@ function diagnoseLine(input: DiagnoseInput): Pinpoint | null {
     const tokens = tokensOf(line)
     const elseIf = /\belse\s+if\b/.exec(text)
     if (elseIf) return explain(line, { from: elseIf.index, to: elseIf.index + 4, text: 'else' }, 'token', 'foreign_syntax')
+    const ternary = foreignTernary(tokens)
+    if (ternary) return ternary
+    const leading = tokens.find((token, index) => token.text === 'if' && index > 0 && ['=', '(', ',', 'return'].includes(tokens[index - 1].text))
+    if (leading) return pin(line, leading.from, leading.to, 'other',
+      `A one-line ${code('if')} starts with the value it gives: ${code('value if condition else other')}. It has no colons.`)
     const foreign = tokens.find((token) => Object.hasOwn(FOREIGN, token.text) && token.text !== '}' && token.text !== ';' ||
       ((token.text === '++' || token.text === '--') && !/^\s*$/.test(text.slice(token.to))))
       ?? tokens.find((token) => token.text === '++' || token.text === '--')
@@ -395,6 +407,44 @@ function diagnoseLine(input: DiagnoseInput): Pinpoint | null {
       !textOf(previous).slice(0, lineEnd(textOf(previous))).endsWith(':')) return explain(previous, null, 'eol', 'missing_colon')
     if (previous && unclosedOn(textOf(previous))) return explain(previous, null, 'eol', 'missing_closing')
     return null
+  }
+
+  /** `condition ? a : b` from other languages, rewritten as `a if condition else b` when its three parts are plain. */
+  function foreignTernary(tokens: Token[]): Pinpoint | null {
+    const marks = tokens.filter((token) => token.text === '?')
+    if (marks.length !== 1) return null
+    const index = tokens.indexOf(marks[0])
+    const closers = Object.values(CLOSERS)
+    const result = (fixedLine?: string) => pin(reported!, marks[0].from, marks[0].to, 'foreign_syntax',
+      `Python has no ${code('? :')} choice. Put the value first: ${code('value if condition else other')}.`, fixedLine)
+    let depth = 0
+    let start = indentOf(text)
+    let spaced = false
+    for (let at = index - 1; at >= 0; at -= 1) {
+      const value = tokens[at].text
+      if (closers.includes(value)) depth += 1
+      else if (own(CLOSERS, value)) {
+        if (depth === 0) { start = tokens[at].to; break }
+        depth -= 1
+      } else if (depth === 0 && (value === '=' || value === ',' || value === 'return')) { start = tokens[at].to; spaced = true; break }
+      else if (depth === 0 && (value === ':' || (at === 0 && KEYWORDS.includes(value)))) return result()
+    }
+    depth = 0
+    let colon: Token | null = null
+    let end = lineEnd(text)
+    for (let at = index + 1; at < tokens.length; at += 1) {
+      const value = tokens[at].text
+      if (own(CLOSERS, value)) depth += 1
+      else if (closers.includes(value)) {
+        if (depth === 0) { end = tokens[at].from; break }
+        depth -= 1
+      } else if (depth === 0 && value === ':' && !colon) colon = tokens[at]
+      else if (depth === 0 && value === ',') { end = tokens[at].from; break }
+    }
+    if (!colon || colon.from >= end) return result()
+    const [condition, first, second] = [text.slice(start, marks[0].from), text.slice(marks[0].to, colon.from), text.slice(colon.to, end)].map((part) => part.trim())
+    if (!condition || !first || !second) return result()
+    return result(`${text.slice(0, start)}${spaced ? ' ' : ''}${first} if ${condition} else ${second}${text.slice(end)}`)
   }
 
   function indentation(): Pinpoint | null {

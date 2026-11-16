@@ -269,6 +269,45 @@ function colonAdvice(sourceLine: string, detail: string, context?: ExplainContex
   }
 }
 
+/** `name = condition ? a : b` or `return condition ? a : b`, respelled the Python way when each part is plain. */
+function pythonChoice(sourceLine: string, code: string, mark: number): string | null {
+  const colon = code.indexOf(':', mark)
+  const prefix = /^\s*(?:[A-Za-z_][\w.]*\s*=(?!=)\s*|return\s+)?/.exec(code)?.[0] ?? ''
+  const end = code.trimEnd().length
+  const parts = [sourceLine.slice(prefix.length, mark), sourceLine.slice(mark + 1, colon), sourceLine.slice(colon + 1, end)].map((part) => part.trim())
+  const plain = (part: string) => {
+    const masked = codeOutsideStrings(part)
+    return part.length > 0 && !/[:?]/.test(masked) && (masked.match(/[([{]/g)?.length ?? 0) === (masked.match(/[)\]}]/g)?.length ?? 0)
+  }
+  return parts.every(plain) ? `${prefix}${parts[1]} if ${parts[0]} else ${parts[2]}` : null
+}
+
+/** Mistakes in the one-line `value if condition else other` form, including `condition ? a : b` from other languages. */
+function conditionalAdvice(sourceLine: string, detail: string): SyntaxAdvice | null {
+  const code = codeOutsideStrings(sourceLine)
+  const tip = 'Write `value if condition else other`.'
+  if (/expected 'else' after 'if' expression/i.test(detail)) return {
+    title: 'Add else to the one-line if',
+    summary: 'A one-line `if` chooses a value, so it needs both outcomes. Python found the condition but no `else` after it.',
+    tip: `${tip} For a third choice, put \`else\` before the next \`if\`.`,
+    example: 'grade = "A" if score >= 90 else "B" if score >= 70 else "D"',
+  }
+  const mark = code.indexOf('?')
+  if (mark >= 0 && code.indexOf('?', mark + 1) < 0 && code.indexOf(':', mark) > mark) return {
+    title: 'Write the choice with if and else',
+    summary: 'Python has no `condition ? a : b`. It puts the first value before `if` and the other value after `else`.',
+    tip,
+    example: pythonChoice(sourceLine, code, mark) ?? 'grade = "A" if score >= 90 else "B"',
+  }
+  if (/(?:[=(,]|\breturn)\s*if\b/.test(code)) return {
+    title: 'Put the value before if',
+    summary: 'A one-line `if` starts with the value it gives, then `if`, the condition, `else` and the other value. It has no colons.',
+    tip,
+    example: 'grade = "A" if score >= 90 else "B"',
+  }
+  return null
+}
+
 function indentationAdvice(name: string, detail: string, sourceLine: string): SyntaxAdvice | null {
   if (name === 'TabError') return {
     title: 'Use one indentation style',
@@ -373,7 +412,7 @@ export function explainError(
 
   if (name === 'SyntaxError') {
     const advice = functionAdvice(sourceHint, context) ?? declarationAdvice(sourceHint) ??
-      (looksLikeCStyleFor(sourceHint) ? null : operatorAdvice(sourceHint, context) ?? colonAdvice(sourceHint, detail, context))
+      (looksLikeCStyleFor(sourceHint) ? null : conditionalAdvice(sourceHint, detail) ?? operatorAdvice(sourceHint, context) ?? colonAdvice(sourceHint, detail, context))
     if (advice) return { ...advice, name, detail }
   }
 

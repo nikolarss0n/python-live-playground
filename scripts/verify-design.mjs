@@ -4,7 +4,7 @@ import { chromium } from 'playwright'
 const baseUrl = process.argv[2] ?? 'http://127.0.0.1:5173'
 const sizes = [{ width: 1440, height: 900 }, { width: 1024, height: 768 }, { width: 390, height: 844 }, { width: 320, height: 700 }]
 const failures = []
-const checks = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10']
+const checks = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D9', 'D10', 'D11']
 const lessonBox = { selector: '#lesson-details', trigger: '.lesson-pill', closeName: 'Close lesson' }
 const taskBox = { selector: '#refresher-session-content', trigger: '.refresher-toggle', closeName: 'Close task' }
 const executed = new Set()
@@ -290,6 +290,32 @@ async function focusRings(page) {
   return issues
 }
 
+/** Before a failing run: where the editor starts, and proof that no problem chip is showing yet. */
+async function editorBeforeRun(page) {
+  await page.waitForTimeout(100) // Let React apply the edit; the auto-run waits 450 ms, so no run has finished yet.
+  return page.evaluate(() => ({ top: document.querySelector('.code-editor').getBoundingClientRect().top, chip: Boolean(document.querySelector('.jev-pill')) }))
+}
+
+/** D11: a failing run shows its problem chip over the editor without moving the code or covering the marked problem. */
+async function problemChip(page, before) {
+  if (before.chip) return ['a problem chip was already showing before the run, so the shift cannot be measured']
+  const chip = page.locator('.editor-float .jev-pill')
+  try { await chip.waitFor({ timeout: 15000 }) } catch { return ['no problem chip appeared over the editor'] }
+  return page.evaluate((top) => {
+    const issues = []
+    const editor = document.querySelector('.code-editor').getBoundingClientRect()
+    const chipRect = document.querySelector('.editor-float .jev-pill').getBoundingClientRect()
+    if (Math.abs(editor.top - top) > 0.5) issues.push(`the code moved ${(editor.top - top).toFixed(1)}px when the problem chip appeared`)
+    if (document.querySelector('.editor-pills .jev-pill')) issues.push('the problem chip is in the row above the code')
+    if (chipRect.left < editor.left || chipRect.right > editor.right || chipRect.top < editor.top || chipRect.bottom > editor.bottom) issues.push('the problem chip leaves the editor')
+    for (const mark of document.querySelectorAll('.cm-problem-mark, .cm-problem-caret')) {
+      const rect = mark.getBoundingClientRect()
+      if (Math.min(rect.right, chipRect.right) - Math.max(rect.left, chipRect.left) > 0.5 && Math.min(rect.bottom, chipRect.bottom) - Math.max(rect.top, chipRect.top) > 0.5) issues.push('the problem chip covers the marked problem')
+    }
+    return issues
+  }, before.top)
+}
+
 const browser = await chromium.launch()
 try {
   for (const theme of ['light', 'dark']) for (const viewport of sizes) for (const lesson of ['printing', 'missing-data-none', 'refresher-01', 'refresher-12']) {
@@ -326,13 +352,16 @@ try {
           }
         }
         if (state === 'settings' || state === 'shortcuts') opened = await openDialog(page, state)
+        let chipIssues = null
         if (state === 'guided') {
           await page.locator('.cm-content').focus()
           await page.keyboard.press('ControlOrMeta+Home')
           await page.keyboard.press('ArrowDown'); await page.keyboard.press('ArrowDown')
+          const before = await editorBeforeRun(page)
           await page.keyboard.press('ControlOrMeta+Enter')
           await page.locator('.error-card').waitFor({ timeout: 60000 })
           await page.locator('.cm-problem-mark').first().waitFor({ timeout: 60000 })
+          chipIssues = await problemChip(page, before)
         }
         if (state === 'valid' || state.startsWith('syntax-error') || state === 'blank-error') {
           let source = 'print("Hello"'
@@ -348,13 +377,18 @@ try {
           }
           await page.locator('.cm-content').click()
           await page.keyboard.press('ControlOrMeta+A'); await page.keyboard.insertText(source)
+          const before = state === 'valid' ? null : await editorBeforeRun(page)
           await page.keyboard.press('ControlOrMeta+Enter')
           if (state === 'valid') await page.locator('.goal-checks').waitFor({ timeout: 60000 })
-          else await page.locator('.error-card').waitFor({ timeout: 60000 })
+          else {
+            await page.locator('.error-card').waitFor({ timeout: 60000 })
+            chipIssues = await problemChip(page, before)
+          }
           if (state === 'blank-error') {
             await page.locator('.cm-problem-line .cm-problem-mark .cm-blank-token, .cm-problem-line .cm-blank-token .cm-problem-mark, .cm-problem-line .cm-blank-token.cm-problem-mark').first().waitFor({ timeout: 60000 })
           }
         }
+        if (chipIssues) report('D11', label, chipIssues)
         if (state === 'syntax-error-lesson-open') await page.locator(lessonBox.trigger).click()
         await page.waitForTimeout(250) // Let existing short transitions settle; do not measure an animation frame.
         const text = await page.evaluate(measureText)

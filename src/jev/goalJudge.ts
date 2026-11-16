@@ -115,12 +115,12 @@ export async function askJevGoal(run: GoalRun, options: { signal?: AbortSignal; 
     })
     const body: unknown = await response.json().catch(() => null)
     if (!response.ok) {
-      return { ok: false, error: isRecord(body) && typeof body.error === 'string' ? body.error : `Jev request failed (${response.status}).`, durationMs: elapsed() }
+      return { ok: false, error: `The AI check failed (${response.status}).`, durationMs: elapsed() }
     }
     const judgements = parseGoalAnswer(body, run.requirements)
-    return judgements ? { ok: true, judgements, durationMs: elapsed() } : { ok: false, error: 'Jev returned an answer this app could not read.', durationMs: elapsed() }
+    return judgements ? { ok: true, judgements, durationMs: elapsed() } : { ok: false, error: 'The AI check returned an answer this app could not read.', durationMs: elapsed() }
   } catch {
-    return { ok: false, error: controller.signal.aborted ? 'Jev did not answer in time.' : 'Jev could not be reached.', durationMs: elapsed() }
+    return { ok: false, error: controller.signal.aborted ? 'The AI check did not answer in time.' : 'The AI check could not be reached.', durationMs: elapsed() }
   } finally {
     clearTimeout(timer)
     options.signal?.removeEventListener('abort', abort)
