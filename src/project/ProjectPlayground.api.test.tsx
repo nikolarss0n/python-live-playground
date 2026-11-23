@@ -53,6 +53,7 @@ function makeWorkspace(openFile = vi.fn()): ProjectWorkspace {
     deleteFile: vi.fn(() => true),
     createProject: vi.fn(() => null),
     switchProject: vi.fn(),
+    resetStarter: vi.fn(),
   }
 }
 

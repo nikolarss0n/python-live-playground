@@ -152,13 +152,20 @@ export function useProjectWorkspace() {
     flush()
   }
 
+  function resetStarter() {
+    const current = latest.current
+    if (current.project.name !== 'mail-tools') return
+    update({ ...current, project: starterProject() })
+    flush()
+  }
+
   const { project, enabled } = snapshot
   const projectNames = [project, ...snapshot.otherProjects].map((item) => item.name).sort((a, b) => a.localeCompare(b))
   const savedProject = savedSnapshot.project.name === project.name ? savedSnapshot.project : savedSnapshot.otherProjects.find((item) => item.name === project.name)
   const savedFiles = savedProject?.files ?? {}
   const dirtyPaths: ReadonlySet<string> = new Set(Object.keys(project.files).filter((path) => project.files[path] !== savedFiles[path]))
   return {
-    project, enabled, setEnabled, createFile, createFolder, editFile, dirtyPaths, saveError, projectNames, createProject, switchProject, saveNow: flush,
+    project, enabled, setEnabled, createFile, createFolder, editFile, dirtyPaths, saveError, projectNames, createProject, switchProject, resetStarter, saveNow: flush,
     renameFolder: (path: string, name: string) => changeProject(renameProjectFolder(latest.current.project, path, name)),
     deleteFolder: (path: string) => changeProject(deleteProjectFolder(latest.current.project, path)),
     renameFile: (path: string, newPath: string) => changeProject(renameProjectFile(latest.current.project, path, newPath)),

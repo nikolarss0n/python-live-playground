@@ -153,12 +153,14 @@ export function ProjectPlayground({ workspace, onExit }: {
         <select aria-label="Project" value={'project/' + project.name} onChange={event => {
           const value = event.target.value
           if (value === 'patterns') setReviewOpen(true)
+          else if (value === 'reset-starter') workspace.resetStarter()
           else if (value === 'new') setCreatingProject(true)
           else if (value === 'scratchpad') onExit()
           else workspace.switchProject(value.slice('project/'.length))
         }}>
           {workspace.projectNames.map(name => <option key={name} value={'project/' + name}>{name}</option>)}
           <option value="patterns">Review design patterns…</option>
+          {project.name === 'mail-tools' && <option value="reset-starter">Reset mail-tools to starter</option>}
           <option value="new">New project…</option>
           <option value="scratchpad">Back to scratchpad</option>
         </select>

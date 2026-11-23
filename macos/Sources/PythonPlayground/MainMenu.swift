@@ -48,6 +48,8 @@ enum MainMenu {
         ]))
 
         main.addItem(submenu("View", [
+            item("Reload", #selector(PlaygroundWindowController.reloadPage(_:)), "r"),
+            .separator(),
             transparencyItem(controller: controller),
             .separator(),
             item("Enter Full Screen", #selector(NSWindow.toggleFullScreen(_:)), "f", [.command, .control]),

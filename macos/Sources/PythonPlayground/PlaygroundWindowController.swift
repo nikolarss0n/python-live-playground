@@ -176,6 +176,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
 
     @objc func runCode(_ sender: Any?) { send(.run) }
     @objc func stopCode(_ sender: Any?) { send(.stop) }
+    @objc func reloadPage(_ sender: Any?) { loadApp(webView.url ?? WebBundle.origin) }
 
     @objc func openDocument(_ sender: Any?) {
         guard let window else { return }

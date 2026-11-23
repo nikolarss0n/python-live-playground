@@ -186,6 +186,17 @@ describe('local project workspace', () => {
     expect(result.current.dirtyPaths.size).toBe(0)
   })
 
+  it('resets mail-tools back to the latest starter files', () => {
+    const { result } = renderHook(useProjectWorkspace)
+    act(() => {
+      result.current.setEnabled(true)
+      result.current.editFile('main.py', 'print("custom")')
+      result.current.resetStarter()
+    })
+    expect(result.current.project.files['main.py']).toContain('FastAPI')
+    expect(result.current.project.files['mail_tools/mask.py']).toContain('APIRouter')
+  })
+
   it('protects a change saved by another tab while local edits are pending', () => {
     const { result } = renderHook(useProjectWorkspace)
     act(() => { result.current.setEnabled(true); result.current.editFile('main.py', 'mine') })
