@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { pickPromptFromEvents, resolveModelPrompt } from './ModelRunBar'
+import { pickPromptFromEvents, resolveModelPrompt } from './modelPrompt'
 import type { ResultEvent } from '../execution/protocol'
 
 describe('pickPromptFromEvents', () => {

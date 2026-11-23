@@ -20,6 +20,6 @@ export function inferTypeLabel(text: string): string | null {
   if (t.startsWith('{') && t.endsWith('}')) return 'set'
   if (t.startsWith('(') && t.endsWith(')')) return 'tuple'
   // Bare print strings without quotes still look like text to beginners.
-  if (!/^[\[{(]/.test(t) && /[a-zA-Z]/.test(t)) return 'str'
+  if (!/^[[{(]/.test(t) && /[a-zA-Z]/.test(t)) return 'str'
   return null
 }

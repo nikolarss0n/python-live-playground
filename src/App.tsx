@@ -675,7 +675,7 @@ function Scratchpad({ onOpenProject, takeOpenedFile, openedFromLink }: {
   )
 
   const pathNames = useMemo(() => {
-    if (activeResult == null || !editorView) return [] as string[]
+    if (activeResult == null || !editorView || !code) return [] as string[]
     const event = snapshot.events[activeResult]
     if (!event || event.line == null) return []
     try {

@@ -90,9 +90,9 @@ describe('lessonCoach', () => {
     if (result.ok) {
       expect(result.text).toMatch(/Replace/i)
     }
-    const body = JSON.parse(
-      (fetchImpl.mock.calls[0]?.[1] as { body: string }).body,
-    ) as { max_tokens: number; messages: unknown[] }
+    const init = fetchImpl.mock.calls[0]?.[1] as { body: string } | undefined
+    expect(init).toBeDefined()
+    const body = JSON.parse(init!.body) as { max_tokens: number; messages: unknown[] }
     expect(body.max_tokens).toBeLessThanOrEqual(220)
     expect(body.messages.length).toBeGreaterThanOrEqual(2)
   })

@@ -44,3 +44,8 @@ __pycache__/
 /macos/.build
 /macos/.cache
 /macos/.swiftpm
+
+# Exploratory brand drafts (keep the shipped app icon tracked)
+/brand/**
+!/brand/folded-y/
+!/brand/folded-y/py-folded-y.png
