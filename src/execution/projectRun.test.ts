@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { describe, expect, it } from 'vitest'
+import { starterProject } from '../project/model'
 import { PYTHON_PRELUDE } from './instrument'
 import type { DiscoveredRoute, InvokeRequest, ProjectRun, ResultEvent } from './protocol'
 import { readWorkerMessage } from './workerMessages'
@@ -121,5 +122,28 @@ describe('project execution', () => {
     expect(routes.map((route) => `${route.method} ${route.path}`)).toEqual(['GET /books/title', 'GET /books/crash'])
     expect(invocations[0]).toMatchObject([{ kind: 'http', status: 200, body: '{"title": "Dune"}' }])
     expect(invocations[1]).toMatchObject([{ kind: 'http', status: 500, file: 'routes/books.py', line: 9 }])
+  })
+
+  it('runs the mail-tools starter project with FastAPI routes and crash links into mail_tools/mask.py', () => {
+    const starter = starterProject()
+    const { events, routes, invocations } = runAndInvoke(
+      { entry: starter.entry, folders: starter.folders, files: starter.files },
+      [
+        { method: 'GET', path: '/mails/' },
+        { method: 'POST', path: '/mails/mask', body: { email: 'ada@example.com' } },
+        { method: 'GET', path: '/mails/1' },
+        { method: 'GET', path: '/mails/99' },
+      ],
+    )
+    expect(events.map((event) => event.kind === 'print' ? event.text : '')).toEqual([
+      'm*****@example.com', 's****@example.org', '*@example.net', 'k****@example.com',
+    ])
+    expect(routes.map((route) => `${route.method} ${route.path}`)).toEqual([
+      'GET /mails/', 'POST /mails/mask', 'GET /mails/{index}',
+    ])
+    expect(invocations[0]).toMatchObject([{ kind: 'http', status: 200 }])
+    expect(invocations[1]).toMatchObject([{ kind: 'http', status: 200, body: '{"masked": "a**@example.com"}' }])
+    expect(invocations[2]).toMatchObject([{ kind: 'http', status: 200, body: '{"masked": "s****@example.org"}' }])
+    expect(invocations[3]).toMatchObject([{ kind: 'http', status: 500, file: 'mail_tools/mask.py' }])
   })
 })

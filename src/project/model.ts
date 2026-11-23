@@ -17,6 +17,26 @@ export interface WorkspaceSnapshot {
 
 export const PROJECT_STORAGE_KEY = 'plp-project-v1'
 
+const PREVIOUS_STARTER_MAIN = [
+  'from mail_tools.mask import print_masked',
+  '',
+  'with open("data/mails.csv", encoding="utf-8") as mails:',
+  '    next(mails)  # Skip the column heading.',
+  '    for email in mails:',
+  '        print_masked(email.strip())',
+  '',
+].join('\n')
+
+const PREVIOUS_STARTER_MASK = [
+  'def print_masked(email):',
+  '    name, domain = email.split("@")',
+  '    if len(name) == 1:',
+  '        print("*@" + domain)',
+  '    else:',
+  '        print(name[0] + "*" * (len(name) - 1) + "@" + domain)',
+  '',
+].join('\n')
+
 export function starterProject(): Project {
   return {
     name: 'mail-tools',
@@ -26,7 +46,11 @@ export function starterProject(): Project {
     openPaths: ['main.py', 'mail_tools/mask.py', 'data/mails.csv'],
     files: {
       'main.py': [
-        'from mail_tools.mask import print_masked',
+        'from fastapi import FastAPI',
+        'from mail_tools.mask import print_masked, router',
+        '',
+        'app = FastAPI(title="Mail Tools")',
+        'app.include_router(router)',
         '',
         'with open("data/mails.csv", encoding="utf-8") as mails:',
         '    next(mails)  # Skip the column heading.',
@@ -36,17 +60,70 @@ export function starterProject(): Project {
       ].join('\n'),
       'mail_tools/__init__.py': '',
       'mail_tools/mask.py': [
-        'def print_masked(email):',
+        'from fastapi import APIRouter, HTTPException',
+        'from pydantic import BaseModel, Field',
+        '',
+        'router = APIRouter(prefix="/mails")',
+        '',
+        '',
+        'class MaskRequest(BaseModel):',
+        '    email: str = Field(..., min_length=3)',
+        '',
+        '',
+        'def mask_email(email):',
         '    name, domain = email.split("@")',
         '    if len(name) == 1:',
-        '        print("*@" + domain)',
-        '    else:',
-        '        print(name[0] + "*" * (len(name) - 1) + "@" + domain)',
+        '        return "*@" + domain',
+        '    return name[0] + "*" * (len(name) - 1) + "@" + domain',
+        '',
+        '',
+        'def print_masked(email):',
+        '    print(mask_email(email))',
+        '',
+        '',
+        '@router.get("/")',
+        'def list_masked():',
+        '    with open("data/mails.csv", encoding="utf-8") as mails:',
+        '        next(mails)',
+        '        return {"emails": [mask_email(line.strip()) for line in mails if line.strip()]}',
+        '',
+        '',
+        '@router.post("/mask")',
+        'def mask_one(body: MaskRequest):',
+        '    if "@" not in body.email:',
+        '        raise HTTPException(status_code=400, detail="Email must contain @")',
+        '    return {"masked": mask_email(body.email)}',
+        '',
+        '',
+        '@router.get("/{index}")',
+        'def get_mail(index: int):',
+        '    with open("data/mails.csv", encoding="utf-8") as mails:',
+        '        rows = [line.strip() for line in mails if line.strip()][1:]',
+        '    return {"masked": mask_email(rows[index])}',
         '',
       ].join('\n'),
       'data/mails.csv': 'email\nmarina@example.com\nsasha@example.org\na@example.net\nkevin@example.com\n',
     },
   }
+}
+
+function upgradeUntouchedStarter(project: Project): Project {
+  if (
+    project.name === 'mail-tools'
+    && project.files['main.py'] === PREVIOUS_STARTER_MAIN
+    && project.files['mail_tools/mask.py'] === PREVIOUS_STARTER_MASK
+  ) {
+    const fresh = starterProject()
+    return {
+      ...project,
+      files: {
+        ...project.files,
+        'main.py': fresh.files['main.py'],
+        'mail_tools/mask.py': fresh.files['mail_tools/mask.py'],
+      },
+    }
+  }
+  return project
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -78,7 +155,7 @@ function parseProject(value: unknown): Project | null {
     ? openPaths.filter((path): path is string => typeof path === 'string' && Object.hasOwn(files, path)) : []
   const tabs = [...new Set(validTabs)]
   if (!tabs.length) tabs.push(entry)
-  return { files, entry, name, folders: projectFolders(files, folders), openPaths: tabs, activePath: typeof activePath === 'string' && tabs.includes(activePath) ? activePath : tabs[0] }
+  return upgradeUntouchedStarter({ files, entry, name, folders: projectFolders(files, folders), openPaths: tabs, activePath: typeof activePath === 'string' && tabs.includes(activePath) ? activePath : tabs[0] })
 }
 
 export function parseWorkspace(raw: string): WorkspaceSnapshot | null {
