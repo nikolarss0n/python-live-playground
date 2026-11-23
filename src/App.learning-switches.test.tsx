@@ -6,7 +6,7 @@ import { LEARNING_SWITCHES_KEY, readEnabledSections } from './learningSwitches'
 
 vi.mock('./execution/usePythonExecution', () => ({
   usePythonExecution: (code: string) => ({
-    snapshot: { status: 'success' as const, events: [], durationMs: 1, runId: 'run-1', error: null, executedCode: code },
+    snapshot: { status: 'success' as const, events: [], durationMs: 1, runId: 'run-1', error: null, executedCode: code, routes: [] },
     runNow: vi.fn(),
     stop: vi.fn(),
     isBooting: false,

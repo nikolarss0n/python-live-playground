@@ -1,3 +1,5 @@
+import { ResizableWorkspace } from './components/ResizableWorkspace'
+import { useWideLayout } from './useWideLayout'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import { CodeEditor } from './components/CodeEditor'
@@ -12,14 +14,14 @@ import {
 } from './examples'
 import { usePythonExecution } from './execution/usePythonExecution'
 import { namesOnSourceLine } from './editor/variableColors'
-import { linesFromEvents, pulseSourceLines } from './editor/runPulse'
+import { linesFromEvents, pulseSourceLines, revealSourceLine } from './editor/runPulse'
 import { evaluateLessonGoal } from './lessonGoalCheck'
 import {
   buildLessonProgress,
   isIncompleteAttempt,
 } from './lessonProgress'
 import { updatedEventIndices } from './resultDiff'
-import type { ResultEvent } from './execution/protocol'
+import type { DiscoveredRoute, ResultEvent } from './execution/protocol'
 import { useLearningSession, readPreference, writePreference } from './useLearningSession'
 import { isExerciseId, SERVICE_EXERCISE_IDS, GENAI_EXERCISE_IDS } from './serviceExercise'
 import { evaluateServiceProgress } from './serviceProgress'
@@ -60,10 +62,15 @@ import { usesInput } from './usesInput'
 import { SolutionPill } from './components/SolutionPill'
 import { DamagedProgressNotice } from './components/DamagedProgressNotice'
 import { FullstackPanel, FullstackTabs, type FullstackTab } from './components/FullstackPanel'
+import { ApiRequests } from './components/ApiRequests'
+import { useApiRequests } from './components/useApiRequests'
+import { routeKey } from './apiRequests'
 import { BLANK_ANSWERS } from './curriculum/blankAnswers'
 import type { ErrorAdvice } from './errorAdvice'
 import { refresherEvidence } from './refresher/evidence'
 import './App.css'
+import { ProjectPlayground } from './project/ProjectPlayground'
+import { useProjectWorkspace } from './project/useProjectWorkspace'
 
 import { applyTheme, preferredTheme, type ThemeMode } from './theme'
 import { installMacHost, postHostEvent, type HostActions } from './host/macHost'
@@ -80,21 +87,8 @@ function preferredLessonDetailsOpen(): boolean {
   return readPreference(LESSON_DETAILS_KEY) === '1'
 }
 
-function useWideLayout(minWidth = 801): boolean {
-  const [wide, setWide] = useState(() =>
-    typeof window !== 'undefined' ? window.innerWidth >= minWidth : true,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia(`(min-width: ${minWidth}px)`)
-    const update = () => setWide(mq.matches)
-    update()
-    mq.addEventListener('change', update)
-    return () => mq.removeEventListener('change', update)
-  }, [minWidth])
-  return wide
-}
-
 const PROJECT_DATASETS_KEY = 'plp-project-datasets'
+const NO_ROUTES: readonly DiscoveredRoute[] = []
 
 function readProjectDatasets(): string[] | null {
   try {
@@ -106,6 +100,43 @@ function readProjectDatasets(): string[] | null {
 }
 
 export default function App() {
+  const workspace = useProjectWorkspace()
+  const [openedFromLink] = useState(() => Boolean(linkedLessonId()))
+  const [mode, setMode] = useState(() => workspace.enabled && !openedFromLink ? 'project' : 'scratchpad')
+  const returnUrl = useRef<string | null>(null)
+  const pendingFile = useRef<string | null>(null)
+  const takeOpenedFile = useCallback(() => {
+    const file = pendingFile.current
+    pendingFile.current = null
+    return file
+  }, [])
+
+  const openProject = () => {
+    returnUrl.current = window.location.href
+    const url = new URL(window.location.href)
+    url.searchParams.delete('lesson')
+    if (url.hash.startsWith('#plp=')) url.hash = ''
+    window.history.replaceState(null, '', url)
+    workspace.setEnabled(true)
+    setMode('project')
+  }
+  const openScratchpad = (file?: string) => {
+    pendingFile.current = file ?? null
+    if (returnUrl.current) window.history.replaceState(null, '', returnUrl.current)
+    workspace.setEnabled(false)
+    setMode('scratchpad')
+  }
+
+  return mode === 'project'
+    ? <ProjectPlayground key={workspace.project.name} workspace={workspace} onExit={openScratchpad} />
+    : <Scratchpad onOpenProject={openProject} takeOpenedFile={takeOpenedFile} openedFromLink={openedFromLink} />
+}
+
+function Scratchpad({ onOpenProject, takeOpenedFile, openedFromLink }: {
+  onOpenProject: () => void
+  takeOpenedFile: () => string | null
+  openedFromLink: boolean
+}) {
   const learning = useLearningSession()
   const { difficulty, section, lessonId, select, selectTrack, isLocked, recordVerification } = learning
   const refresherDay = useMemo(() => getRefresherDay(lessonId), [lessonId])
@@ -144,7 +175,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [enabledSections, setEnabledSections] = useState(readEnabledSections)
   // A ?lesson= or shared link opens its section even while that section's switch is off.
-  const [linkedSection] = useState<Section | null>(() => linkedLessonId() ? section : null)
+  const [linkedSection] = useState<Section | null>(() => openedFromLink ? section : null)
   const sectionShown = enabledSections.has(section) || section === linkedSection
   const plainEditor = !sectionShown
   const [appSettings, setAppSettings] = useState<AppSettings>(() =>
@@ -191,7 +222,7 @@ export default function App() {
   const [inputsText, setInputsText] = useState('')
   const showInputs = usesInput(code)
   const stdinOption = showInputs ? { stdin: inputsText } : {}
-  const { snapshot: runSnapshot, runNow: runCode, stop } = usePythonExecution(code, {
+  const { snapshot: runSnapshot, runNow: runCode, stop, invoke } = usePythonExecution(code, {
     exerciseId,
     untrustedCode: learning.untrustedCode,
     // Code from a shared link waits for Run: opening a link must not execute someone else's code.
@@ -235,6 +266,19 @@ export default function App() {
     () => (quietStart ? { ...runSnapshot, status: 'ready' as const, events: [], durationMs: null, executedCode: null, checks: undefined } : runSnapshot),
     [quietStart, runSnapshot],
   )
+  // A playground file that defines routes gets them listed in the API tab, each with its request prepared.
+  const api = useApiRequests(freePlay ? snapshot.routes : NO_ROUTES, snapshot, invoke)
+  const apiRoutes = api.routes.length > 0
+  // View charts what was sent from the API tab first, then the lesson's own requests.
+  const viewResults = useMemo(() => {
+    const sent = api.routes.flatMap((route) => {
+      const response = api.responses[routeKey(route)]
+      return response?.kind === 'response' ? [{ method: route.method, path: response.path, status: response.status, body: response.body }] : []
+    })
+    if (!sent.length) return undefined
+    const again = new Set(sent.map((call) => `${call.method} ${call.path}`))
+    return [...sent, ...(snapshot.fullstack?.calls ?? []).filter((call) => !again.has(`${call.method} ${call.path}`))]
+  }, [api.routes, api.responses, snapshot.fullstack])
   const blankCount = refresherDay ? 0 : code.split(BLANK).length - 1
   const studyEvidence = refresherDay ? refresherEvidence({
     dayId: refresherDay.id, context: study.context, contextKey: checkContextKey, code, snapshot, checking: checkingRefresher,
@@ -537,15 +581,20 @@ export default function App() {
     }
   }, [enabledSections, sectionShown, section, onSelectSection])
 
+  const openNativeFile = useCallback((fileCode: string) => {
+    select(PLAYGROUND_LESSON_ID)
+    updateLessonCode(fileCode)
+  }, [select, updateLessonCode])
+  useEffect(() => {
+    const fileCode = takeOpenedFile()
+    if (fileCode !== null) openNativeFile(fileCode)
+  }, [takeOpenedFile, openNativeFile])
   hostActions.current = {
     run: () => void runNow(),
     stop,
     // The editor holds the newest keystrokes; the code state catches up a moment later.
     getCode: () => editorView?.state.doc.toString() ?? code,
-    openFile: (_name, fileCode) => {
-      select(PLAYGROUND_LESSON_ID)
-      setCode(fileCode)
-    },
+    openFile: (_name, fileCode) => openNativeFile(fileCode),
   }
   useEffect(() => installMacHost(() => hostActions.current!), [])
 
@@ -714,6 +763,7 @@ export default function App() {
         isLessonLocked={isLocked}
         sections={menuSections(enabledSections, section, linkedSection)}
         plain={plainEditor}
+        onOpenProject={onOpenProject}
       />
 
       <SettingsModal
@@ -735,12 +785,10 @@ export default function App() {
         }
       />
 
-      <main
-        className="workspace"
-        ref={workspaceRef}
-        data-path-kind={pathKind ?? undefined}
-      >
-        <div className="pane pane-editor">
+      <ResizableWorkspace
+        workspaceRef={workspaceRef}
+        pathKind={pathKind ?? undefined}
+        editor={<div id="workspace-code" className="pane pane-editor">
           <div className="pane-head">
             <div className="pane-label">Python</div>
             {refresherDay || freePlay ? null : <LessonGoal
@@ -795,12 +843,10 @@ export default function App() {
             {jev.state.status !== 'off' ? <div className="editor-float"><JevPill state={jev.state} onRecheck={jev.recheck} onShow={jev.show} /></div> : null}
           </div>
           {showInputs ? <InputsField value={inputsText} onChange={setInputsText} /> : null}
-        </div>
-
-        <div className="split" aria-hidden="true" />
-
+        </div>}
+      >
         <div className={`pane pane-results${lessonFullstack ? ' has-fullstack' : ''}`}>
-          {lessonFullstack ? <FullstackTabs tab={activeFsTab} onChange={(tab) => { setFsTab(tab); onGeometryChange() }} payload={snapshot.fullstack} /> : null}
+          {lessonFullstack ? <FullstackTabs tab={activeFsTab} onChange={(tab) => { setFsTab(tab); onGeometryChange() }} payload={snapshot.fullstack} apiCount={apiRoutes ? api.routes.length : undefined} /> : null}
           {activeFsTab !== 'results' ? <FullstackPanel
             tab={activeFsTab}
             payload={snapshot.fullstack}
@@ -813,6 +859,8 @@ export default function App() {
             view={lessonFullstack?.view}
             datasets={chosenDatasets}
             onDatasetsChange={chooseDatasets}
+            api={apiRoutes ? <ApiRequests api={api} stopped={snapshot.status === 'timeout' || snapshot.status === 'stopped'} onShowLine={(line) => revealSourceLine(editorView, line)} /> : undefined}
+            viewResults={viewResults}
           /> : null}
           <div className="results-tab-body" hidden={activeFsTab !== 'results'}>
           <ResultsPanel
@@ -863,7 +911,7 @@ export default function App() {
           enabled={activeFsTab === 'results'}
           geometryKey={geometryKey}
         />
-      </main>
+      </ResizableWorkspace>
 
       <footer className="app-footer">
         <span role="status" aria-label="Learning progress" className="footer-status">

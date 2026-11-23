@@ -45,7 +45,7 @@ numbers = [3, 1, 4, 1, 5, 9, 2, 6]
 print(sorted(numbers), sum(numbers))
 print({word: len(word) for word in "write anything you like".split()})
 `,
-    stretch: 'Try a route of your own, add it in the API tab, and chart it in View.',
+    stretch: 'Try a route of your own, send it from the API tab, and chart it in View.',
     fullstack: {
       calls: ['/revenue/by-city', '/weather/Oslo'],
       view: { call: 0, y: 'revenue', kind: 'bar' },

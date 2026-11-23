@@ -1286,9 +1286,28 @@
 }
 
 .split {
+  position: relative;
   background: var(--border-subtle);
-  z-index: 1;
+  z-index: 3;
+  cursor: col-resize;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
+
+.split::before {
+  content: '';
+  position: absolute;
+  inset: 0 -5px;
+}
+
+.split:is(:hover, :focus-visible, :active) {
+  background: var(--accent);
+  outline: 1px solid var(--accent);
+}
+
+.split[aria-orientation='horizontal'] { cursor: row-resize; }
+.split[aria-orientation='horizontal']::before { inset: -7px 0; }
 
 /* ── Bent highlight bridge (source line → result row) ── */
 
@@ -3528,6 +3547,218 @@
   overflow-x: auto;
 }
 
+/* API tab for a file with its own routes: the route list, then the picked route's request and response. */
+.api-routes {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  /* Seven and a half routes: a longer file scrolls inside the list, and the cut row shows there is more. */
+  max-height: 16.2rem;
+  overflow-y: auto;
+}
+
+.api-routes li + li {
+  border-top: 1px solid var(--border-subtle);
+}
+
+.api-route {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: 2.1rem;
+  padding: 0.35rem 0.65rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: 0.78rem/1.3 var(--font-mono);
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 140ms ease;
+}
+
+.api-route:hover {
+  background: var(--hover);
+}
+
+.api-route.is-current {
+  background: color-mix(in srgb, var(--accent) 9%, transparent);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.api-route:focus-visible,
+.api-pair-value:focus-visible,
+.api-request-body:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.api-route-path {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.api-route-name {
+  color: var(--muted);
+  font: 0.72rem/1.3 var(--font-ui);
+  white-space: nowrap;
+}
+
+.api-request-fields {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr);
+  gap: 0.45rem 0.6rem;
+  align-items: start;
+  padding: 0.55rem 0.75rem;
+  border-bottom: 1px solid var(--border-subtle);
+}
+
+.api-request-label {
+  padding-top: 0.3rem;
+  color: var(--muted);
+  font: 600 0.66rem/1.3 var(--font-ui);
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.api-request-pairs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.45rem;
+  min-width: 0;
+}
+
+.api-pair {
+  display: inline-flex;
+  align-items: stretch;
+  max-width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+  font: 0.76rem/1.3 var(--font-mono);
+}
+
+.api-pair-name {
+  padding: 0.22rem 0.45rem;
+  background: color-mix(in srgb, var(--text) 4%, transparent);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.api-pair-required {
+  margin-left: 0.15rem;
+  color: var(--warn);
+}
+
+.api-pair-value {
+  min-width: 0;
+  padding: 0.22rem 0.5rem;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.api-pair-value::placeholder,
+.api-request-body::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+
+.api-request-body {
+  width: 100%;
+  min-width: 0;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font: 0.76rem/1.5 var(--font-mono);
+  resize: vertical;
+}
+
+.api-request-error {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  color: var(--danger);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+.api-response-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem 0;
+}
+
+.api-response-note {
+  color: var(--muted);
+  font: 0.7rem/1.4 var(--font-mono);
+}
+
+.api-pair.is-refused,
+.api-path.is-refused,
+.api-request-body.is-refused {
+  border-color: var(--danger);
+}
+
+.api-pair.is-refused .api-pair-name {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
+.api-refusals {
+  margin: 0;
+  padding: 0.45rem 0.75rem;
+  list-style: none;
+  border-bottom: 1px solid var(--border-subtle);
+  color: var(--danger);
+  font-size: 0.76rem;
+  line-height: 1.5;
+}
+
+.api-refusal-name {
+  font: 600 0.74rem var(--font-mono);
+}
+
+.api-response-line {
+  margin-left: auto;
+  font-size: 0.74rem;
+}
+
+.api-response-empty {
+  padding: 0.5rem 0.75rem;
+}
+
+@media (max-width: 480px) {
+  .api-route-name {
+    display: none;
+  }
+
+  .api-request-fields {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.25rem;
+  }
+
+  .api-request-label {
+    padding-top: 0.2rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .api-route {
+    transition: none;
+  }
+}
+
 .fullstack-field {
   display: inline-flex;
   align-items: center;
@@ -3834,16 +4065,25 @@
 .cm-editor .cm-completionMatchedText { text-decoration: none; font-weight: 600; color: var(--accent-deep); }
 .cm-editor .cm-completionDetail { margin-left: 0.6rem; color: var(--muted); font-style: normal; }
 
-/* One faint dot per leading space, centred in its character cell, so four-space indents can be counted. */
-.cm-editor .cm-indent-dots {
-  background-image: radial-gradient(circle, color-mix(in srgb, var(--muted) 55%, transparent) 0.09em, transparent 0.11em);
-  background-size: 1ch 100%;
+/* A hairline with a center tick spans four spaces. A partial group has just the hairline. */
+.cm-editor .cm-indent-guides {
+  --indent-ink: color-mix(in srgb, var(--muted) 34%, transparent);
+  background-image:
+    linear-gradient(to right, transparent calc(2ch - .5px), var(--indent-ink) calc(2ch - .5px) calc(2ch + .5px), transparent calc(2ch + .5px)),
+    linear-gradient(to right, transparent 2px, var(--indent-ink) 2px calc(100% - 2px), transparent calc(100% - 2px));
+  background-position: left center;
+  background-size: 4ch 5px, 4ch 1px;
   background-repeat: repeat-x;
-  background-position: 0 50%;
 }
-
-@media (forced-colors: active) {
-  .cm-editor .cm-indent-dots { background-image: none; }
+.cm-editor .cm-indent-partial {
+  background-image: linear-gradient(var(--indent-ink), var(--indent-ink));
+  background-position: center;
+  background-size: calc(100% - 4px) 1px;
+  background-repeat: no-repeat;
+}
+.cm-editor.cm-focused .cm-activeLine .cm-indent-guides,
+.cm-editor .cm-indent-guides:hover {
+  --indent-ink: color-mix(in srgb, var(--muted) 72%, transparent);
 }
 
 /* macOS app: the window blurs the desktop behind the page, and the Background Transparency slider sets how much of
@@ -3867,6 +4107,16 @@ html[data-host='mac'] .app-footer {
   background: color-mix(in srgb, var(--surface) calc(var(--glass-tint, 1) * 82%), transparent);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
+}
+
+/* The project window uses one native backdrop across its docked panels and bars. */
+html[data-host='mac'] .project-shell :is(.project-explorer, .project-file-bar, .project-toolbar, .app-footer),
+html[data-host='mac'] .project-picker select:not(:hover) {
+  background: transparent;
+}
+
+html[data-host='mac'] .project-pill.is-active {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
 }
 
 html[data-host='mac'] .coach-ask {

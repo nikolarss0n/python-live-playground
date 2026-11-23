@@ -1,7 +1,7 @@
-import { useEffect, useMemo, useState, type KeyboardEvent } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent, type ReactNode } from 'react'
 import type { ApiCall, DbCell, DbTable, ExecutionStatus, FullstackPayload } from '../execution/protocol'
 import type { LessonFullstack } from '../examples'
-import { chartData, formatNumber, jsonToNode, PRACTICE_DATASETS, type ChartKind } from '../fullstack'
+import { chartData, formatNumber, jsonToNode, PRACTICE_DATASETS, statusTone, type ChartKind } from '../fullstack'
 import { CollectionTree } from './CollectionTree'
 import { DataChart } from './DataChart'
 
@@ -15,8 +15,8 @@ const TABS: { id: FullstackTab; label: string }[] = [
 ]
 
 /** Results · Data · API · View — one tab list over the right pane in full-stack lessons. */
-export function FullstackTabs({ tab, onChange, payload }: { tab: FullstackTab; onChange: (tab: FullstackTab) => void; payload?: FullstackPayload }) {
-  const counts: Partial<Record<FullstackTab, number>> = { data: payload?.tables.length, api: payload?.calls.length }
+export function FullstackTabs({ tab, onChange, payload, apiCount }: { tab: FullstackTab; onChange: (tab: FullstackTab) => void; payload?: FullstackPayload; apiCount?: number }) {
+  const counts: Partial<Record<FullstackTab, number>> = { data: payload?.tables.length, api: apiCount ?? payload?.calls.length }
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
     const index = TABS.findIndex((each) => each.id === tab)
@@ -59,15 +59,19 @@ type PanelProps = {
   /** Chosen practice datasets, when the lesson lets the learner pick them */
   datasets?: readonly string[]
   onDatasetsChange?: (datasets: string[]) => void
+  /** Shown in the API tab instead of the lesson's requests, when the code defines its own routes. */
+  api?: ReactNode
+  /** Responses the View tab charts instead of the lesson's requests. */
+  viewResults?: readonly ApiCall[]
 }
 
-export function FullstackPanel({ tab, payload, status, calls, onCallsChange, seed, onShuffle, onResetSeed, view, datasets, onDatasetsChange }: PanelProps) {
+export function FullstackPanel({ tab, payload, status, calls, onCallsChange, seed, onShuffle, onResetSeed, view, datasets, onDatasetsChange, api, viewResults }: PanelProps) {
   return (
     <section id="fullstack-panel" className="fullstack-panel" role="tabpanel" aria-labelledby={`fullstack-tab-${tab}`}>
       {tab === 'data' && datasets && onDatasetsChange ? <ProjectData chosen={datasets} onChange={onDatasetsChange} /> : null}
       {tab === 'data' ? <DataTab tables={payload?.tables ?? []} seed={seed} onShuffle={onShuffle} onResetSeed={onResetSeed} status={status} /> : null}
-      {tab === 'api' ? <ApiTab calls={calls} results={payload?.calls ?? []} onCallsChange={onCallsChange} /> : null}
-      {tab === 'view' ? <ViewTab results={payload?.calls ?? []} view={view} /> : null}
+      {tab === 'api' ? api ?? <ApiTab calls={calls} results={payload?.calls ?? []} onCallsChange={onCallsChange} /> : null}
+      {tab === 'view' ? <ViewTab results={viewResults ?? payload?.calls ?? []} view={view} /> : null}
     </section>
   )
 }
@@ -179,12 +183,6 @@ function DataTab({ tables, seed, onShuffle, onResetSeed, status }: { tables: rea
       )}
     </>
   )
-}
-
-function statusTone(status: number): string {
-  if (status >= 500) return 'is-error'
-  if (status >= 400) return 'is-warn'
-  return 'is-ok'
 }
 
 function ApiTab({ calls, results, onCallsChange }: { calls: readonly string[]; results: readonly ApiCall[]; onCallsChange: (calls: string[]) => void }) {
