@@ -25,15 +25,17 @@ function depthChange(text: string): number {
  * function nested in a branch belong to that loop or function, not the branch.
  */
 export function branchesOf(code: string): Map<number, Branch> {
-  return scan(code).branches
+  return sourceBlocks(code).branches
 }
 
 /** For each source line inside a for/while body, the line of its innermost loop. */
 export function loopsOf(code: string): Map<number, number> {
-  return scan(code).loops
+  return sourceBlocks(code).loops
 }
 
-function scan(code: string): { branches: Map<number, Branch>; loops: Map<number, number> } {
+export type SourceBlocks = { branches: Map<number, Branch>; loops: Map<number, number> }
+
+export function sourceBlocks(code: string): SourceBlocks {
   const branches = new Map<number, Branch>()
   const loops = new Map<number, number>()
   const stack: { indent: number; keyword: string; line: number; chain: number }[] = []

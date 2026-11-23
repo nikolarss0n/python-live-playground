@@ -40,7 +40,7 @@ function parseStatus(preview: string | null): number | null {
   return Math.trunc(n)
 }
 
-function statusLabel(code: number): string {
+export function statusLabel(code: number): string {
   const map: Record<number, string> = {
     200: 'OK',
     201: 'Created',

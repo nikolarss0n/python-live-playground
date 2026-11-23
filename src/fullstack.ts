@@ -14,6 +14,12 @@ export const PRACTICE_DATASETS: readonly { name: string; rows: number; columns: 
   { name: 'tickets', rows: 30, columns: ['id', 'topic', 'status', 'minutes'], about: 'Support tickets with topic, status and time spent' },
 ]
 
+export function statusTone(status: number): string {
+  if (status >= 500) return 'is-error'
+  if (status >= 400) return 'is-warn'
+  return 'is-ok'
+}
+
 /** A JSON response body as the same tree the Results pane uses for Python collections. */
 export function jsonToNode(value: unknown): CollectionNode {
   if (Array.isArray(value)) {

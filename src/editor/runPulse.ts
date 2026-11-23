@@ -6,7 +6,7 @@
 import {
   Decoration,
   type DecorationSet,
-  type EditorView,
+  EditorView,
   ViewPlugin,
   type ViewUpdate,
 } from '@codemirror/view'
@@ -88,6 +88,16 @@ export function pulseSourceLines(
       // view disposed
     }
   }, 1400)
+}
+
+/** Brings a source line into view with the cursor on it, and pulses it. */
+export function revealSourceLine(view: EditorView | null, line: number): void {
+  if (!view) return
+  if (!Number.isFinite(line)) return
+  const at = view.state.doc.line(Math.max(1, Math.min(Math.round(line), view.state.doc.lines)))
+  view.dispatch({ selection: { anchor: at.from }, effects: EditorView.scrollIntoView(at.from, { y: 'center' }) })
+  view.focus()
+  pulseSourceLines(view, [at.number])
 }
 
 export function linesFromEvents(

@@ -1,5 +1,5 @@
 import type { ResultEvent } from '../execution/protocol'
-import { branchesOf, loopsOf } from './branchOf'
+import { sourceBlocks, type SourceBlocks } from './branchOf'
 
 /**
  * A row's place in a loop card. `line` is the loop's own line (or the repeated line when the source is unknown),
@@ -22,9 +22,8 @@ const loopable = (event: ResultEvent) => event.kind === 'print' || event.kind ==
  * form one card, whichever if/else printed them, and a round starts again when output goes back up the loop body.
  * Rows outside any loop (a function called repeatedly) fall back to repeats of the same line.
  */
-export function loopSlots(events: readonly ResultEvent[], sourceCode?: string | null): (LoopSlot | null)[] {
-  const loops = loopsOf(sourceCode ?? '')
-  const branches = branchesOf(sourceCode ?? '')
+export function loopSlots(events: readonly ResultEvent[], source?: string | SourceBlocks | null): (LoopSlot | null)[] {
+  const { loops, branches } = typeof source === 'object' && source !== null ? source : sourceBlocks(source ?? '')
   // Two arms of one if/elif/else never both run in the same round.
   const otherArm = (a?: number, b?: number) => {
     const x = a != null ? branches.get(a) : undefined

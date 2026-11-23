@@ -47,11 +47,11 @@ export function useModalFocus(open: boolean, onClose: () => void) {
     const onFocus = (event: FocusEvent) => {
       if (event.target instanceof Node && !element.contains(event.target)) focusFirst()
     }
-    document.addEventListener('keydown', onKey, true)
+    document.addEventListener('keydown', onKey)
     document.addEventListener('focusin', onFocus)
     focusFirst()
     return () => {
-      document.removeEventListener('keydown', onKey, true)
+      document.removeEventListener('keydown', onKey)
       document.removeEventListener('focusin', onFocus)
       siblings.forEach(({ element: sibling, inert }) => { if (!inert) sibling.removeAttribute('inert') })
       if (opener?.isConnected) opener.focus({ preventScroll: true })

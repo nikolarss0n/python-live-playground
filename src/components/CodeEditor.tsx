@@ -19,7 +19,7 @@ import { codeHoverExtension } from '../editor/codeHover'
 import { dotCompletionExtension } from '../editor/dotCompletion'
 import { docstringExtension } from '../editor/docstring'
 import { callParens } from '../editor/callParens'
-import { indentDotsExtension } from '../editor/indentDots'
+import { indentGuidesExtension } from '../editor/indentGuides'
 import { remeasureOnShow } from '../editor/remeasureOnShow'
 
 type ThemeMode = 'light' | 'dark'
@@ -33,6 +33,7 @@ type CodeEditorProps = {
   onGeometryChange?: () => void
   /** Variable names to chip (from hovering a result on the right). */
   pathNames?: readonly string[]
+  language?: 'python' | 'text'
   readOnly?: boolean
 }
 
@@ -102,6 +103,8 @@ function buildTheme(mode: ThemeMode) {
         backgroundColor: 'transparent',
         border: 'none',
         color: isDark ? '#847E75' : '#746B5E',
+      },
+      '.cm-lineNumbers': {
         minWidth: '2.75rem',
       },
       '.cm-lineNumbers .cm-gutterElement': {
@@ -168,6 +171,7 @@ export function CodeEditor({
   onGeometryChange,
   pathNames = [],
   readOnly = false,
+  language = 'python',
 }: CodeEditorProps) {
   const ref = useRef<ReactCodeMirrorRef>(null)
   const keyboardHelpId = useId()
@@ -176,22 +180,19 @@ export function CodeEditor({
 
   const extensions = useMemo(
     () => [
-      richPython,
       EditorView.contentAttributes.of({ 'aria-label': ariaLabel, 'aria-describedby': keyboardHelpId }),
-      dotCompletionExtension(),
-      docstringExtension,
-      callParens,
+      ...(language === 'python' ? [
+        richPython, dotCompletionExtension(), docstringExtension, callParens,
+        ...variablePathColors(theme === 'dark'), blankHighlightExtension(),
+        ...blankHintExtension(), codeHoverExtension(),
+      ] : []),
       Prec.highest(keymap.of([{ key: 'Tab', run: acceptCompletion }])),
       buildTheme(theme),
       syntaxHighlighting(theme === 'dark' ? darkHighlight : lightHighlight),
-      ...variablePathColors(theme === 'dark'),
-      indentDotsExtension,
+      indentGuidesExtension,
       remeasureOnShow,
-      blankHighlightExtension(),
-      ...blankHintExtension(),
       ...runPulseExtension(),
       ...problemMarkExtension(),
-      codeHoverExtension(),
       EditorView.lineWrapping,
       EditorView.updateListener.of((update) => {
         if (
@@ -203,7 +204,7 @@ export function CodeEditor({
         }
       }),
     ],
-    [theme, ariaLabel, keyboardHelpId],
+    [theme, ariaLabel, keyboardHelpId, language],
   )
 
   useEffect(() => {
@@ -213,9 +214,9 @@ export function CodeEditor({
   // Result-panel hover drives path chips.
   useEffect(() => {
     const view = ref.current?.view
-    if (!view) return
+    if (!view || language !== 'python') return
     setVariablePathNames(view, pathNames)
-  }, [pathNames, value, theme])
+  }, [pathNames, value, theme, language])
 
   return (
     <div className="code-editor" role="region" aria-label={ariaLabel}>

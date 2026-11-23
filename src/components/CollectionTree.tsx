@@ -14,6 +14,8 @@ type CollectionTreeProps = {
   depth?: number
   /** Dict keys may break after underscores, so a long snake_case key wraps between words. */
   isKey?: boolean
+  /** How many levels start open. The default opens the root only. */
+  openDepth?: number
 }
 
 function withUnderscoreBreaks(text: string) {
@@ -35,6 +37,7 @@ export function CollectionTree({
   tone = 'print',
   depth = 0,
   isKey = false,
+  openDepth = 1,
 }: CollectionTreeProps) {
   if (!isCollectionRoot(node)) {
     return (
@@ -47,19 +50,21 @@ export function CollectionTree({
     )
   }
 
-  return <CollectionBranch node={node} tone={tone} depth={depth} />
+  return <CollectionBranch node={node} tone={tone} depth={depth} openDepth={openDepth} />
 }
 
 function CollectionBranch({
   node,
   tone,
   depth,
+  openDepth,
 }: {
   node: Exclude<CollectionNode, { kind: 'atom' }>
   tone: 'print' | 'expr'
   depth: number
+  openDepth: number
 }) {
-  const [open, setOpen] = useState(depth === 0)
+  const [open, setOpen] = useState(depth < openDepth)
   const summary = collectionSummary(node)
   const empty = node.length === 0
 
@@ -113,6 +118,7 @@ function CollectionBranch({
                       node={entry.value}
                       tone={tone}
                       depth={depth + 1}
+                      openDepth={openDepth}
                     />
                   </span>
                 </li>
@@ -132,7 +138,7 @@ function CollectionBranch({
                     </span>
                   )}
                   <span className="coll-value">
-                    <CollectionTree node={item} tone={tone} depth={depth + 1} />
+                    <CollectionTree node={item} tone={tone} depth={depth + 1} openDepth={openDepth} />
                   </span>
                 </li>
               ))}
