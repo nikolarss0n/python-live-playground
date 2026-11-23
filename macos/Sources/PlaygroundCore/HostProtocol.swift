@@ -14,6 +14,7 @@ public enum HostCommand: Equatable, Sendable {
     case stop
     case getCode
     case openFile(name: String, code: String)
+    case markSaved(code: String)
     case setGlass(tint: Double)
 
     /// The value passed to `window.playgroundHost.handle(command)`.
@@ -23,6 +24,7 @@ public enum HostCommand: Equatable, Sendable {
         case .stop: ["type": "stop"]
         case .getCode: ["type": "getCode"]
         case let .openFile(name, code): ["type": "openFile", "name": name, "code": code]
+        case let .markSaved(code): ["type": "markSaved", "code": code]
         case let .setGlass(tint): ["type": "setGlass", "tint": tint]
         }
     }
@@ -31,6 +33,7 @@ public enum HostCommand: Equatable, Sendable {
 public enum HostEvent: Equatable, Sendable {
     case ready(version: Int)
     case theme(dark: Bool)
+    case dirty(Bool)
 
     /// Reads a message the page posted; anything unexpected is ignored.
     public init?(message body: Any) {
@@ -42,6 +45,9 @@ public enum HostEvent: Equatable, Sendable {
         case "theme":
             guard let theme = body["theme"] as? String, theme == "dark" || theme == "light" else { return nil }
             self = .theme(dark: theme == "dark")
+        case "dirty":
+            guard let dirty = body["dirty"] as? Bool else { return nil }
+            self = .dirty(dirty)
         default:
             return nil
         }

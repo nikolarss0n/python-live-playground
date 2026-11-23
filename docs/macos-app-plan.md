@@ -60,15 +60,15 @@ SwiftUI app (menus, windows, files, settings, AI)
    - Mac features: a menu bar with Run, Stop, lessons and share; open and save `.py` documents; recent files; window restoration.
    - Look and feel: follows the system light/dark setting, and uses native toolbar styling where it doesn't add panels.
    - Offline: Pyodide and packages ship in the bundle, so the first run needs no network.
-   - **Built (2026-11-16):**
+   - **Built (2026-11-16, updated 2026-11-24):**
      - The shell moved from SwiftUI to the AppKit lifecycle, for full control of the menus.
      - Menus: File (Open, Open Recent with security-scoped bookmarks, Save, Save As), Edit, Run (⌘↩, ⌘.), and View with int-ai-m's Background Transparency slider over a behind-window blur.
      - Finder can open `.py` files in the app.
+     - Window title shows macOS's native unsaved-changes dot (`isDocumentEdited`) when an opened `.py` file has unsaved edits, clearing on Open, Save, Save As, or when entering Projects.
      - Web links open in the default browser, and web loads are blocked in the app view.
    - **Found while building:** ⌘S right after typing saved the code from before the last keystroke, because React's code state lags the editor. `getCode` now reads the editor.
    - **Not done yet:**
-     - An unsaved-changes dot: the page autosaves to the device, so nothing is lost, but the title doesn't show edits.
-     - Share links copied in the app point at `app://local` and only open inside the app.
+     - Share links are not currently exposed in the UI; if a Copy Share Link control returns, it should use a public web base URL rather than `app://local`.
      - A real-window screenshot of the blur: the terminal has no Screen Recording permission, so the blur has only been checked by eye.
 3. **AI on Foundation Models.**
    - Port pinpoint and goal-judge prompts to guided generation.

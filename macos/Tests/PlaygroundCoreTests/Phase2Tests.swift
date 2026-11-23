@@ -68,6 +68,9 @@ import Testing
         #expect(HostEvent(message: ["type": "ready", "version": 1]) == .ready(version: 1))
         #expect(HostEvent(message: ["type": "theme", "theme": "dark"]) == .theme(dark: true))
         #expect(HostEvent(message: ["type": "theme", "theme": "purple"]) == nil)
+        #expect(HostEvent(message: ["type": "dirty", "dirty": true]) == .dirty(true))
+        #expect(HostEvent(message: ["type": "dirty", "dirty": false]) == .dirty(false))
+        #expect(HostEvent(message: ["type": "dirty", "dirty": "yes"]) == nil)
         #expect(HostEvent(message: ["type": "eval"]) == nil)
         #expect(HostEvent(message: "ready") == nil)
     }
@@ -95,7 +98,7 @@ import Testing
         let source = URL(filePath: #filePath).deletingLastPathComponent()
             .appending(path: "../../../src/host/macHost.ts").standardizedFileURL
         let typescript = try String(contentsOf: source, encoding: .utf8)
-        let commands: [HostCommand] = [.run, .stop, .getCode, .openFile(name: "a.py", code: ""), .setGlass(tint: 0)]
+        let commands: [HostCommand] = [.run, .stop, .getCode, .openFile(name: "a.py", code: ""), .markSaved(code: ""), .setGlass(tint: 0)]
         for command in commands {
             let name = try #require(command.payload["type"] as? String)
             #expect(typescript.contains("type: '\(name)'"), "macHost.ts has no '\(name)' command")

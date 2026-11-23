@@ -140,7 +140,10 @@ export function ProjectPlayground({ workspace, onExit }: {
     projectDocument: () => ({ name: activePath.split('/').at(-1) ?? activePath, saved: workspace.saveNow() }),
     openFile: (_name, source) => onExit(source),
   }
-  useEffect(() => installMacHost(() => actions.current!), [])
+  useEffect(() => {
+    postHostEvent({ type: 'dirty', dirty: false })
+    return installMacHost(() => actions.current!)
+  }, [])
   const saveLabel = saveError ?? (workspace.dirtyPaths.size ? 'Saving project on this device' : 'Project saved on this device')
   return <div className="app-shell project-shell">
     <header className="toolbar project-toolbar">

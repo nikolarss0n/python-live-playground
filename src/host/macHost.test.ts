@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { handleHostCommand, installMacHost, isMacHost, MAX_OPEN_FILE_CHARS, parseHostCommand, postHostEvent } from './macHost'
 
-const actions = () => ({ run: vi.fn(), stop: vi.fn(), getCode: vi.fn(() => 'print(1)'), openFile: vi.fn() })
+const actions = () => ({ run: vi.fn(), stop: vi.fn(), getCode: vi.fn(() => 'print(1)'), openFile: vi.fn(), markSaved: vi.fn() })
 
 afterEach(() => {
   delete (window as unknown as { webkit?: unknown }).webkit
@@ -16,6 +16,9 @@ describe('mac host commands', () => {
     expect(parseHostCommand({ type: 'openFile', name: 'a.py', code: 'x = 1' })).toEqual({ type: 'openFile', name: 'a.py', code: 'x = 1' })
     expect(parseHostCommand({ type: 'openFile', name: 'a.py' })).toBeNull()
     expect(parseHostCommand({ type: 'openFile', name: 'a.py', code: 'x'.repeat(MAX_OPEN_FILE_CHARS + 1) })).toBeNull()
+    expect(parseHostCommand({ type: 'markSaved', code: 'x = 1' })).toEqual({ type: 'markSaved', code: 'x = 1' })
+    expect(parseHostCommand({ type: 'markSaved', code: 1 })).toBeNull()
+    expect(parseHostCommand({ type: 'markSaved', code: 'x'.repeat(MAX_OPEN_FILE_CHARS + 1) })).toBeNull()
     expect(parseHostCommand({ type: 'setGlass', tint: 3 })).toEqual({ type: 'setGlass', tint: 1 })
     expect(parseHostCommand({ type: 'setGlass', tint: Number.NaN })).toBeNull()
     expect(parseHostCommand({ type: 'eval', code: 'alert(1)' })).toBeNull()
@@ -28,9 +31,11 @@ describe('mac host commands', () => {
     expect(handleHostCommand({ type: 'stop' }, a)).toEqual({ ok: true })
     expect(handleHostCommand({ type: 'getCode' }, a)).toEqual({ ok: true, code: 'print(1)' })
     handleHostCommand({ type: 'openFile', name: 'grade.py', code: 'print(2)' }, a)
+    handleHostCommand({ type: 'markSaved', code: 'print(2)' }, a)
     expect(a.run).toHaveBeenCalledOnce()
     expect(a.stop).toHaveBeenCalledOnce()
     expect(a.openFile).toHaveBeenCalledWith('grade.py', 'print(2)')
+    expect(a.markSaved).toHaveBeenCalledWith('print(2)')
     expect(handleHostCommand({ type: 'nope' }, a)).toEqual({ ok: false, error: 'Unknown command' })
   })
 

@@ -581,20 +581,29 @@ function Scratchpad({ onOpenProject, takeOpenedFile, openedFromLink }: {
     }
   }, [enabledSections, sectionShown, section, onSelectSection])
 
+  const [savedNativeCode, setSavedNativeCode] = useState<string | null>(null)
   const openNativeFile = useCallback((fileCode: string) => {
     select(PLAYGROUND_LESSON_ID)
     updateLessonCode(fileCode)
+    setSavedNativeCode(fileCode)
   }, [select, updateLessonCode])
   useEffect(() => {
     const fileCode = takeOpenedFile()
     if (fileCode !== null) openNativeFile(fileCode)
   }, [takeOpenedFile, openNativeFile])
+  useEffect(() => {
+    postHostEvent({
+      type: 'dirty',
+      dirty: savedNativeCode !== null && lessonId === PLAYGROUND_LESSON_ID && code !== savedNativeCode,
+    })
+  }, [code, savedNativeCode, lessonId])
   hostActions.current = {
     run: () => void runNow(),
     stop,
     // The editor holds the newest keystrokes; the code state catches up a moment later.
     getCode: () => editorView?.state.doc.toString() ?? code,
     openFile: (_name, fileCode) => openNativeFile(fileCode),
+    markSaved: (savedCode) => setSavedNativeCode(savedCode),
   }
   useEffect(() => installMacHost(() => hostActions.current!), [])
 

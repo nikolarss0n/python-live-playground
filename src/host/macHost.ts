@@ -11,11 +11,13 @@ export type HostCommand =
   | { type: 'stop' }
   | { type: 'getCode' }
   | { type: 'openFile'; name: string; code: string }
+  | { type: 'markSaved'; code: string }
   | { type: 'setGlass'; tint: number }
 
 export type HostEvent =
   | { type: 'ready'; version: number }
   | { type: 'theme'; theme: 'light' | 'dark' }
+  | { type: 'dirty'; dirty: boolean }
 
 type ProjectDocument = { name: string; saved: boolean }
 export type HostReply = { ok: true; code?: string; projectDocument?: ProjectDocument } | { ok: false; error: string }
@@ -26,6 +28,7 @@ export type HostActions = {
   projectDocument?: () => ProjectDocument
   getCode: () => string
   openFile: (name: string, code: string) => void
+  markSaved?: (code: string) => void
 }
 
 /** The largest file the app will open, matching the share-link guard. */
@@ -62,6 +65,9 @@ export function parseHostCommand(value: unknown): HostCommand | null {
       if (typeof command.name !== 'string' || typeof command.code !== 'string') return null
       if (command.code.length > MAX_OPEN_FILE_CHARS) return null
       return { type: 'openFile', name: command.name.slice(0, 255), code: command.code }
+    case 'markSaved':
+      if (typeof command.code !== 'string' || command.code.length > MAX_OPEN_FILE_CHARS) return null
+      return { type: 'markSaved', code: command.code }
     case 'setGlass':
       if (typeof command.tint !== 'number' || !Number.isFinite(command.tint)) return null
       return { type: 'setGlass', tint: Math.min(1, Math.max(0, command.tint)) }
@@ -87,6 +93,7 @@ export function handleHostCommand(value: unknown, actions: HostActions): HostRep
       ...(actions.projectDocument && { projectDocument: actions.projectDocument() }),
     }
     case 'openFile': actions.openFile(command.name, command.code); return { ok: true }
+    case 'markSaved': actions.markSaved?.(command.code); return { ok: true }
     case 'setGlass': applyGlassTint(command.tint); return { ok: true }
   }
 }

@@ -24,6 +24,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
             if oldValue != fileURL { oldValue?.stopAccessingSecurityScopedResource() }
             window?.title = fileURL?.lastPathComponent ?? MainMenu.appName
             window?.representedURL = fileURL
+            if fileURL == nil { window?.isDocumentEdited = false }
         }
     }
 
@@ -148,6 +149,10 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         window?.appearance = NSAppearance(named: dark ? .darkAqua : .aqua)
     }
 
+    func pageDirtyChanged(_ dirty: Bool) {
+        window?.isDocumentEdited = fileURL != nil && dirty
+    }
+
     func waitUntilPageReady() async {
         if pageReady { return }
         await withCheckedContinuation { readyWaiters.append($0) }
@@ -194,6 +199,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
                     return
                 }
                 fileURL = url
+                window?.isDocumentEdited = false
                 recent.add(url)
             }
         } catch {
@@ -259,6 +265,10 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         do {
             try Data(code.utf8).write(to: url, options: .atomic)
             recent.add(url)
+            if document.projectDocument == nil {
+                window?.isDocumentEdited = false
+                send(.markSaved(code: code))
+            }
             return true
         } catch {
             showProblem("Could not save “\(url.lastPathComponent)”.", error.localizedDescription)
@@ -297,6 +307,8 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
             FileHandle.standardError.write(Data("The page speaks a different host protocol version.\n".utf8))
         case let .theme(dark):
             controller?.pageThemeChanged(dark: dark)
+        case let .dirty(edited):
+            controller?.pageDirtyChanged(edited)
         }
     }
 }

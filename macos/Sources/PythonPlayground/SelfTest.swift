@@ -107,15 +107,22 @@ struct SelfTest {
         _ = try await js("await __selfTest.until(() => __selfTest.results().includes('after stop'), 60000, 'a run on the new worker')")
         report["runAfterStopMs"] = ms(since: started)
 
-        // File › Save writes the editor's code to the opened file.
+        // File › Save writes the editor's code to the opened file, and the title-bar edited dot tracks changes.
         _ = try await js("__selfTest.setCode('print(\"saved from the app\")')")
+        try await within(seconds: 5, "the unsaved-changes dot") {
+            while controller.window?.isDocumentEdited != true { try await Task.sleep(for: .milliseconds(50)) }
+        }
         guard controller.fileURL == opened.standardizedFileURL || controller.fileURL == opened else {
             throw Failure("Save would not write to the opened file: \(controller.fileURL?.path ?? "none")")
         }
         guard await controller.write(to: opened) else { throw Failure("Save failed: \(controller.lastProblem ?? "no message")") }
+        try await within(seconds: 5, "the unsaved-changes dot to clear after Save") {
+            while controller.window?.isDocumentEdited != false { try await Task.sleep(for: .milliseconds(50)) }
+        }
         let saved = try String(contentsOf: opened, encoding: .utf8)
         guard saved.contains("saved from the app") else { throw Failure("The file holds: \(saved.prefix(80))") }
         report["savedToDisk"] = true
+        report["documentEditedDot"] = true
 
         // The slider thins the page colour over the blur; text keeps its colour.
         controller.transparency = 0.5
