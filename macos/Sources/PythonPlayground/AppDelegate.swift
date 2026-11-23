@@ -9,7 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         let selfTest = CommandLine.arguments.contains("--self-test")
-        let controller = PlaygroundWindowController(webRoot: Self.webRoot(), recent: recent)
+        let controller = PlaygroundWindowController(webRoot: Self.webRoot(), recent: recent, dataStore: selfTest ? .nonPersistent() : .default())
         self.controller = controller
         NSApp.mainMenu = MainMenu.build(appDelegate: self, controller: controller)
         controller.showWindow(nil)

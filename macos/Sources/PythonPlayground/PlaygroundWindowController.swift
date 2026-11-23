@@ -37,10 +37,11 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
-    init(webRoot: URL, recent: RecentFiles) {
+    init(webRoot: URL, recent: RecentFiles, dataStore: WKWebsiteDataStore = .default()) {
         self.recent = recent
         schemeHandler = AppSchemeHandler(bundle: WebBundle(root: webRoot))
         let configuration = WKWebViewConfiguration()
+        configuration.websiteDataStore = dataStore
         configuration.setURLSchemeHandler(schemeHandler, forURLScheme: WebBundle.scheme)
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = true
@@ -207,34 +208,56 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     }
 
     @objc func saveDocument(_ sender: Any?) {
-        guard let fileURL else { return saveDocumentAs(sender) }
-        Task { await write(to: fileURL) }
-    }
-
-    @objc func saveDocumentAs(_ sender: Any?) {
-        guard let window else { return }
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.pythonScript]
-        panel.nameFieldStringValue = fileURL?.lastPathComponent ?? PythonFile.untitledName
-        panel.beginSheetModal(for: window) { [weak self] response in
-            guard response == .OK, let url = panel.url else { return }
-            MainActor.assumeIsolated {
-                guard let self else { return }
-                Task {
-                    if await self.write(to: url) { self.fileURL = url }
-                }
+        Task {
+            guard let document = await currentDocument() else { return }
+            if let project = document.projectDocument {
+                if !project.saved { showProblem("Project could not be saved.", "See the project status in the playground.") }
+            } else if let fileURL {
+                _ = write(document, to: fileURL)
+            } else {
+                showSavePanel(for: document)
             }
         }
     }
 
+    @objc func saveDocumentAs(_ sender: Any?) {
+        Task {
+            if let document = await currentDocument() { showSavePanel(for: document) }
+        }
+    }
+
+    private func showSavePanel(for document: HostReply) {
+        guard let window else { return }
+        let panel = NSSavePanel()
+        if document.projectDocument == nil { panel.allowedContentTypes = [.pythonScript] }
+        panel.nameFieldStringValue = document.projectDocument?.name ?? fileURL?.lastPathComponent ?? PythonFile.untitledName
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            MainActor.assumeIsolated {
+                guard let self else { return }
+                if self.write(document, to: url), document.projectDocument == nil { self.fileURL = url }
+            }
+        }
+    }
+
+    private func currentDocument() async -> HostReply? {
+        guard let document = try? await send(.getCode), document.ok, document.code != nil else {
+            showProblem("Could not save.", "The playground did not return its code.")
+            return nil
+        }
+        return document
+    }
+
     @discardableResult
     func write(to url: URL) async -> Bool {
+        guard let document = await currentDocument(), document.projectDocument == nil else { return false }
+        return write(document, to: url)
+    }
+
+    private func write(_ document: HostReply, to url: URL) -> Bool {
+        guard let code = document.code else { return false }
         do {
-            guard let code = try await send(.getCode)?.code else {
-                showProblem("Could not save.", "The playground did not return its code.")
-                return false
-            }
-            try Data(code.utf8).write(to: url)
+            try Data(code.utf8).write(to: url, options: .atomic)
             recent.add(url)
             return true
         } catch {

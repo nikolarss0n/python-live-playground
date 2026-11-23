@@ -52,11 +52,23 @@ public enum HostEvent: Equatable, Sendable {
 public struct HostReply: Equatable, Sendable {
     public let ok: Bool
     public let code: String?
+    public struct ProjectDocument: Equatable, Sendable {
+        public let name: String
+        public let saved: Bool
+    }
+    public let projectDocument: ProjectDocument?
 
     public init?(_ value: Any?) {
         guard let value = value as? [String: Any], let ok = value["ok"] as? Bool else { return nil }
         self.ok = ok
         code = value["code"] as? String
+        if let metadata = value["projectDocument"] {
+            guard let project = metadata as? [String: Any], let name = project["name"] as? String,
+                  let saved = project["saved"] as? Bool else { return nil }
+            projectDocument = ProjectDocument(name: name, saved: saved)
+        } else {
+            projectDocument = nil
+        }
     }
 }
 

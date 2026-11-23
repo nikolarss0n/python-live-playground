@@ -5,7 +5,7 @@ import PlaygroundCore
 /// standard selectors so copy, paste and undo work inside the web view.
 @MainActor
 enum MainMenu {
-    static let appName = "Python Live Playground"
+    static let appName = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String ?? "py"
 
     static func build(appDelegate: AppDelegate, controller: PlaygroundWindowController) -> NSMenu {
         let main = NSMenu()

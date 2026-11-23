@@ -65,8 +65,10 @@ struct SelfTest {
 
         controller.loadApp(URL(string: "app://local/?lesson=intro")!)
         try await within(seconds: 20, "the page to say it is ready") { await controller.waitUntilPageReady() }
+        report["launchToReadyMs"] = ms(since: launchedAt)
         _ = try await js(Self.helpers)
         _ = try await js("await __selfTest.until(() => document.querySelector('.cm-content'), 20000, 'the editor')")
+        report["launchToEditorMs"] = ms(since: launchedAt)
 
         // File › Open lands the file in free play, and Run › Run runs it.
         let opened = folder.appending(path: "grade.py")
@@ -145,6 +147,82 @@ struct SelfTest {
         """)
         if let offset = report["lineNumberOffsetPx"] as? Int, offset != 0 { throw Failure("Line number 1 is \(offset)px off its code line") }
         report["screenshot"] = await saveScreenshot()
+
+        // A file with FastAPI routes lists them in the API tab, each with its request ready to send.
+        _ = try await js("""
+            __selfTest.setCode('from fastapi import FastAPI\\napp = FastAPI()\\n\\n@app.get("/hello")\\ndef hello(name: str = "Ada", times: int = 1):\\n    return {"hello": name, "share": 10 / times}')
+            const tab = await __selfTest.until(() => document.getElementById('fullstack-tab-api'), 5000, 'the API tab')
+            tab.click()
+            const route = await __selfTest.until(() => document.querySelector('[aria-label="Routes"] .api-route'), 20000, 'the route list')
+            if (!route.textContent.includes('/hello')) throw new Error('Routes list shows: ' + route.textContent)
+            const name = document.querySelector('.api-pair-value')
+            if (name?.value !== 'Ada') throw new Error('The query default was not prepared: ' + name?.value)
+            const send = await __selfTest.until(() => [...document.querySelectorAll('.api-request button')].find((button) => button.textContent === 'Send' && !button.disabled), 20000, 'Send')
+            send.click()
+            await __selfTest.until(() => document.querySelector('.api-response')?.textContent.includes("'Ada'"), 10000, 'the response to the prepared request')
+            """)
+        report["apiRequestSent"] = true
+
+        // A refused request marks the field it names; a crashed handler links to the line that raised.
+        _ = try await js("""
+            const times = [...document.querySelectorAll('.api-pair')].find((pair) => pair.textContent.startsWith('times')).querySelector('input')
+            const type = (value) => { Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(times, value); times.dispatchEvent(new Event('input', { bubbles: true })) }
+            const send = async () => (await __selfTest.until(() => [...document.querySelectorAll('.api-request button')].find((button) => button.textContent === 'Send' && !button.disabled), 20000, 'Send')).click()
+            type('often')
+            await send()
+            const refused = await __selfTest.until(() => document.querySelector('.api-refusals'), 10000, 'the refused field')
+            if (!refused.textContent.startsWith('times') || times.getAttribute('aria-invalid') !== 'true') throw new Error('The refused field was not marked: ' + refused.textContent)
+            type('0')
+            await send()
+            const link = await __selfTest.until(() => document.querySelector('.api-response-line'), 10000, 'the crash line link')
+            if (link.textContent !== 'Crashed on line 6') throw new Error('The crash link reads: ' + link.textContent)
+            link.click()
+            await __selfTest.until(() => document.querySelector('.cm-activeLine')?.textContent.includes('10 / times'), 5000, 'the editor on the crashed line')
+            document.getElementById('fullstack-tab-results').click()
+            """)
+        report["apiRefusalAndCrashLine"] = true
+
+        // Entering a local project keeps the last native file safe from a subsequent File › Save.
+        _ = try await js("""
+            document.querySelector('[aria-label="Open projects"]').click()
+            await __selfTest.until(() => __selfTest.results().includes('m*****@example.com'), 20000, 'the multi-file project')
+            for (const divider of document.querySelectorAll('.project-workspace [role="separator"]')) {
+              const panel = document.getElementById(divider.getAttribute('aria-controls'))
+              const before = panel.getBoundingClientRect().width
+              divider.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+              await __selfTest.until(() => panel.getBoundingClientRect().width > before + 1, 2000, 'resize ' + panel.id)
+            }
+            if (document.querySelectorAll('.project-workspace [role="separator"]').length !== 2) throw new Error('Missing project dividers')
+            const tree = document.querySelector('.project-explorer .project-tree-content')
+            for (const selector of ['button[title="data"]', 'button[title="main.py"]', '.project-tree']) {
+              const event = new MouseEvent('contextmenu', { bubbles: true, cancelable: true, button: 2 })
+              if (tree.querySelector(selector).dispatchEvent(event)) throw new Error('WebKit menu on ' + selector)
+              await __selfTest.until(() => tree.querySelector('[role="menu"]'), 2000, 'the Explorer context menu')
+              tree.querySelector('[role="menuitem"]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+              await __selfTest.until(() => !tree.querySelector('[role="menu"]'), 2000, 'dismiss the Explorer context menu')
+            }
+            const picker = document.querySelector('select[aria-label="Project"]')
+            picker.value = 'patterns'
+            picker.dispatchEvent(new Event('change', { bubbles: true }))
+            await __selfTest.until(() => document.querySelector('.pattern-review')?.textContent.includes('Local syntax review'), 10000, 'offline design pattern review')
+            document.querySelector('[aria-label="Close pattern review"]').click()
+            await __selfTest.until(() => !document.querySelector('.pattern-review'), 2000, 'close the review')
+            const paneBackground = getComputedStyle(document.querySelector('.pane-editor')).backgroundColor
+            for (const selector of ['.project-toolbar', '.project-explorer', '.project-file-bar', '.pane-results', '.app-footer']) {
+              if (getComputedStyle(document.querySelector(selector)).backgroundColor !== paneBackground) {
+                throw new Error(selector + ' covers the shared project window backdrop')
+              }
+            }
+            """)
+        guard let project = try await controller.send(.getCode)?.projectDocument, project.saved, project.name == "mask.py" else {
+            throw Failure("Project file was not identified for native Save")
+        }
+        controller.saveDocument(nil)
+        try await Task.sleep(for: .milliseconds(300))
+        guard try String(contentsOf: opened, encoding: .utf8) == saved else { throw Failure("Project Save changed the scratchpad file") }
+        controller.open(opened)
+        _ = try await js("await __selfTest.until(() => __selfTest.editor().includes('saved from the app'), 5000, 'native Open from project mode')")
+        report["projectRunAndSave"] = true
     }
 
     private func js(_ body: String) async throws -> Any? {

@@ -75,6 +75,10 @@ import Testing
     @Test func readsReplies() {
         #expect(HostReply(["ok": true, "code": "print(1)"])?.code == "print(1)")
         #expect(HostReply(["ok": false, "error": "Unknown command"])?.ok == false)
+        let reply = HostReply(["ok": true, "code": "x,y", "projectDocument": ["name": "data.csv", "saved": true]])
+        #expect(reply?.projectDocument?.name == "data.csv")
+        #expect(reply?.projectDocument?.saved == true)
+        #expect(HostReply(["ok": true, "projectDocument": ["name": "missing-save-status"]]) == nil)
         #expect(HostReply(nil) == nil)
     }
 

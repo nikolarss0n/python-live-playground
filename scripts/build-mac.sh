@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 # Builds the macOS app: the web build with Pyodide bundled for offline use, the Swift shell, and the .app around them.
-# Output: build/mac/Python Live Playground.app (ad-hoc signed, App Sandbox on).
+# Output: build/mac/py.app (ad-hoc signed, App Sandbox on).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="Python Live Playground"
+APP_NAME="py"
 BUNDLE_ID="dev.local.python-live-playground"
 OUT="$ROOT/build/mac"
 WEB="$OUT/web"
@@ -37,8 +37,17 @@ BIN="$(swift build --package-path "$ROOT/macos" -c "$CONFIG" --show-bin-path)/Py
 
 rm -rf "$APP"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
-cp "$BIN" "$APP/Contents/MacOS/PythonPlayground"
+cp "$BIN" "$APP/Contents/MacOS/$APP_NAME"
 cp -R "$WEB" "$APP/Contents/Resources/web"
+ICON_SOURCE="$ROOT/brand/folded-y/py-folded-y.png"
+ICONSET="$OUT/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+  sips -z "$size" "$size" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+  pixels=$((size * 2))
+  sips -z "$pixels" "$pixels" "$ICON_SOURCE" --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/AppIcon.icns"
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -47,7 +56,8 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleName</key><string>$APP_NAME</string>
   <key>CFBundleDisplayName</key><string>$APP_NAME</string>
   <key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
-  <key>CFBundleExecutable</key><string>PythonPlayground</string>
+  <key>CFBundleExecutable</key><string>$APP_NAME</string>
+  <key>CFBundleIconFile</key><string>AppIcon.icns</string>
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>0.1.0</string>
   <key>CFBundleVersion</key><string>1</string>
