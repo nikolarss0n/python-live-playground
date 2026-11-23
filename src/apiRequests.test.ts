@@ -33,6 +33,7 @@ describe('prepared API requests', () => {
       .toEqual({ kind: 'failed', message: 'SimFastAPIError: no Request object' })
     expect(responseFromEvents([{ kind: 'print', text: 'hi' }], 1)).toBeNull()
     expect(responseFromEvents([{ ...http, status: 500, line: 12 }], 2)).toMatchObject({ status: 500, line: 12 })
+    expect(responseFromEvents([{ ...http, status: 500, file: 'routes/books.py', line: 9 }], 2)).toMatchObject({ status: 500, file: 'routes/books.py', line: 9 })
   })
 
   it('reads which fields a 422 refused, and nothing from any other response', () => {

@@ -13,6 +13,8 @@ import traceback
 import warnings
 
 _plp_project_paths = {}
+_plp_project_dir = None
+_plp_active_project = None
 _plp_events = []
 _plp_print_line = None
 _plp_print_file = None
@@ -536,45 +538,65 @@ def _plp_fullstack_after(request):
             calls.append({"method": method.upper(), "path": path, "status": 500, "body": {"detail": f"{type(exc).__name__}: {exc}"}})
     return {"tables": playdb.snapshot(), "calls": calls}
 
+def _plp_cleanup_project_dir():
+    global _plp_project_dir, _plp_active_project
+    _plp_active_project = None
+    if _plp_project_dir is not None:
+        try:
+            _plp_project_dir.cleanup()
+        except Exception:
+            pass
+        _plp_project_dir = None
+
 async def _plp_run_project(project, stdin=None):
     import asyncio
+    import atexit
     import os
     import tempfile
     import types
-    global _plp_project_paths
+    global _plp_project_paths, _plp_project_dir, _plp_active_project
     # PythonRunner gives every project run a fresh worker and virtual filesystem.
-    # No imported modules, user-created files, symlinks or bytecode survive a rerun.
-    with tempfile.TemporaryDirectory() as root:
-        files = project["files"]
-        entry = project["entry"]
-        for folder in project.get("folders", []):
-            os.makedirs(os.path.join(root, folder), exist_ok=True)
-        for path, text in files.items():
-            filename = os.path.join(root, path)
-            os.makedirs(os.path.dirname(filename), exist_ok=True)
-            with open(filename, "w", encoding="utf-8") as handle:
-                handle.write(text)
-        old_cwd, old_path, old_argv = os.getcwd(), sys.path[:], sys.argv
-        old_main = sys.modules["__main__"]
-        filename = os.path.join(root, entry)
-        _plp_project_paths = {os.path.join(root, path): path for path in files}
-        # Load the bundled shim before project modules are on the search path.
-        _plp_sim_install()
-        try:
-            os.chdir(root)
-            sys.path[:0] = [os.path.dirname(filename), root]
-            sys.argv = [filename]
-            sys.modules["__main__"] = types.ModuleType("__main__")
-            return await _plp_run_async(files[entry], stdin=stdin, filename=filename)
-        finally:
-            os.chdir(old_cwd)
-            sys.path[:] = old_path
-            sys.argv = old_argv
-            sys.modules["__main__"] = old_main
-            _plp_project_paths = {}
+    # Keep the directory alive until the next run so invoked API routes can read project files
+    # and resolve crash locations back to their project modules.
+    _plp_cleanup_project_dir()
+    _plp_project_dir = tempfile.TemporaryDirectory()
+    atexit.register(_plp_cleanup_project_dir)
+    root = _plp_project_dir.name
+    files = project["files"]
+    entry = project["entry"]
+    for folder in project.get("folders", []):
+        os.makedirs(os.path.join(root, folder), exist_ok=True)
+    for path, text in files.items():
+        filename = os.path.join(root, path)
+        os.makedirs(os.path.dirname(filename), exist_ok=True)
+        with open(filename, "w", encoding="utf-8") as handle:
+            handle.write(text)
+    old_cwd, old_path, old_argv = os.getcwd(), sys.path[:], sys.argv
+    old_main = sys.modules["__main__"]
+    filename = os.path.join(root, entry)
+    paths = {os.path.join(root, path): path for path in files}
+    search_paths = [os.path.dirname(filename), root]
+    _plp_project_paths = paths
+    _plp_active_project = (root, paths, search_paths)
+    # Load the bundled shim before project modules are on the search path.
+    _plp_sim_install()
+    try:
+        os.chdir(root)
+        sys.path[:0] = search_paths
+        sys.argv = [filename]
+        sys.modules["__main__"] = types.ModuleType("__main__")
+        return await _plp_run_async(files[entry], stdin=stdin, filename=filename)
+    finally:
+        os.chdir(old_cwd)
+        sys.path[:] = old_path
+        sys.argv = old_argv
+        sys.modules["__main__"] = old_main
+        _plp_project_paths = {}
 
 async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None, stdin=None, filename="<playground>"):
     import asyncio
+    if filename == "<playground>":
+        _plp_cleanup_project_dir()
     prior_tasks = asyncio.all_tasks()
     old_out, old_err, old_print = sys.stdout, sys.stderr, builtins.print
     if fullstack is not None:
@@ -625,7 +647,8 @@ async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None,
 def _plp_invoke(req):
     """Call one registered simulated-FastAPI route without re-running the editor."""
     import json as _json
-    global _plp_events, _plp_print_line, _plp_print_file, _plp_pending_structure, _plp_deadline, _plp_ticks
+    import os
+    global _plp_events, _plp_print_line, _plp_print_file, _plp_pending_structure, _plp_deadline, _plp_ticks, _plp_project_paths
     _plp_events = []
     _plp_reset_output()
     _plp_print_line = _plp_print_file = None
@@ -638,12 +661,18 @@ def _plp_invoke(req):
     path = req.get("path") or "/"
     old_out, old_err = sys.stdout, sys.stderr
     old_print = builtins.print
+    old_cwd, old_path = os.getcwd(), sys.path[:]
     out = _PlpStdout()
     sys.stdout = out
     sys.stderr = out
     builtins.print = _plp_print
     old_show = warnings.showwarning
     warnings.showwarning = _plp_showwarning
+    if _plp_active_project is not None:
+        root, paths, search_paths = _plp_active_project
+        _plp_project_paths = paths
+        os.chdir(root)
+        sys.path[:0] = search_paths
     try:
         import fastapi_sim
         result = fastapi_sim.dispatch_last(
@@ -652,6 +681,7 @@ def _plp_invoke(req):
             query=req.get("query"),
             body=req.get("body"),
             headers=req.get("headers"),
+            project_paths=_plp_project_paths or None,
         )
         out.flush()
         _plp_limit_notice()
@@ -663,7 +693,8 @@ def _plp_invoke(req):
             "status": int(result.get("status") or 500),
             "body": _json.dumps(result.get("body"), default=str),
             "simulated": True,
-            # Where a handler crashed, for the API tab's link to that line.
+            # Where a handler crashed, for the API tab's link to that file and line.
+            **({"file": result["file"]} if isinstance(result.get("file"), str) else {}),
             **({"line": result["line"]} if isinstance(result.get("line"), int) else {}),
         })
         invoked = {"ok": True, "events": events, "routes": fastapi_sim.list_routes()}
@@ -684,6 +715,9 @@ def _plp_invoke(req):
         })
         return {"ok": False, "events": events, "routes": _plp_sim_routes()}
     finally:
+        os.chdir(old_cwd)
+        sys.path[:] = old_path
+        _plp_project_paths = {}
         sys.stdout = old_out
         sys.stderr = old_err
         builtins.print = old_print

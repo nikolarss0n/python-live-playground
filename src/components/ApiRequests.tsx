@@ -49,7 +49,7 @@ function Fields({ label, fields, values, onChange, refused }: FieldsProps) {
   )
 }
 
-function Response({ response, onShowLine }: { response: SentResponse | undefined; onShowLine?: (line: number) => void }) {
+function Response({ response, onShowLine }: { response: SentResponse | undefined; onShowLine?: (line: number, file?: string) => void }) {
   if (!response) return <p className="fullstack-empty api-response-empty">Not sent yet.</p>
   if (response.kind === 'failed') return <p className="api-request-error">{response.message}</p>
   const empty = response.status === 204 || response.body === null
@@ -62,8 +62,8 @@ function Response({ response, onShowLine }: { response: SentResponse | undefined
           {response.durationMs === null ? '' : ` · ${response.durationMs} ms`}
         </span>
         {response.line && onShowLine ? (
-          <button type="button" className="linkish api-response-line" onClick={() => onShowLine(response.line!)}>
-            Crashed on line {response.line}
+          <button type="button" className="linkish api-response-line" onClick={() => onShowLine(response.line!, response.file)}>
+            {response.file ? `Crashed in ${response.file} on line ${response.line}` : `Crashed on line ${response.line}`}
           </button>
         ) : null}
       </div>
@@ -76,7 +76,7 @@ function Response({ response, onShowLine }: { response: SentResponse | undefined
 }
 
 /** The API tab for a file that defines routes: every route listed, and the picked one's request ready to send. */
-export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsState; stopped: boolean; onShowLine?: (line: number) => void }) {
+export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsState; stopped: boolean; onShowLine?: (line: number, file?: string) => void }) {
   const { routes, selected, draft } = api
   const bodyId = useId()
   if (!selected) return null

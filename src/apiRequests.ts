@@ -10,7 +10,7 @@ export type RequestDraft = {
 }
 
 export type SentResponse =
-  | { kind: 'response'; path: string; status: number; body: unknown; durationMs: number | null; /** Where a handler crashed, for a 500. */ line?: number }
+  | { kind: 'response'; path: string; status: number; body: unknown; durationMs: number | null; /** Where a handler crashed, for a 500. */ file?: string; line?: number }
   | { kind: 'failed'; message: string }
 
 export function routeKey(route: DiscoveredRoute): string {
@@ -56,7 +56,15 @@ export function responseFromEvents(events: readonly ResultEvent[], durationMs: n
   } catch {
     // Keep the raw text.
   }
-  return { kind: 'response', path: http.path, status: http.status, body, durationMs, ...(http.line ? { line: http.line } : {}) }
+  return {
+    kind: 'response',
+    path: http.path,
+    status: http.status,
+    body,
+    durationMs,
+    ...(http.file ? { file: http.file } : {}),
+    ...(http.line ? { line: http.line } : {}),
+  }
 }
 
 /** One thing a 422 response says is wrong with the request. `field` is the parameter; `name` goes on to the item inside it. */

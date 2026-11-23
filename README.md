@@ -327,6 +327,7 @@ Choose **Projects** in the toolbar to open the local mail-masking example. Its `
 - Drag the divider beside Files or between Code and Results to resize the panels. You can also focus a divider with Tab and move it with the arrow keys. Panel sizes are saved on this device.
 - Use the project name menu to create or switch projects, or return to the scratchpad. Files and open tabs save on this device. The macOS **Save As** command exports the active file.
 - Each run uses a fresh worker and an in-memory filesystem. Python can read project files and create temporary files during a run. Editor changes are what persist between runs.
+- When a project defines FastAPI routes, a **Results · API** tab bar appears over the results pane with prepared requests, 422 refusal highlights, and crash links that jump straight to the crashing module file and line.
 
 ## Outside this MVP
 

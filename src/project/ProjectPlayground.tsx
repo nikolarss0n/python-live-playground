@@ -1,11 +1,13 @@
 import { ResizableWorkspace } from '../components/ResizableWorkspace'
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { createPortal } from 'react-dom'
 import type { EditorView } from '@codemirror/view'
+import { ApiRequests } from '../components/ApiRequests'
 import { CodeEditor } from '../components/CodeEditor'
 import { InputsField } from '../components/InputsField'
 import { ResultsPanel } from '../components/ResultsPanel'
 import { ToolbarIcon } from '../components/Toolbar'
+import { useApiRequests } from '../components/useApiRequests'
 import { useModalFocus } from '../components/useModalFocus'
 import { usePythonExecution } from '../execution/usePythonExecution'
 import { installMacHost, postHostEvent, type HostActions } from '../host/macHost'
@@ -57,12 +59,23 @@ export function ProjectPlayground({ workspace, onExit }: {
   const [reviewOpen, setReviewOpen] = useState(false)
   const [creatingProject, setCreatingProject] = useState(false)
   const [stdin, setStdin] = useState('')
+  const [resultsTab, setResultsTab] = useState<'results' | 'api'>('results')
   const showInputs = useMemo(() => Object.entries(files).some(([path, source]) =>
     path.endsWith('.py') && usesInput(source)), [files])
-  const { snapshot, runNow, stop, isRunning, isBooting } = usePythonExecution(files[entry], {
+  const { snapshot, runNow, stop, invoke, isRunning, isBooting } = usePythonExecution(files[entry], {
     autoRun,
     checkOptions: { project: { entry, files, folders: project.folders }, ...(showInputs ? { stdin } : {}) },
   })
+  const api = useApiRequests(snapshot.routes, snapshot, invoke)
+  const hasRoutes = api.routes.length > 0
+  const activeTab = hasRoutes ? resultsTab : 'results'
+  const onTabKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
+    event.preventDefault()
+    const next = activeTab === 'results' ? 'api' : 'results'
+    setResultsTab(next)
+    document.getElementById(`project-tab-${next}`)?.focus()
+  }
   useEffect(() => {
     if (!isRunning) { setSlowRun(false); return }
     const timer = window.setTimeout(() => setSlowRun(true), 500)
@@ -179,9 +192,48 @@ export function ProjectPlayground({ workspace, onExit }: {
       </section>
     }>
       <div className="pane pane-results">
-        <ResultsPanel events={snapshot.events} status={snapshot.status} durationMs={snapshot.durationMs}
-          placeholder={autoRun ? undefined : 'Choose Run to execute the project.'}
-          projectFiles={snapshot.executedProject?.files} onOpenSource={openSource} alignMode="off" />
+        {hasRoutes ? (
+          <div className="fullstack-tabs" role="tablist" aria-label="Project output views" onKeyDown={onTabKeyDown}>
+            <button
+              id="project-tab-results"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'results'}
+              aria-controls="project-results-panel"
+              tabIndex={activeTab === 'results' ? 0 : -1}
+              className={`fullstack-tab${activeTab === 'results' ? ' is-active' : ''}`}
+              onClick={() => setResultsTab('results')}
+            >
+              Results
+            </button>
+            <button
+              id="project-tab-api"
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'api'}
+              aria-controls="project-api-panel"
+              tabIndex={activeTab === 'api' ? 0 : -1}
+              className={`fullstack-tab${activeTab === 'api' ? ' is-active' : ''}`}
+              onClick={() => setResultsTab('api')}
+            >
+              API<span className="fullstack-tab-count">{api.routes.length}</span>
+            </button>
+          </div>
+        ) : null}
+        {activeTab === 'api' ? (
+          <section id="project-api-panel" className="fullstack-panel" role="tabpanel" aria-labelledby="project-tab-api">
+            <ApiRequests
+              api={api}
+              stopped={snapshot.status === 'timeout' || snapshot.status === 'stopped'}
+              onShowLine={(line, file) => openSource(file ?? entry, line)}
+            />
+          </section>
+        ) : null}
+        <div id="project-results-panel" className="results-tab-body" hidden={activeTab !== 'results'}>
+          <ResultsPanel events={snapshot.events} status={snapshot.status} durationMs={snapshot.durationMs}
+            placeholder={autoRun ? undefined : 'Choose Run to execute the project.'}
+            projectFiles={snapshot.executedProject?.files} onOpenSource={openSource} alignMode="off" />
+        </div>
       </div>
     </ResizableWorkspace>
     <footer className="app-footer">

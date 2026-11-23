@@ -1248,13 +1248,17 @@ def _finish_async(result: Any) -> Any:
         return done.value
 
 
-def _crash_line(exc: BaseException) -> int | None:
-    """The line of the learner's file where a handler's exception was raised, when it was raised there."""
-    line = None
+def _crash_location(
+    exc: BaseException, project_paths: dict[str, str] | None = None
+) -> tuple[str | None, int | None]:
+    """The learner file (for projects) and line where a handler's exception was raised."""
+    file, line = None, None
     for frame in traceback.extract_tb(exc.__traceback__):
         if frame.filename == "<playground>":
-            line = frame.lineno
-    return line
+            file, line = None, frame.lineno
+        elif project_paths and frame.filename in project_paths:
+            file, line = project_paths[frame.filename], frame.lineno
+    return file, line
 
 
 def _http_result(
@@ -1276,6 +1280,7 @@ def dispatch(
     query: dict[str, Any] | None = None,
     body: Any = None,
     headers: dict[str, Any] | None = None,
+    project_paths: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     method = (method or "GET").upper()
     raw_path = path or "/"
@@ -1350,9 +1355,11 @@ def dispatch(
                     500,
                     {"detail": f"{type(exc).__name__}: {exc}"},
                 )
-                line = _crash_line(exc)
+                file, line = _crash_location(exc, project_paths)
                 if line is not None:
                     crashed["line"] = line
+                if file is not None:
+                    crashed["file"] = file
                 return crashed
             finally:
                 scope.close(failed)
@@ -1379,6 +1386,7 @@ def dispatch_last(
     query: dict[str, Any] | None = None,
     body: Any = None,
     headers: dict[str, Any] | None = None,
+    project_paths: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if not _APPS:
         return _http_result(
@@ -1388,7 +1396,13 @@ def dispatch_last(
             {"detail": "No FastAPI app was registered"},
         )
     return dispatch(
-        _APPS[-1], method, path, query=query, body=body, headers=headers
+        _APPS[-1],
+        method,
+        path,
+        query=query,
+        body=body,
+        headers=headers,
+        project_paths=project_paths,
     )
 
 

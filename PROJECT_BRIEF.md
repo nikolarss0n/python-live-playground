@@ -31,7 +31,7 @@ A complete programming beginner learning Python from a guided study book.
 - **Safe worker isolation:** Pyodide runs in a dedicated Web Worker with a strict CSP, field-by-field message validation, untrusted shared-link gating, and worker termination/recreation on Stop and timeout.
 - **Opt-in guided curriculum:** Self-paced Python, ML/LLM, AI services, interview refresher, and algorithm tracks stored locally in the browser, with local error diagnosis and optional user-configured AI hints (never automatic, disabled during mocks/independent stages).
 - **Local multi-file Projects:** Browser-local multi-file editing (`Projects` mode) with real module imports, fresh worker filesystem per run, and resizable panes.
-- **Prepared API requests & frozen FastAPI simulator:** Single-file Playground and full-stack lessons expose `Data · API · View` tabs backed by in-memory SQLite (`playdb`) and a **frozen teaching subset** of FastAPI/Pydantic (`src/execution/fastapi_sim.py`). Prepared requests populate path, query, header, and JSON body inputs from handler signatures, highlight 422 refusals, and link 500 crashes to source lines.
+- **Prepared API requests & frozen FastAPI simulator:** Single-file Playground, full-stack lessons, and multi-file Projects expose an `API` tab backed by a **frozen teaching subset** of FastAPI/Pydantic (`src/execution/fastapi_sim.py`; plus in-memory SQLite `playdb` and `Data · View` tabs in Playground/full-stack lessons). Prepared requests populate path, query, header, and JSON body inputs from handler signatures, highlight 422 refusals, and link 500 crashes to the crashing source file and line.
 - **Offline macOS app (`py.app`):** Native AppKit/`WKWebView` shell bundling the web app and Pyodide offline with native File open/save, frosted window transparency, and zero outbound web access from the editor window.
 
 ## Technical direction & boundaries
@@ -39,7 +39,6 @@ A complete programming beginner learning Python from a guided study book.
 - React + TypeScript + Vite + CodeMirror 6 + Pyodide in a dedicated Web Worker, plus the Swift/AppKit macOS host in `macos/`.
 - **FastAPI simulator freeze:** `src/execution/fastapi_sim.py` is intentionally a bounded teaching subset, not a full FastAPI or Pydantic v2 clone. Unsupported APIs should raise a clear `SimFastAPIError`. `npm run verify:fastapi-parity` acts as a regression guard for the supported subset, not a roadmap to emulate every framework feature.
 - **Out of scope:** Accounts, cloud sync, telemetry, a browser package-manager UI (`pip`/`micropip`), real listening servers (`uvicorn`), bundled cloud LLM keys, or general-purpose IDE clutter.
-- **Open product decision:** Decide later whether multi-file **Projects** (`ProjectPlayground`) should also gain the `API` tab (including multi-file crash-line links) or stay focused on script/module execution.
 
 ## Visual target
 

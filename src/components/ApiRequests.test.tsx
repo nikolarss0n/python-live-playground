@@ -141,6 +141,18 @@ describe('ApiRequests', () => {
       events: [{ kind: 'http', method: 'GET', path: '/items/1', status: 500, body: '{"detail":"ZeroDivisionError: division by zero"}', simulated: true, line: 7 }],
     }))
     await userEvent.click(screen.getByRole('button', { name: 'Crashed on line 7' }))
-    expect(onShowLine).toHaveBeenCalledWith(7)
+    expect(onShowLine).toHaveBeenCalledWith(7, undefined)
+  })
+
+  it('names the module file when a project route crashes', async () => {
+    const onShowLine = vi.fn()
+    render(<Harness invoke={vi.fn(async () => {})} onShowLine={onShowLine} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    act(() => setSnapshot({
+      status: 'success', runId: 'invoke-1', durationMs: 3,
+      events: [{ kind: 'http', method: 'GET', path: '/items/1', status: 500, body: '{"detail":"ZeroDivisionError: division by zero"}', simulated: true, file: 'routes/items.py', line: 9 }],
+    }))
+    await userEvent.click(screen.getByRole('button', { name: 'Crashed in routes/items.py on line 9' }))
+    expect(onShowLine).toHaveBeenCalledWith(9, 'routes/items.py')
   })
 })
