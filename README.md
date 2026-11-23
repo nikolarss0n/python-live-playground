@@ -46,6 +46,9 @@ With the dev server running, verify real Pyodide execution and the desktop flows
 ```bash
 npx playwright install chromium  # first browser-test run only
 npm run verify:browser -- --desktop-only
+npm run verify:projects  # multi-file editing, real imports, reload, and the phone drawer
+npm run verify:api-requests  # a FastAPI file's routes listed in the API tab, prepared, sent, refused and crashed
+npm run verify:fastapi-parity # the simulator against real FastAPI: hundreds of good and bad requests (needs uv)
 npm run verify:service -- --desktop-only
 npm run verify:genai -- --desktop-only
 npm run verify:refresher
@@ -77,12 +80,12 @@ Learner Python can reach JavaScript through Pyodide, so the worker is treated as
 
 ## macOS app
 
-An AppKit app that hosts this web app in a `WKWebView` and runs offline. It needs macOS 27 and Xcode 27 (Swift 6.4). See `docs/macos-app-plan.md`.
+**py** is the offline macOS app. Its folded-y icon is built from `brand/folded-y/py-folded-y.png`. The AppKit shell hosts the editor in a `WKWebView` and needs macOS 27 and Xcode 27 (Swift 6.4). See `docs/macos-app-plan.md`.
 
 ```bash
-npm run build:mac   # web build with Pyodide bundled + Swift shell → build/mac/Python Live Playground.app
-npm run test:mac    # Swift unit tests, then the app's --self-test (open a file, run, stop, save, slider, web blocked)
-open "build/mac/Python Live Playground.app"
+npm run build:mac   # web build with Pyodide bundled + Swift shell → build/mac/py.app
+npm run test:mac    # Swift unit tests, then the app's --self-test (open a file, run, stop, save, slider, web blocked; reports launch, run and stop timings)
+open build/mac/py.app
 open macos/Package.swift   # edit the Swift code in Xcode
 ```
 
@@ -111,6 +114,7 @@ The app opens as a plain Python editor. Each learning section (Learn Python, Int
 - Automatic execution after a short typing pause, plus **Run** and **Stop**
 - Captured `print()` output, top-level expression values, and collections shown as cards: a pill with the Python brackets and a count (`{:} dict · 3 keys`, `( ) tuple · 2 items`), then one framed row per item with its index or key; each kind has its own hue and nested collections open as smaller cards
 - Simulated FastAPI in the worker (`from fastapi import FastAPI` + `TestClient`); responses render as pretty JSON HTTP cards
+  - Covers path, query, header and body parameters, `Depends`, routers, `response_model`, `Field` limits, Starlette path converters (`{file_path:path}`, `{id:int}`) and a `Request` object (`method`, `url`, `headers`, `query_params`, `path_params`, `await request.json()`). Bodies are validated as pydantic does (every bad field in one 422, unknown keys ignored, Enum, Literal, date, union, set, dict and tuple fields). Not covered: middleware, cookies, forms, file uploads, `Body()`, WebSockets. Known differences from the real thing: a crash answers with its reason instead of plain `Internal Server Error`, and a returned `(body, status)` tuple sets the status
 - Quiet type chips (`int`, `str`, `list`, …) and soft goal / task progress
 - Friendly error cards with always-visible “what to fix” + optional full explanation
 - Soft loop timeout + hard Stop that terminates and recreates the worker
@@ -136,6 +140,7 @@ The toolbar menu has five sections, each one lesson list numbered from 1 (`src/c
 - **Algorithm practice** — 25 frequently asked problems in six chapters: arrays & strings, searching & sorting, trees, graphs, dynamic programming, and lists, stacks & recursion (lessons 1–25)
 - **Agent harness interview** — 13 lessons for a live-coding interview on production AI agents: tool registry, argument validation, a bounded agent loop over a scripted fake model, async tools with timeouts, human approval for writes, idempotency keys, retries with backoff, a prompt-injection guard, structured traces, regression evals, then two mock sessions (build, then harden). Function bodies start empty with Idea → What to use → Plan → Shape hints. Code can use top-level `await`, like a notebook
 - **Playground** — a free editor with no goal or checks: plain Python, the `playdb` practice database, FastAPI routes and the Data · API · View tabs are all available (`/?lesson=playground`). **Project data** in the Data tab picks which practice datasets are loaded before every run; the choice is remembered on this device
+- **Prepared API requests** — when a Playground file defines FastAPI routes, the API tab lists them and shows the picked route's request already filled in from the handler's signature: a sample path, query parameters with their defaults, headers (including ones a `Depends` dependency reads) and a JSON body built from the Pydantic model, inside its `Field` limits. **Send** calls the route on the running app, so data survives between sends (POST an item, then GET it) until the code runs again. Required fields are filled with values that suit their names (`email`, `title`, `price`). A refused request (422) marks the fields it names, and a crashed handler (500) links to the line that raised. Sent responses can be charted in View. `samples/bookshop_api.py` is a 21-route file to try it with (File › Open in the Mac app, or paste it into the Playground)
 
 The parts below keep their own checks and UI inside those sections. New visitors begin with the refresher; existing lesson links and saved drafts are preserved. The core path is deterministic and browser-local. The general AI coach is hidden in the refresher. Optional error hints are available during supported learning stages; AI requests are disabled during independent attempts and mocks, including elsewhere in the app while a mock is active.
 
@@ -309,14 +314,27 @@ Also: **Import OpenAPI**, optional API key / LLM in **Settings** (localStorage o
 
 Switch learning track and lesson from the toolbar (grouped by chapter), or step with **Prev** / **Next**. The editor bar has a small **Lesson** pill with the task count; clicking it opens a popup with the goal, a short “why it matters”, and lesson-specific “How” and “Then” instructions (Esc or a click outside closes it). The current step is emphasized, the next step stays quieter, and completed guidance disappears. Each lesson also includes a concrete stretch and starter code with something left to finish. Each saved draft remembers a fingerprint of the starter it began from; when a lesson’s starter later changes, a pill above the editor offers **Use new starter** (your draft is kept as a restorable backup) or **Keep mine**. Drafts saved before fingerprints existed are never flagged. Code auto-runs as you type. Re-runs change only what is new: the last results, goal checks and task count stay on screen until the new run answers, only changed result rows and their source lines update, and “Running…” appears only for runs slower than about half a second; use `⌘/Ctrl+Enter` to run now and `Esc` to stop loops. When one source line prints several times in a row (a loop), Results frames those rows as one group with a loop badge (`line 4 · 3×`) just above the card, numbers each iteration in the gutter and separates iterations with a dashed line. Click a row (or its number) to focus that iteration and dim the rest; click again to show all.
 
+The editor marks each group of four leading spaces with a thin horizontal line and a center tick. A shorter line shows any remaining spaces. Hover over the indentation to see the exact count.
+
+## Multi-file projects
+
+Choose **Projects** in the toolbar to open the local mail-masking example. Its `main.py` reads `data/mails.csv` and imports `mail_tools/mask.py`. Edit either file to see the masked addresses change. The top bar holds your open files and an **Auto-run** switch. Turn it off to run manually with **Run** or ⌘/Ctrl+Enter. The setting is remembered on this device. Execution starts at the project’s entry file.
+
+- Choose **New folder** in the Explorer, type its name inline, and press Enter. Escape cancels. Select a folder to create inside it, or select **Project** to return to the root. Empty folders persist and are available to Python. Right-click a folder (or use Shift+F10) to create a file or subfolder, rename it, or delete it and its contents.
+- Use **New file** (+) in the tree to add a module or text file. A path such as `helpers/format.py` creates its folders. Right-click a file in the tree or use its actions menu to rename, move or delete a file, or choose another Python entry file. On a phone, **Open project files** opens the tree.
+- Choose **Review design patterns…** from the project menu to inspect Python files locally for simple factories, function decorators and adapters. Evidence links open the relevant source line. Repeated conditional dispatch can suggest a Strategy refactor. These syntax checks identify candidates and can miss other implementations.
+- The tree shows output and error counts from the last run. Select a source path in Results to open the file. Closing a pill keeps the file in the project.
+- Drag the divider beside Files or between Code and Results to resize the panels. You can also focus a divider with Tab and move it with the arrow keys. Panel sizes are saved on this device.
+- Use the project name menu to create or switch projects, or return to the scratchpad. Files and open tabs save on this device. The macOS **Save As** command exports the active file.
+- Each run uses a fresh worker and an in-memory filesystem. Python can read project files and create temporary files during a run. Editor changes are what persist between runs.
+
 ## Outside this MVP
 
-- Accounts, cloud save, or multi-file projects
+- Accounts or cloud save
 - Installing third-party packages (`pip` / micropip UI) in the browser app
-- Real uvicorn / listening ports (FastAPI syntax is **simulated** in-process; probe with `TestClient` in the editor)
-- AI chat assistant, telemetry, or collaboration
-- Native desktop app shell
-- Cloud LLM keys / multi-file IDE
+- Real uvicorn / listening ports (FastAPI syntax is a **frozen teaching subset** simulated in-process; probe via the API tab or `TestClient`)
+- Hosted AI chat sidebar, telemetry, or collaboration
+- Bundled cloud LLM keys (optional AI helpers stay local via your own Settings key, local proxy, or on-device Apple model)
 
 Product direction lives in [PROJECT_BRIEF.md](./PROJECT_BRIEF.md).
 

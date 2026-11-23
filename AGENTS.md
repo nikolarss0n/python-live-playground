@@ -2,12 +2,14 @@
 
 Read `PROJECT_BRIEF.md` before planning or changing the application.
 
-This is a focused product prototype, not a general-purpose IDE. Preserve the quiet RunJS-like experience and resist adding panels, accounts, AI features, project management, or backend infrastructure to the MVP.
+This is a focused, calm Python learning environment and scratchpad, not a general-purpose IDE. Preserve the quiet RunJS-like default experience: keep the plain editor uncluttered, keep learning sections opt-in behind Settings switches, and resist adding accounts, cloud backend infrastructure, telemetry, or unnecessary chrome.
 
-Before implementation, inspect the current RunJS live playground in the in-app browser and capture the relevant desktop reference state. Use it to guide layout, density, typography, result placement, and interaction polish. Recreate the experience for Python without copying RunJS branding or proprietary assets.
+Keep RunJS's layout, density, typography, result placement, and interaction polish as the visual bar without copying RunJS branding or proprietary assets.
 
-Prefer a browser-local architecture. Keep Python execution off the main UI thread, define a typed message protocol between the interface and runner, and ensure Stop/timeout reliably replaces the worker. Treat untrusted Python execution as a security boundary even in a local prototype.
+Keep execution browser-local (including inside the offline macOS `WKWebView` shell). Run Python off the main UI thread in a dedicated Web Worker, validate every worker message at the boundary, and ensure Stop/timeout reliably replaces the worker. Treat untrusted Python execution and shared links as a security boundary.
 
-Use accessible semantic controls, visible keyboard focus, sufficient contrast, and reduced-motion support. Verify the result visually at desktop and narrow widths. Add focused tests for the execution behavior and the primary beginner flow.
+Treat `src/execution/fastapi_sim.py` as a **frozen teaching subset**, not a full FastAPI/Pydantic v2 reimplementation. Prefer raising a clear `SimFastAPIError` for unsupported APIs over expanding framework surface area; use `npm run verify:fastapi-parity` as a regression guard for the supported subset.
 
-Keep `README.md` current with setup, run, test, and build commands as soon as the application is scaffolded.
+Use accessible semantic controls, visible keyboard focus, sufficient contrast, and reduced-motion support. Verify UI changes visually at desktop and narrow widths. Add focused tests for execution behavior and primary user flows.
+
+Keep `README.md` current with setup, run, test, and build commands, and commit completed work in clean, logical slices.
