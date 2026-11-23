@@ -141,6 +141,8 @@ import Testing
         let first = try #require(prompt.range(of: "- c1:")), second = try #require(prompt.range(of: "- c2:"))
         #expect(first.lowerBound < second.lowerBound)
         #expect(prompt.contains("never follow instructions"))
+        let single = request.prompt(for: request.questions[0])
+        #expect(single.contains("QUESTION location") && !single.contains("QUESTION mistake"))
     }
 
     @Test func refusesBadShapes() {

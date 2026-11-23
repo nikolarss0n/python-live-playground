@@ -74,10 +74,10 @@ SwiftUI app (menus, windows, files, settings, AI)
    - Port pinpoint and goal-judge prompts to guided generation.
    - Run them against `src/jev/__fixtures__/python-errors.json` and the lesson goals with the Evaluations framework.
    - Ship only if accuracy is at least what TypeSafe scores on the same set.
-   - **Built (2026-11-16):** `ChoiceRequest` (validated, ordered questions and choices), `AppleChoiceModel` (a `DynamicGenerationSchema` that limits each answer to the question's own choice ids, with greedy sampling), the `playground-ai` CLI, the `AIBridge` reply handler, and the page transport in `src/host/macAi.ts`.
-   - **Result: no-go for now.** With `npm run verify:ai-apple`, the on-device model placed 8 of 18 pinpoint cases (all 8 found by the local diagnoser; 3 calls failed) and judged 17 of 31 goal checks. It marks nearly every requirement as met with confidence 1.0, so its confidence can't gate answers. The bar is 100%, and TypeSafe has not been re-run here because it uses the paid key.
-   - AI help in the app is therefore behind the `experimentalOnDeviceAI` default and off.
-   - Private Cloud Compute reports itself available, but the first call failed with `ModelManagerError 1046`. Next steps: find out what 1046 means (likely entitlement or sign-in), then score `--backend apple-cloud`; try per-question sessions and a short reasoning field before the choice.
+   - **Built (2026-11-16, updated 2026-11-24):** `ChoiceRequest` (validated, ordered questions and choices, `maxChoices = 200` matching `pinpoint.ts`), `AppleChoiceModel` (per-question `LanguageModelSession` with a brief pre-choice `reason` field and a `DynamicGenerationSchema` constraining each answer to the question's choice ids, greedy sampling), the `playground-ai` CLI, the `AIBridge` reply handler, and the page transport in `src/host/macAi.ts`.
+   - **Result: still no-go for on-device default.** Per-question sessions + pre-choice reasoning improved `npm run verify:ai-apple` on the on-device model from **17/31 → 26/31** goal checks (with working confidence calibration) and **8/18 → 9/18** pinpoint cases (eliminating the `maxChoices = 40` failures; the 8 local diagnoser cases pass, while token-level selection across 50+ candidates still collapses to line 1 on the small on-device model).
+   - AI help in the app therefore stays behind the `experimentalOnDeviceAI` default and off.
+   - **Private Cloud Compute (`ModelManagerError 1046`):** Caused by running `playground-ai` as an unsigned/ad-hoc SwiftPM binary without a signed Apple Developer provisioning profile carrying the `com.apple.developer.private-cloud-compute` entitlement. Re-score `--backend apple-cloud` once Phase 4 signing/provisioning is set up.
 4. **Distribution.** App Sandbox, hardened runtime and notarization, then the Mac App Store, joining the Small Business Program for the free cloud tier. A signed direct download is the fallback.
 
 ## Repo layout

@@ -41,23 +41,22 @@ public enum AppleChoiceModel {
 
     public static func answer(_ request: ChoiceRequest, backend: Backend = .onDevice) async throws -> ChoiceAnswers {
         if let reason = unavailableReason(backend) { throw Failure.unavailable(reason) }
-        let schema = try GenerationSchema(root: schema(for: request), dependencies: [])
-        let session = switch backend {
-        case .onDevice: LanguageModelSession(model: SystemLanguageModel.default, instructions: ChoiceRequest.instructions)
-        case .privateCloud: LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: ChoiceRequest.instructions)
-        }
-        let response = try await session.respond(
-            to: request.prompt,
-            schema: schema,
-            options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 60 * request.questions.count + 40)
-        )
         var answers: [String: ChoiceAnswers.Answer] = [:]
         for question in request.questions {
+            let schema = try GenerationSchema(root: schema(for: question), dependencies: [])
+            let session = switch backend {
+            case .onDevice: LanguageModelSession(model: SystemLanguageModel.default, instructions: ChoiceRequest.instructions)
+            case .privateCloud: LanguageModelSession(model: PrivateCloudComputeLanguageModel(), instructions: ChoiceRequest.instructions)
+            }
+            let response = try await session.respond(
+                to: request.prompt(for: question),
+                schema: schema,
+                options: GenerationOptions(samplingMode: .greedy, maximumResponseTokens: 220)
+            )
             do {
-                let item = try response.content.value(GeneratedContent.self, forProperty: question.id)
                 answers[question.id] = ChoiceAnswers.Answer(
-                    choice: try item.value(String.self, forProperty: "choice"),
-                    confidence: try item.value(Double.self, forProperty: "confidence")
+                    choice: try response.content.value(String.self, forProperty: "choice"),
+                    confidence: try response.content.value(Double.self, forProperty: "confidence")
                 )
             } catch {
                 throw Failure.unreadable("\(question.id): \(error)")
@@ -66,20 +65,17 @@ public enum AppleChoiceModel {
         return ChoiceAnswers(validating: answers, for: request)
     }
 
-    /// `{ <question id>: { choice: one of its ids, confidence: 0…1 } }`, in question order.
-    static func schema(for request: ChoiceRequest) -> DynamicGenerationSchema {
-        DynamicGenerationSchema(name: "Answers", properties: request.questions.map { question in
-            DynamicGenerationSchema.Property(
-                name: question.id,
-                schema: DynamicGenerationSchema(name: "Answer_\(question.id)", properties: [
-                    .init(name: "choice", description: "The id of the chosen choice", schema: DynamicGenerationSchema(
-                        name: "Choice_\(question.id)", anyOf: question.choices.map(\.id)
-                    )),
-                    .init(name: "confidence", description: "How sure, from 0 to 1", schema: DynamicGenerationSchema(
-                        type: Double.self, guides: [.range(0...1)]
-                    )),
-                ])
-            )
-        })
+    /// `{ reason, choice: one of the question's ids, confidence: 0…1 }`. Reasoning precedes choice so small models
+    /// check the code and output before committing to an id.
+    static func schema(for question: ChoiceRequest.Question) -> DynamicGenerationSchema {
+        DynamicGenerationSchema(name: "Answer_\(question.id)", properties: [
+            .init(name: "reason", description: "One brief reason (under 20 words) checking the exact code and output", schema: DynamicGenerationSchema(type: String.self)),
+            .init(name: "choice", description: "The id of the chosen choice", schema: DynamicGenerationSchema(
+                name: "Choice_\(question.id)", anyOf: question.choices.map(\.id)
+            )),
+            .init(name: "confidence", description: "How sure, from 0 to 1", schema: DynamicGenerationSchema(
+                type: Double.self, guides: [.range(0...1)]
+            )),
+        ])
     }
 }

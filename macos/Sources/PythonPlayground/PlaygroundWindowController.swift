@@ -318,8 +318,8 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
 @MainActor
 final class AIBridge: NSObject, WKScriptMessageHandlerWithReply {
     static let name = "playgroundAI"
-    /// Off until the on-device model meets the bar in `npm run verify:ai-apple` (2026-11-16: 8/18 pinpoint,
-    /// 17/31 goal checks). Turn on for testing with `defaults write dev.local.python-live-playground experimentalOnDeviceAI -bool true`.
+    /// Off until the on-device model meets the bar in `npm run verify:ai-apple` (2026-11-24: 9/18 pinpoint,
+    /// 26/31 goal checks). Turn on for testing with `defaults write dev.local.python-live-playground experimentalOnDeviceAI -bool true`.
     static var enabled: Bool { UserDefaults.standard.bool(forKey: "experimentalOnDeviceAI") }
 
     func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) async -> (Any?, String?) {
