@@ -1,6 +1,7 @@
+import { isProjectPath } from '../project/paths'
 import type { CollectionNode } from './collectionStructure'
 import type { ExerciseCheck } from '../serviceExercise'
-import type { ApiCall, DbCell, DbTable, DiscoveredRoute, ErrorFrame, FullstackPayload, ResultEvent, WorkerOutboundMessage } from './protocol'
+import type { ApiCall, DbCell, DbTable, DiscoveredRoute, ErrorFrame, FullstackPayload, ResultEvent, RouteField, WorkerOutboundMessage } from './protocol'
 
 /**
  * Learner Python shares the worker, so anything it posts back is untrusted.
@@ -15,6 +16,9 @@ const MAX_COLUMNS = 200
 const MAX_ROWS = 500
 const MAX_CALLS = 500
 const MAX_BODY_CHARS = 100_000
+const MAX_ROUTES = 500
+const MAX_ROUTE_FIELDS = 50
+const MAX_FIELD_CHARS = 2_000
 
 /** Shared by every structure in one message, so many events cannot multiply the work. */
 type Budget = { nodes: number }
@@ -25,6 +29,7 @@ type Json = Record<string, unknown>
 const isRecord = (value: unknown): value is Json => typeof value === 'object' && value !== null && !Array.isArray(value)
 const str = (value: unknown): value is string => typeof value === 'string'
 const num = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+const withFile = (value: unknown): { file?: string } => str(value) && isProjectPath(value) ? { file: value } : {}
 const optNum = (value: unknown): number | undefined => (num(value) ? value : undefined)
 
 function withOptional<T extends Json>(base: T, extra: Json): T {
@@ -71,7 +76,7 @@ function readStructure(value: unknown, budget: Budget): { structure?: Collection
 function readFrames(value: unknown): ErrorFrame[] | undefined {
   if (!Array.isArray(value)) return undefined
   return value.filter(isRecord).filter((frame) => num(frame.line) && str(frame.name)).map((frame) =>
-    withOptional({ line: frame.line as number, name: frame.name as string }, {
+    withOptional({ line: frame.line as number, name: frame.name as string, ...withFile(frame.file) }, {
       column: num(frame.column) || frame.column === null ? frame.column : undefined,
       endColumn: num(frame.endColumn) || frame.endColumn === null ? frame.endColumn : undefined,
     }),
@@ -81,37 +86,52 @@ function readFrames(value: unknown): ErrorFrame[] | undefined {
 export function readResultEvent(value: unknown, budget: Budget = newBudget()): ResultEvent | null {
   if (!isRecord(value)) return null
   const line = optNum(value.line)
+  const file = withFile(value.file)
   switch (value.kind) {
     case 'print':
-      return str(value.text) ? withOptional({ kind: 'print' as const, text: value.text, ...readStructure(value.structure, budget) }, { line }) : null
+      return str(value.text) ? withOptional({ kind: 'print' as const, text: value.text, ...readStructure(value.structure, budget) }, { line, ...file }) : null
     case 'expr':
       if (!str(value.value)) return null
       // Results sit beside a source line, so one without a line is shown as plain output rather than lost.
       return line === undefined
-        ? { kind: 'print', text: value.value, ...readStructure(value.structure, budget) }
-        : { kind: 'expr', value: value.value, line, ...readStructure(value.structure, budget) }
+        ? { kind: 'print', text: value.value, ...file, ...readStructure(value.structure, budget) }
+        : { kind: 'expr', value: value.value, line, ...file, ...readStructure(value.structure, budget) }
     case 'warning':
-      return str(value.text) ? withOptional({ kind: 'warning' as const, text: value.text }, { line }) : null
+      return str(value.text) ? withOptional({ kind: 'warning' as const, text: value.text }, { line, ...file }) : null
     case 'error':
       // The explanation is rebuilt on the main thread from the message, so a forged one is never shown.
       return str(value.message) && str(value.friendly) && str(value.traceback)
         ? withOptional({ kind: 'error' as const, message: value.message, friendly: value.friendly, traceback: value.traceback }, {
-          line, column: optNum(value.column), endColumn: optNum(value.endColumn), frames: readFrames(value.frames),
+          line, ...file, column: optNum(value.column), endColumn: optNum(value.endColumn), frames: readFrames(value.frames),
         })
         : null
     case 'http':
       return str(value.method) && str(value.path) && num(value.status) && str(value.body) && typeof value.simulated === 'boolean'
-        ? withOptional({ kind: 'http' as const, method: value.method, path: value.path, status: value.status, body: value.body, simulated: value.simulated }, { line })
+        ? withOptional({ kind: 'http' as const, method: value.method, path: value.path, status: value.status, body: value.body, simulated: value.simulated }, { line, ...file })
         : null
     default:
       return null
   }
 }
 
+function readRouteFields(value: unknown): RouteField[] | undefined {
+  if (!Array.isArray(value)) return undefined
+  const fields = value.slice(0, MAX_ROUTE_FIELDS).filter(isRecord)
+    .filter((field) => str(field.name) && field.name.length <= MAX_FIELD_CHARS && str(field.value) && field.value.length <= MAX_FIELD_CHARS)
+    .map((field) => ({ name: field.name as string, value: field.value as string, required: field.required === true }))
+  return fields.length ? fields : undefined
+}
+
 function readRoutes(value: unknown): DiscoveredRoute[] | undefined {
   if (!Array.isArray(value)) return undefined
-  return value.filter(isRecord).filter((route) => str(route.method) && str(route.path)).map((route) =>
-    withOptional({ method: route.method as string, path: route.path as string }, { callPath: str(route.callPath) ? route.callPath : undefined }),
+  return value.slice(0, MAX_ROUTES).filter(isRecord).filter((route) => str(route.method) && str(route.path)).map((route) =>
+    withOptional({ method: route.method as string, path: route.path as string }, {
+      callPath: str(route.callPath) ? route.callPath : undefined,
+      name: str(route.name) && route.name.length <= MAX_FIELD_CHARS ? route.name : undefined,
+      query: readRouteFields(route.query),
+      headers: readRouteFields(route.headers),
+      body: str(route.body) && route.body.length <= MAX_BODY_CHARS ? route.body : undefined,
+    }),
   )
 }
 

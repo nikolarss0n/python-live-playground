@@ -180,6 +180,22 @@ describe('PythonRunner', () => {
     runner.dispose()
   })
 
+  it('isolates project files and import caches across project runs and ordinary runs', async () => {
+    const runner = new PythonRunner()
+    await runner.start()
+    await runner.run('print(1)')
+    const project = { entry: 'main.py', files: { 'main.py': 'import helper', 'helper.py': 'print(1)' } }
+    await runner.run(project.files['main.py'], undefined, { project })
+    expect(runner.getSnapshot().executedProject).toEqual(project)
+    const changed = { ...project, files: { ...project.files, 'helper.py': 'print(2)' } }
+    await runner.run(changed.files['main.py'], undefined, { project: changed })
+    expect(runner.getSnapshot().executedProject).toEqual(changed)
+    await runner.run('print(3)')
+    expect(runner.getSnapshot().executedProject).toBeUndefined()
+    expect(MockWorker.instances.map((worker) => worker.terminated)).toEqual([true, true, true, false])
+    runner.dispose()
+  })
+
   it('ignores malformed results instead of passing them to the page', async () => {
     const runner = new PythonRunner(1000)
     await runner.start()

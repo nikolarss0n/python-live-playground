@@ -17,6 +17,21 @@ describe('worker message validation', () => {
     expect(readWorkerMessage(message)).toEqual(message)
   })
 
+  it('keeps a route\'s prepared request and drops forged parts of it', () => {
+    const prepared = {
+      method: 'POST', path: '/items', callPath: '/items',
+      query: [{ name: 'limit', value: '10', required: false }],
+      headers: [{ name: 'x-token', value: 'string', required: true }],
+      body: '{\n  "name": "string"\n}',
+    }
+    const forged = { method: 'GET', path: '/x', query: [{ name: 1, value: 'a' }, { name: 'ok', value: 'b', required: 'yes' }, 'text'], headers: 'x', body: { a: 1 } }
+    const result = readWorkerMessage({ type: 'result', id: 'run-1', durationMs: 1, events: [], routes: [prepared, forged] })
+    expect(result).toMatchObject({ routes: [prepared, { method: 'GET', path: '/x', query: [{ name: 'ok', value: 'b', required: false }] }] })
+    const second = (result as { routes: Record<string, unknown>[] }).routes[1]
+    expect(second).not.toHaveProperty('headers')
+    expect(second).not.toHaveProperty('body')
+  })
+
   it('drops events Python could forge to crash the page', () => {
     const result = readWorkerMessage({
       type: 'result', id: 'run-1', durationMs: 1,

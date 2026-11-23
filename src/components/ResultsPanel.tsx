@@ -1,9 +1,9 @@
-import { type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, type MouseEvent, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { EditorView } from '@codemirror/view'
 import type { ExecutionStatus, ResultEvent } from '../execution/protocol'
 import { cleanErrorDetail, explainError } from '../execution/errorExplain'
 import { loopSlots, type LoopSlot } from './loopSlots'
-import { branchesOf, type Branch } from './branchOf'
+import { sourceBlocks, type SourceBlocks, type Branch } from './branchOf'
 import { isCollectionRoot } from '../execution/collectionStructure'
 import { inferTypeLabel } from '../valueType'
 import {
@@ -27,6 +27,8 @@ type ResultsPanelProps = {
   events: ResultEvent[]
   /** The code that produced `events`; lets each row show the if/elif/else branch it came from. */
   sourceCode?: string | null
+  projectFiles?: Readonly<Record<string, string>>
+  onOpenSource?: (path: string, line: number | null) => void
   status: ExecutionStatus
   durationMs: number | null
   activeIndex?: number | null
@@ -80,7 +82,7 @@ function eventContent(event: ResultEvent): string {
 function stableRowKeys(events: readonly ResultEvent[]): string[] {
   const seen = new Map<string, number>()
   return events.map((event) => {
-    const base = `${event.kind}|${eventContent(event)}`
+    const base = `${event.file ?? ''}|${event.kind}|${eventContent(event)}`
     const count = seen.get(base) ?? 0
     seen.set(base, count + 1)
     return `${base}|${count}`
@@ -467,6 +469,8 @@ function LoopIcon() {
 export function ResultsPanel({
   events,
   sourceCode,
+  projectFiles,
+  onOpenSource,
   status,
   durationMs,
   activeIndex = null,
@@ -623,8 +627,34 @@ export function ResultsPanel({
 
   const hasPrevious = (previousEvents?.length ?? 0) > 0
   const rowKeys = useMemo(() => stableRowKeys(events), [events])
-  const loops = useMemo(() => loopSlots(events, sourceCode), [events, sourceCode])
-  const branches = useMemo(() => branchesOf(sourceCode ?? ''), [sourceCode])
+  const source = useMemo(() => sourceBlocks(sourceCode ?? ''), [sourceCode])
+  const fileBlocks = useMemo(() => {
+    const blocks = new Map<string, SourceBlocks>()
+    for (const { file } of events) {
+      if (file && projectFiles && Object.hasOwn(projectFiles, file) && !blocks.has(file)) {
+        blocks.set(file, sourceBlocks(projectFiles[file]))
+      }
+    }
+    return blocks
+  }, [events, projectFiles])
+  const loops = useMemo(() => {
+    if (!projectFiles) return loopSlots(events, source)
+    const slots: (LoopSlot | null)[] = []
+    for (let start = 0; start < events.length;) {
+      const path = events[start].file
+      let end = start + 1
+      while (end < events.length && events[end].file === path) end++
+      const rows = events.slice(start, end)
+      const blocks = path ? fileBlocks.get(path) : undefined
+      const group = loopSlots(rows, blocks)
+      // Repeated calls from another file can print the same line without a loop here.
+      group.forEach((slot, index) => {
+        slots.push(slot && blocks?.loops.has(rows[index].line ?? 0) ? { ...slot, group: start + slot.group } : null)
+      })
+      start = end
+    }
+    return slots
+  }, [events, source, fileBlocks, projectFiles])
 
   return (
     <section className="results-panel" aria-label="Results" aria-live="polite">
@@ -698,23 +728,32 @@ export function ResultsPanel({
             />
           ))}
 
-        {events.map((event, index) => (
-          <EventRow
-            key={rowKeys[index]}
-            event={event}
-            index={index}
-            active={activeIndex === index}
-            onHover={onHoverResult}
-            onLayout={onGeometryChange}
-            dimmed={focusIndex != null && !sameRound(loops[focusIndex], loops[index], focusIndex, index)}
-            updated={updatedIndices?.has(index)}
-            errorHelp={errorHelp}
-            loop={loops[index]}
-            focused={focusIndex != null && sameRound(loops[focusIndex], loops[index], focusIndex, index)}
-            onToggleFocus={loops[index] ? () => setFocusIndex((current) => (current === index ? null : index)) : undefined}
-            branch={event.line != null ? branches.get(event.line) : undefined}
-          />
-        ))}
+        {events.map((event, index) => {
+          const path = event.file
+          const sourceBranches = path ? fileBlocks.get(path)?.branches : source.branches
+          return (
+            <Fragment key={rowKeys[index]}>
+              {path && onOpenSource && path !== events[index - 1]?.file && (
+                <button type="button" className="project-result-origin"
+                  title={`Open ${path}`} onClick={() => onOpenSource(path, event.line ?? null)}>{path}</button>
+              )}
+              <EventRow
+                event={event}
+                index={index}
+                active={activeIndex === index}
+                onHover={onHoverResult}
+                onLayout={onGeometryChange}
+                dimmed={focusIndex != null && !sameRound(loops[focusIndex], loops[index], focusIndex, index)}
+                updated={updatedIndices?.has(index)}
+                errorHelp={errorHelp}
+                loop={loops[index]}
+                focused={focusIndex != null && sameRound(loops[focusIndex], loops[index], focusIndex, index)}
+                onToggleFocus={loops[index] ? () => setFocusIndex((current) => (current === index ? null : index)) : undefined}
+                branch={event.line != null ? sourceBranches?.get(event.line) : undefined}
+              />
+            </Fragment>
+          )
+        })}
 
         {coachMessages.map((msg) => (
           <div

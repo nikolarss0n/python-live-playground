@@ -12,8 +12,10 @@ import time
 import traceback
 import warnings
 
+_plp_project_paths = {}
 _plp_events = []
 _plp_print_line = None
+_plp_print_file = None
 _plp_pending_structure = None
 _plp_real_print = builtins.print
 
@@ -50,16 +52,20 @@ def _plp_reset_output():
     _plp_print_count = 0
     _plp_dropped_lines = 0
 
-def _plp_emit_print(text, extra=0):
+def _plp_file_field(filename):
+    path = _plp_project_paths.get(filename)
+    return {"file": path} if path is not None else {}
+
+def _plp_emit_print(text, extra=0, filename=None, line=None):
     global _plp_print_count, _plp_dropped_lines, _plp_pending_structure
     if _plp_print_count >= _PLP_MAX_PRINT_LINES:
         _plp_dropped_lines += 1
         _plp_pending_structure = None
         return
     _plp_print_count += 1
-    event = {"kind": "print", "text": _plp_clip(text, extra)}
-    if _plp_print_line is not None:
-        event["line"] = int(_plp_print_line)
+    event = {"kind": "print", "text": _plp_clip(text, extra), **_plp_file_field(filename)}
+    if line is not None:
+        event["line"] = int(line)
     _plp_attach_structure(event)
     _plp_events.append(event)
 
@@ -160,7 +166,8 @@ def __plp_show__(value, line):
         rep = repr(value)
     except Exception as exc:
         rep = f"<unprintable: {type(exc).__name__}>"
-    event = {"kind": "expr", "value": _plp_clip(rep), "line": int(line)}
+    event = {"kind": "expr", "value": _plp_clip(rep), "line": int(line),
+             **_plp_file_field(sys._getframe(1).f_code.co_filename)}
     if _plp_is_collection(value):
         try:
             event["structure"] = _plp_structure(value)
@@ -219,38 +226,50 @@ class _PlpStdout:
     def __init__(self):
         self._buf = ""
         self._extra = 0
+        self._source = (None, None)
     def _emit(self):
         text, extra = self._buf, self._extra
         self._buf = ""
         self._extra = 0
-        _plp_emit_print(text, extra)
+        _plp_emit_print(text, extra, *self._source)
     def write(self, s):
         if not s:
             return 0
+        source = (_plp_print_file, _plp_print_line)
+        if _plp_project_paths and _plp_print_file not in _plp_project_paths:
+            frame = sys._getframe(1)
+            while frame and frame.f_code.co_filename not in _plp_project_paths:
+                frame = frame.f_back
+            if frame:
+                source = (frame.f_code.co_filename, frame.f_lineno)
+        if not self._buf:
+            self._source = source
         for index, part in enumerate(s.split("\\n")):
             if index > 0:
                 self._emit()
+                self._source = source
             room = _PLP_MAX_LINE_CHARS - len(self._buf)
             if room > 0:
                 self._buf += part[:room]
             self._extra += max(0, len(part) - max(room, 0))
         return len(s)
     def flush(self):
-        global _plp_print_line
+        global _plp_print_line, _plp_print_file
         if self._buf or self._extra:
             self._emit()
-        _plp_print_line = None
+        _plp_print_line = _plp_print_file = None
     def isatty(self):
         return False
 
 def _plp_print(*args, **kwargs):
     """Track the source line of print() so results can be linked back."""
-    global _plp_print_line, _plp_pending_structure
+    global _plp_print_line, _plp_print_file, _plp_pending_structure
     frame = sys._getframe(1)
-    if frame.f_code.co_filename == "<playground>":
+    _plp_print_file = frame.f_code.co_filename
+    if _plp_print_file == "<playground>" or _plp_print_file in _plp_project_paths:
         _plp_print_line = frame.f_lineno
     else:
-        _plp_print_line = None
+        _plp_print_line = _plp_print_file = None
     # Single collection arg → expandable tree beside the printed repr.
     file = kwargs.get("file", sys.stdout)
     if (
@@ -269,7 +288,7 @@ def _plp_print(*args, **kwargs):
     finally:
         out = sys.stdout
         if not (isinstance(out, _PlpStdout) and out._buf):
-            _plp_print_line = None
+            _plp_print_line = _plp_print_file = None
             _plp_pending_structure = None
 
 class _PlpStdin:
@@ -306,7 +325,7 @@ _plp_stdin = _PlpStdin("")
 
 def _plp_input(prompt=""):
     """input() reads the next line of the Inputs box and echoes it like a terminal."""
-    global _plp_print_line
+    global _plp_print_line, _plp_print_file
     if _plp_stdin.remaining() <= 0:
         have = len(_plp_stdin._lines)
         if have == 0:
@@ -314,15 +333,15 @@ def _plp_input(prompt=""):
         raise EOFError(f"input() asked for value {have + 1}, but the Inputs box has only {have} line{'' if have == 1 else 's'}")
     value = _plp_stdin.readline()[:-1]
     frame = sys._getframe(1)
-    line = frame.f_lineno if frame.f_code.co_filename == "<playground>" else None
-    _plp_print_line = line
+    _plp_print_file = frame.f_code.co_filename
+    _plp_print_line = frame.f_lineno if _plp_print_file == "<playground>" or _plp_print_file in _plp_project_paths else None
     sys.stdout.write(f"{prompt}{value}\\n")
-    _plp_print_line = None
+    _plp_print_line = _plp_print_file = None
     return value
 
 def _plp_showwarning(message, category, filename, lineno, file=None, line=None):
     text = warnings.formatwarning(message, category, filename, lineno, line)
-    _plp_events.append({"kind": "warning", "text": text.rstrip(), "line": lineno})
+    _plp_events.append({"kind": "warning", "text": text.rstrip(), "line": lineno, **_plp_file_field(filename)})
 
 def _plp_friendly(exc):
     name = type(exc).__name__
@@ -347,12 +366,15 @@ def _plp_friendly(exc):
     tip = tips.get(name, "Something went wrong while running this code.")
     return f"{name}: {msg}\\n\\n{tip}"
 
-def _plp_transform(source: str) -> str:
+def _plp_transform(source: str, filename="<playground>"):
     """Capture top-level expression values and insert loop time checks."""
-    tree = ast.parse(source)
+    tree = ast.parse(source, filename)
     new_body = []
-    for stmt in tree.body:
-        if isinstance(stmt, ast.Expr):
+    for index, stmt in enumerate(tree.body):
+        # Keep a project module's docstring in place, including before future imports.
+        docstring = (filename != "<playground>" and index == 0 and isinstance(stmt, ast.Expr)
+                     and isinstance(stmt.value, ast.Constant) and isinstance(stmt.value.value, str))
+        if isinstance(stmt, ast.Expr) and not docstring:
             call = ast.Expr(
                 value=ast.Call(
                     func=ast.Name(id="__plp_show__", ctx=ast.Load()),
@@ -367,7 +389,7 @@ def _plp_transform(source: str) -> str:
     tree = _PlpLimitLoops().visit(tree)
     ast.fix_missing_locations(tree)
     # Top-level await works like a notebook: the async runner awaits the module's coroutine.
-    return compile(tree, "<playground>", "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
+    return compile(tree, filename, "exec", flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT)
 
 def _plp_sim_routes():
     try:
@@ -394,11 +416,11 @@ def _plp_run(source: str, exercise_id=None, include_namespace=False):
     coro.close()
     raise RuntimeError("top-level await needs the async runner")
 
-async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, stdin=None):
-    global _plp_stdin, _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
+async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, stdin=None, filename="<playground>"):
+    global _plp_stdin, _plp_events, _plp_print_line, _plp_print_file, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
     _plp_reset_output()
-    _plp_print_line = None
+    _plp_print_line = _plp_print_file = None
     _plp_pending_structure = None
     _plp_ticks = 0
     _plp_deadline = time.time() + _PLP_SOFT_LIMIT_S
@@ -414,9 +436,10 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
     builtins.input = _plp_input
     old_show = warnings.showwarning
     warnings.showwarning = _plp_showwarning
-    _plp_sim_install()
+    if not _plp_project_paths:
+        _plp_sim_install()
     try:
-        code_obj = _plp_transform(source)
+        code_obj = _plp_transform(source, filename)
         globals_dict = {
             "__name__": "__main__",
             "__plp_show__": __plp_show__,
@@ -424,6 +447,11 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
             "print": _plp_print,
             "input": _plp_input,
         }
+        if filename in _plp_project_paths:
+            module = sys.modules["__main__"]
+            module.__dict__.update(globals_dict)
+            globals_dict = module.__dict__
+            globals_dict["__file__"] = filename
         pending = eval(code_obj, globals_dict)
         if pending is not None:
             await pending
@@ -445,22 +473,25 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
         column = None
         end_column = None
         frames = []
+        file_field = {}
         if isinstance(exc, SyntaxError) and exc.lineno is not None:
             line = exc.lineno
+            file_field = _plp_file_field(exc.filename)
             if exc.offset:
                 column = exc.offset - 1
                 if exc.end_offset and (exc.end_lineno in (None, exc.lineno)) and exc.end_offset > exc.offset:
                     end_column = exc.end_offset - 1
         else:
             for frame in traceback.extract_tb(exc.__traceback__):
-                if frame.filename == "<playground>":
+                if frame.filename == "<playground>" or frame.filename in _plp_project_paths:
+                    file_field = _plp_file_field(frame.filename)
                     line = frame.lineno
                     column = getattr(frame, "colno", None)
                     end_column = getattr(frame, "end_colno", None)
                     if getattr(frame, "end_lineno", frame.lineno) != frame.lineno:
                         end_column = None
                     frames.append({"line": frame.lineno, "name": frame.name,
-                                   "column": column, "endColumn": end_column})
+                                   "column": column, "endColumn": end_column, **file_field})
         _plp_limit_notice()
         events = list(_plp_events)
         error_event = {
@@ -470,6 +501,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
             "traceback": tb,
             "line": line,
             "frames": frames[-12:],
+            **file_field,
         }
         if column is not None:
             error_event["column"] = column
@@ -483,7 +515,7 @@ async def _plp_run_core(source: str, exercise_id=None, include_namespace=False, 
         builtins.print = old_print
         sys.stdin, builtins.input = old_stdin, old_input
         warnings.showwarning = old_show
-        _plp_print_line = None
+        _plp_print_line = _plp_print_file = None
         _plp_pending_structure = None
 
 def _plp_fullstack_after(request):
@@ -504,7 +536,44 @@ def _plp_fullstack_after(request):
             calls.append({"method": method.upper(), "path": path, "status": 500, "body": {"detail": f"{type(exc).__name__}: {exc}"}})
     return {"tables": playdb.snapshot(), "calls": calls}
 
-async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None, stdin=None):
+async def _plp_run_project(project, stdin=None):
+    import asyncio
+    import os
+    import tempfile
+    import types
+    global _plp_project_paths
+    # PythonRunner gives every project run a fresh worker and virtual filesystem.
+    # No imported modules, user-created files, symlinks or bytecode survive a rerun.
+    with tempfile.TemporaryDirectory() as root:
+        files = project["files"]
+        entry = project["entry"]
+        for folder in project.get("folders", []):
+            os.makedirs(os.path.join(root, folder), exist_ok=True)
+        for path, text in files.items():
+            filename = os.path.join(root, path)
+            os.makedirs(os.path.dirname(filename), exist_ok=True)
+            with open(filename, "w", encoding="utf-8") as handle:
+                handle.write(text)
+        old_cwd, old_path, old_argv = os.getcwd(), sys.path[:], sys.argv
+        old_main = sys.modules["__main__"]
+        filename = os.path.join(root, entry)
+        _plp_project_paths = {os.path.join(root, path): path for path in files}
+        # Load the bundled shim before project modules are on the search path.
+        _plp_sim_install()
+        try:
+            os.chdir(root)
+            sys.path[:0] = [os.path.dirname(filename), root]
+            sys.argv = [filename]
+            sys.modules["__main__"] = types.ModuleType("__main__")
+            return await _plp_run_async(files[entry], stdin=stdin, filename=filename)
+        finally:
+            os.chdir(old_cwd)
+            sys.path[:] = old_path
+            sys.argv = old_argv
+            sys.modules["__main__"] = old_main
+            _plp_project_paths = {}
+
+async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None, stdin=None, filename="<playground>"):
     import asyncio
     prior_tasks = asyncio.all_tasks()
     old_out, old_err, old_print = sys.stdout, sys.stderr, builtins.print
@@ -518,7 +587,7 @@ async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None,
         genai = isinstance(exercise_id, str) and exercise_id.startswith("genai-")
         refresher = isinstance(exercise_id, str) and exercise_id.startswith("refresher-")
         checked = genai or refresher
-        result = await _plp_run_core(source, None if checked else exercise_id, include_namespace=checked, stdin=stdin)
+        result = await _plp_run_core(source, None if checked else exercise_id, include_namespace=checked, stdin=stdin, filename=filename)
         if fullstack is not None:
             result["fullstack"] = _plp_fullstack_after(fullstack)
         namespace = result.pop("namespace", None)
@@ -556,10 +625,10 @@ async def _plp_run_async(source, exercise_id=None, context=None, fullstack=None,
 def _plp_invoke(req):
     """Call one registered simulated-FastAPI route without re-running the editor."""
     import json as _json
-    global _plp_events, _plp_print_line, _plp_pending_structure, _plp_deadline, _plp_ticks
+    global _plp_events, _plp_print_line, _plp_print_file, _plp_pending_structure, _plp_deadline, _plp_ticks
     _plp_events = []
     _plp_reset_output()
-    _plp_print_line = None
+    _plp_print_line = _plp_print_file = None
     _plp_pending_structure = None
     _plp_ticks = 0
     _plp_deadline = time.time() + _PLP_SOFT_LIMIT_S
@@ -594,8 +663,14 @@ def _plp_invoke(req):
             "status": int(result.get("status") or 500),
             "body": _json.dumps(result.get("body"), default=str),
             "simulated": True,
+            # Where a handler crashed, for the API tab's link to that line.
+            **({"line": result["line"]} if isinstance(result.get("line"), int) else {}),
         })
-        return {"ok": True, "events": events, "routes": fastapi_sim.list_routes()}
+        invoked = {"ok": True, "events": events, "routes": fastapi_sim.list_routes()}
+        if "playdb" in sys.modules:
+            # The Data tab shows the tables as this request left them.
+            invoked["fullstack"] = {"tables": sys.modules["playdb"].snapshot(), "calls": []}
+        return invoked
     except Exception as exc:
         out.flush()
         tb = traceback.format_exc()
@@ -613,7 +688,7 @@ def _plp_invoke(req):
         sys.stderr = old_err
         builtins.print = old_print
         warnings.showwarning = old_show
-        _plp_print_line = None
+        _plp_print_line = _plp_print_file = None
         _plp_pending_structure = None
 `
 

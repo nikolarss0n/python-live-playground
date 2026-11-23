@@ -23,15 +23,17 @@ export type DbTable = { name: string; columns: { name: string; type: string }[];
 export type ApiCall = { method: string; path: string; status: number; body: unknown }
 export type FullstackPayload = { tables: DbTable[]; calls: ApiCall[] }
 
+export type ProjectRun = { entry: string; folders?: readonly string[]; files: Readonly<Record<string, string>> }
+
 /** stdin: the Inputs box text; input() reads one line of it per call. */
-export type RunCheckOptions = { context?: RefresherContext; contextKey?: string; fullstack?: FullstackRequest; stdin?: string }
+export type RunCheckOptions = { context?: RefresherContext; contextKey?: string; fullstack?: FullstackRequest; stdin?: string; project?: ProjectRun }
 
 export type { ErrorExplanation }
 export type { CollectionNode }
 
-export type ErrorFrame = { line: number; name: string; column?: number | null; endColumn?: number | null }
+export type ErrorFrame = { file?: string; line: number; name: string; column?: number | null; endColumn?: number | null }
 
-export type ResultEvent =
+export type ResultEvent = { file?: string } & (
   | {
       kind: 'print'
       text: string
@@ -73,11 +75,26 @@ export type ResultEvent =
       simulated: boolean
       line?: number
     }
+)
+
+/** One query parameter or header a route reads, with the value the request starts with. */
+export type RouteField = {
+  name: string
+  value: string
+  required: boolean
+}
 
 export type DiscoveredRoute = {
   method: string
   path: string
   callPath?: string
+  /** The handler function's name. */
+  name?: string
+  /** Prepared from the handler's signature: defaults kept, required values sampled. */
+  query?: RouteField[]
+  headers?: RouteField[]
+  /** A JSON body built from the handler's model. */
+  body?: string
 }
 
 export type InvokeRequest = {

@@ -17,11 +17,13 @@ export type HostEvent =
   | { type: 'ready'; version: number }
   | { type: 'theme'; theme: 'light' | 'dark' }
 
-export type HostReply = { ok: true; code?: string } | { ok: false; error: string }
+type ProjectDocument = { name: string; saved: boolean }
+export type HostReply = { ok: true; code?: string; projectDocument?: ProjectDocument } | { ok: false; error: string }
 
 export type HostActions = {
   run: () => void
   stop: () => void
+  projectDocument?: () => ProjectDocument
   getCode: () => string
   openFile: (name: string, code: string) => void
 }
@@ -80,7 +82,10 @@ export function handleHostCommand(value: unknown, actions: HostActions): HostRep
   switch (command.type) {
     case 'run': actions.run(); return { ok: true }
     case 'stop': actions.stop(); return { ok: true }
-    case 'getCode': return { ok: true, code: actions.getCode() }
+    case 'getCode': return {
+      ok: true, code: actions.getCode(),
+      ...(actions.projectDocument && { projectDocument: actions.projectDocument() }),
+    }
     case 'openFile': actions.openFile(command.name, command.code); return { ok: true }
     case 'setGlass': applyGlassTint(command.tint); return { ok: true }
   }

@@ -8,6 +8,7 @@ import type {
   WorkerInboundMessage,
   WorkerOutboundMessage,
   RunCheckOptions,
+  ProjectRun,
 } from './protocol'
 import { DEFAULT_TIMEOUT_MS } from './protocol'
 import type { ExerciseCheck, ExerciseId } from '../serviceExercise'
@@ -45,10 +46,12 @@ function makeErrorEvent(
 
 function enrichEvents(
   events: ResultEvent[],
-  sourceCode: string,
+  entryCode: string,
+  project?: ProjectRun,
 ): ResultEvent[] {
   return events.map((e) => {
     if (e.kind !== 'error') return e
+    const sourceCode = project && e.file && Object.hasOwn(project.files, e.file) ? project.files[e.file] : entryCode
     const sourceLine = lineFromSource(sourceCode, e.line)
     const start = Math.max(0, (e.line ?? 1) - 1)
     const sourceSnippet = sourceCode.split(/\r?\n/).slice(start, start + 5).join('\n')
@@ -64,6 +67,7 @@ export type RunnerSnapshot = {
   error: string | null
   /** Source that produced the current events (for goal checks). */
   executedCode: string | null
+  executedProject?: ProjectRun
   /** Simulated FastAPI routes registered by the last editor run. */
   routes: DiscoveredRoute[]
   exerciseId?: ExerciseId
@@ -102,6 +106,8 @@ export class PythonRunner {
   private timeoutMs: number
   /** Last submitted source — used to teach from the failing line text. */
   private lastCode = ''
+  private lastProject: ProjectRun | undefined
+  private workerSource: 'project' | 'single' | null = null
   /** Events from the last editor run (prints/errors), excluding Call results. */
   private lastRunEvents: ResultEvent[] = []
   /** Packages loaded into the current worker, and the pending load requests by id. */
@@ -147,7 +153,7 @@ export class PythonRunner {
     const trimmed = code
     const seq = ++this.requestSeq
     this.pendingSeq = null
-    if (!trimmed.trim()) {
+    if (!trimmed.trim() && !options.project) {
       const wasRunning = this.activeId !== null || this.snapshot.status === 'running'
       this.clearTimeout()
       this.activeId = null
@@ -176,7 +182,9 @@ export class PythonRunner {
       this.clearTimeout()
       this.activeId = null
       this.spawnWorker()
-    } else if (!this.worker || this.initFailed || (this.tainted && !untrusted)) {
+    } else if (!this.worker || this.initFailed || (this.tainted && !untrusted)
+      || this.workerSource === 'project' || (options.project && this.workerSource !== null)) {
+      // Each project starts with a pristine filesystem and import cache, including after another project.
       this.spawnWorker()
     }
     // A worker that is still booting is reused rather than restarted.
@@ -203,12 +211,15 @@ export class PythonRunner {
     this.activeExerciseId = exerciseId
     this.activeContextKey = options.contextKey
     this.lastCode = trimmed
+    this.lastProject = options.project
+    this.workerSource = options.project ? 'project' : 'single'
     this.clearTimeout()
     this.lastRunEvents = []
     // Keep the last results on screen until this run answers, so a re-run only changes what is new.
     this.setSnapshot({
       status: 'running',
       events: this.snapshot.events,
+      executedProject: this.snapshot.executedProject,
       durationMs: this.snapshot.durationMs,
       runId: id,
       error: null,
@@ -296,6 +307,7 @@ export class PythonRunner {
       runId: wasRunning ? stoppedId : null,
       error: null,
       executedCode: wasRunning ? this.lastCode : this.snapshot.executedCode,
+      executedProject: wasRunning ? this.lastProject : this.snapshot.executedProject,
       routes: wasRunning ? [] : this.snapshot.routes,
       exerciseId: wasRunning ? exerciseId : undefined,
       contextKey: wasRunning ? contextKey : undefined,
@@ -319,6 +331,7 @@ export class PythonRunner {
     this.terminateWorker()
     this.ready = false
     this.tainted = false
+    this.workerSource = null
     this.initFailed = false
     this.setSnapshot({
       ...this.snapshot,
@@ -356,6 +369,7 @@ export class PythonRunner {
           runId: null,
           error: message,
           executedCode: this.lastCode || null,
+          executedProject: this.lastProject,
           routes: [],
         })
       }
@@ -420,12 +434,12 @@ export class PythonRunner {
     if (msg.type === 'result') {
       if (msg.id !== this.activeId) return
       const exerciseId = this.activeExerciseId
-    const contextKey = this.activeContextKey
+      const contextKey = this.activeContextKey
       this.clearTimeout()
       this.activeId = null
       this.activeExerciseId = undefined
-    this.activeContextKey = undefined
-      const events = enrichEvents(msg.events, this.lastCode)
+      this.activeContextKey = undefined
+      const events = enrichEvents(msg.events, this.lastCode, this.lastProject)
       const errorEvent = events.find((e) => e.kind === 'error')
       const hasError = errorEvent != null
       const isLoopStop =
@@ -445,10 +459,13 @@ export class PythonRunner {
           runId: msg.id,
           error: hasError ? errorEvent.message : null,
           executedCode: this.snapshot.executedCode ?? this.lastCode,
+          executedProject: this.lastProject,
           routes: msg.routes ?? this.snapshot.routes,
+          ...(this.snapshot.fullstack ? { fullstack: { tables: msg.fullstack?.tables ?? this.snapshot.fullstack.tables, calls: this.snapshot.fullstack.calls } } : {}),
         })
         return
       }
+      if (isLoopStop && this.lastProject) this.spawnWorker()
       this.lastRunEvents = events.filter((e) => e.kind !== 'http')
       this.setSnapshot({
         status,
@@ -457,6 +474,7 @@ export class PythonRunner {
         runId: msg.id,
         error: hasError ? errorEvent.message : null,
         executedCode: this.lastCode,
+        executedProject: this.lastProject,
         routes: msg.routes ?? [],
         exerciseId,
         contextKey,
@@ -516,6 +534,7 @@ export class PythonRunner {
       runId: id,
       error,
       executedCode: this.lastCode || null,
+      executedProject: this.lastProject,
       routes: id.startsWith('invoke-') ? this.snapshot.routes : [],
       exerciseId,
       contextKey,
@@ -549,6 +568,7 @@ export class PythonRunner {
       runId: id,
       error: 'timeout',
       executedCode: this.lastCode || null,
+      executedProject: this.lastProject,
       routes: [],
       exerciseId,
       contextKey,

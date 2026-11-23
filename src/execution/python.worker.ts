@@ -1,5 +1,6 @@
 /// <reference lib="webworker" />
 import { loadPyodide, type PyodideInterface } from 'pyodide'
+import { projectFilesError } from '../project/paths'
 import { PYTHON_PRELUDE } from './instrument'
 import FASTAPI_SHIM from './fastapi_sim.py?raw'
 import SERVICE_CHECKS_PY from './service_checks.py?raw'
@@ -70,8 +71,16 @@ async function runCode(id: string, code: string, exerciseId?: ExerciseId, option
   const start = performance.now()
   try {
     const py = await ensurePyodide()
+    if (options.project) {
+      const error = projectFilesError(options.project.files, options.project.folders)
+      if (error) throw new Error(error)
+      if (!Object.hasOwn(options.project.files, options.project.entry) || !options.project.entry.endsWith('.py')) {
+        throw new Error('Choose a Python file in the project as the entry file.')
+      }
+    }
     // Pass source via set() to avoid escaping pitfalls.
     py.globals.set('__plp_source__', code)
+    py.globals.set('__plp_project__', options.project ? JSON.stringify(options.project) : null)
     py.globals.set('__plp_exercise__', exerciseId ?? null)
     py.globals.set('__plp_context__', JSON.stringify(options.context ?? {}))
     py.globals.set('__plp_fullstack__', options.fullstack ? JSON.stringify(options.fullstack) : null)
@@ -79,7 +88,15 @@ async function runCode(id: string, code: string, exerciseId?: ExerciseId, option
     // Enter Python through Pyodide's promising path so browser-local lessons
     // can use asyncio without a forbidden synchronous stack switch.
     const raw = (await py.runPythonAsync(
-      'import json; json.dumps(await _plp_run_async(__plp_source__, __plp_exercise__, json.loads(__plp_context__), json.loads(__plp_fullstack__) if __plp_fullstack__ else None, __plp_stdin__), default=str)',
+      `import json
+if __plp_project__:
+    result = await _plp_run_project(json.loads(__plp_project__), __plp_stdin__)
+else:
+    result = await _plp_run_async(
+        __plp_source__, __plp_exercise__, json.loads(__plp_context__),
+        json.loads(__plp_fullstack__) if __plp_fullstack__ else None, __plp_stdin__,
+    )
+json.dumps(result, default=str)`,
     )) as string
     const parsed = JSON.parse(raw) as PyRunPayload
     post({
@@ -124,6 +141,7 @@ async function invokeRoute(
       events: parsed.events ?? [],
       durationMs: Math.round(performance.now() - start),
       routes: parsed.routes ?? [],
+      ...(parsed.fullstack ? { fullstack: parsed.fullstack } : {}),
     })
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err)
@@ -155,7 +173,7 @@ self.onmessage = (event: MessageEvent<WorkerInboundMessage>) => {
   }
 
   if (msg.type === 'run') {
-    void runCode(msg.id, msg.code, msg.exerciseId, { context: msg.context, contextKey: msg.contextKey, fullstack: msg.fullstack, stdin: msg.stdin })
+    void runCode(msg.id, msg.code, msg.exerciseId, msg)
     return
   }
 
