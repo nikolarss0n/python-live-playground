@@ -1,5 +1,5 @@
-import { useId, type SyntheticEvent } from 'react'
-import { routeKey, routeTakesBody, sameField, type Refusal, type RequestDraft, type SentResponse } from '../apiRequests'
+import { useEffect, useId, useState, type SyntheticEvent } from 'react'
+import { formatCurl, routeKey, routeTakesBody, sameField, type Refusal, type RequestDraft, type SentResponse } from '../apiRequests'
 import type { RouteField } from '../execution/protocol'
 import { jsonToNode, statusTone } from '../fullstack'
 import { statusLabel } from '../httpResponse'
@@ -72,6 +72,12 @@ function Response({ response, stale, onShowLine }: { response: SentResponse | un
         // A refused request opens fully: the reason sits a few levels inside the 422 detail.
         <div className={`api-call-body${stale ? ' is-stale' : ''}`}><CollectionTree key={response.status >= 400 ? 'open' : 'root'} node={jsonToNode(response.body)} tone="expr" openDepth={response.status >= 400 ? 4 : 1} /></div>
       )}
+      {response.logs?.length ? (
+        <div className={`api-response-logs${stale ? ' is-stale' : ''}`} aria-label="Handler output">
+          <span className="api-response-logs-label">Output</span>
+          <pre className="api-response-logs-text">{response.logs.join('\n')}</pre>
+        </div>
+      ) : null}
     </>
   )
 }
@@ -85,12 +91,27 @@ export function ApiRequests({ api, stopped, onShowLine, onShowResults }: {
 }) {
   const { routes, selected, draft } = api
   const bodyId = useId()
+  const [copiedCurl, setCopiedCurl] = useState(false)
+  useEffect(() => {
+    if (!copiedCurl) return
+    const timer = window.setTimeout(() => setCopiedCurl(false), 1500)
+    return () => window.clearTimeout(timer)
+  }, [copiedCurl])
   if (!selected) return null
   const selectedKey = routeKey(selected)
   const change = (part: Partial<RequestDraft>) => api.edit(part)
   const onSubmit = (event: SyntheticEvent) => {
     event.preventDefault()
     api.send()
+  }
+  const onCopyCurl = () => {
+    try {
+      const command = formatCurl(selected, draft)
+      void navigator.clipboard?.writeText(command)
+      setCopiedCurl(true)
+    } catch {
+      // Invalid JSON body; let Send surface the form error instead.
+    }
   }
   const takesBody = routeTakesBody(selected)
   const refusedIn = (where: Refusal['where']) => api.refused.filter((each) => each.where === where)
@@ -110,9 +131,17 @@ export function ApiRequests({ api, stopped, onShowLine, onShowResults }: {
         <span className={`fullstack-toolbar-note${api.codeError ? ' is-error' : ''}`}>
           {toolbarNote}
         </span>
-        {api.codeError && onShowResults ? (
-          <button type="button" className="linkish" onClick={onShowResults}>Show Results</button>
-        ) : null}
+        <span className="api-toolbar-actions">
+          {api.codeError && onShowResults ? (
+            <button type="button" className="linkish" onClick={onShowResults}>Show Results</button>
+          ) : null}
+          {api.isEdited ? (
+            <button type="button" className="linkish" onClick={api.reset}>Reset</button>
+          ) : null}
+          <button type="button" className="linkish" onClick={onCopyCurl} title="Copy as curl for a local uvicorn server">
+            {copiedCurl ? 'Copied curl' : 'Copy curl'}
+          </button>
+        </span>
       </div>
       <ul className="api-routes" aria-label="Routes">
         {routes.map((route) => {

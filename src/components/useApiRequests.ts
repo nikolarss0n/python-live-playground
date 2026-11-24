@@ -2,13 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { buildRequest, preparedDraft, refusals, responseFromEvents, routeKey, type Refusal, type RequestDraft, type SentResponse } from '../apiRequests'
 import type { DiscoveredRoute, ExecutionStatus, InvokeRequest, ResultEvent } from '../execution/protocol'
 
-type Snapshot = { status: ExecutionStatus; runId: string | null; events: ResultEvent[]; durationMs: number | null }
+type Snapshot = { status: ExecutionStatus; runId: string | null; events: ResultEvent[]; invokeEvents?: ResultEvent[]; durationMs: number | null }
 
 export type ApiRequestOptions = {
   /** True when the editor/project source has changed since the last completed code run. */
   stale?: boolean
   /** True when code edits automatically re-run (default). False in manual-run mode. */
   autoRun?: boolean
+  /** True when the API tab is currently visible; enables live GET refresh after code re-runs. */
+  active?: boolean
   /** Re-runs the latest code/project before sending when stale. */
   runBeforeSend?: () => Promise<void>
 }
@@ -19,6 +21,10 @@ export type ApiRequests = {
   select: (route: DiscoveredRoute) => void
   draft: RequestDraft
   edit: (change: Partial<RequestDraft>) => void
+  /** True when the picked route's draft differs from its prepared defaults. */
+  isEdited: boolean
+  /** Restores the picked route's draft back to its prepared defaults. */
+  reset: () => void
   send: () => void
   /** False while Python is busy, stopped, or the code failed to start without newer edits to run. */
   canSend: boolean
@@ -52,7 +58,7 @@ export function useApiRequests(
   invoke: (request: InvokeRequest) => Promise<void>,
   options: ApiRequestOptions = {},
 ): ApiRequests {
-  const { stale = false, autoRun = true, runBeforeSend } = options
+  const { stale = false, autoRun = true, active = false, runBeforeSend } = options
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, { basis: string; draft: RequestDraft }>>({})
   const [responses, setResponses] = useState<Record<string, SentResponse>>({})
@@ -65,10 +71,31 @@ export function useApiRequests(
   const pendingKey = useRef<string | null>(null)
   const queuedSend = useRef<QueuedSend | null>(null)
   const codeRunId = useRef<string | null>(null)
+  const liveGetRef = useRef<{ active: boolean; autoRun: boolean; selected: DiscoveredRoute | null; draft: RequestDraft; hasResponse: boolean }>({
+    active, autoRun, selected: null, draft: EMPTY, hasResponse: false,
+  })
 
-  const { status, runId, events, durationMs } = snapshot
+  const { status, runId, events, invokeEvents, durationMs } = snapshot
   const keepLastRoutes = routes.length === 0 && lastRoutes.length > 0 && (status === 'running' || (status === 'error' && !isInvoke(runId)))
   const effectiveRoutes = routes.length > 0 ? routes : (keepLastRoutes ? lastRoutes : routes)
+
+  const selected = effectiveRoutes.find((route) => routeKey(route) === selectedKey) ?? effectiveRoutes[0] ?? null
+  const basis = selected ? JSON.stringify(selected) : ''
+  const saved = selected ? drafts[routeKey(selected)] : undefined
+  const prepared = useMemo(() => (selected ? preparedDraft(selected) : EMPTY), [selected])
+  const draft = useMemo(
+    () => (!selected ? EMPTY : saved?.basis === basis ? saved.draft : prepared),
+    [selected, saved, basis, prepared],
+  )
+  const isEdited = selected !== null && JSON.stringify(draft) !== JSON.stringify(prepared)
+
+  liveGetRef.current = {
+    active,
+    autoRun,
+    selected,
+    draft,
+    hasResponse: Boolean(selected && responses[routeKey(selected)]),
+  }
 
   useEffect(() => {
     if (routes.length > 0) {
@@ -107,6 +134,24 @@ export function useApiRequests(
           pendingKey.current = queued.key
           setSentDrafts((before) => ({ ...before, [queued.key]: queued.draftText }))
           void invoke(queued.request)
+          return
+        }
+        // Live GET refresh: when the learner is viewing an already-sent GET route with Auto-run on,
+        // silently re-send it against the freshly executed code (never auto-send mutating methods).
+        const live = liveGetRef.current
+        if (status === 'success' && live.active && live.autoRun && live.hasResponse && live.selected?.method === 'GET') {
+          const matching = routes.find((route) => routeKey(route) === routeKey(live.selected!))
+          if (matching) {
+            try {
+              const request = buildRequest(matching, live.draft)
+              const key = routeKey(matching)
+              pendingKey.current = key
+              setSentDrafts((before) => ({ ...before, [key]: JSON.stringify(live.draft) }))
+              void invoke(request)
+            } catch {
+              // Ignore invalid draft during background refresh.
+            }
+          }
         }
       }
       return
@@ -114,17 +159,9 @@ export function useApiRequests(
     const key = pendingKey.current
     if (!key) return
     pendingKey.current = null
-    const response = responseFromEvents(events, durationMs)
+    const response = responseFromEvents(invokeEvents ?? events, durationMs)
     if (response) setResponses((before) => ({ ...before, [key]: response }))
-  }, [status, runId, events, durationMs, routes.length, invoke])
-
-  const selected = effectiveRoutes.find((route) => routeKey(route) === selectedKey) ?? effectiveRoutes[0] ?? null
-  const basis = selected ? JSON.stringify(selected) : ''
-  const saved = selected ? drafts[routeKey(selected)] : undefined
-  const draft = useMemo(
-    () => (!selected ? EMPTY : saved?.basis === basis ? saved.draft : preparedDraft(selected)),
-    [selected, saved, basis],
-  )
+  }, [status, runId, events, invokeEvents, durationMs, routes, invoke])
 
   const select = useCallback((route: DiscoveredRoute) => {
     setSelectedKey(routeKey(route))
@@ -136,6 +173,18 @@ export function useApiRequests(
     setFormError(null)
     setDrafts((before) => ({ ...before, [routeKey(selected)]: { basis, draft: { ...draft, ...change } } }))
   }, [selected, basis, draft])
+
+  const reset = useCallback(() => {
+    if (!selected) return
+    setFormError(null)
+    const key = routeKey(selected)
+    setDrafts((before) => {
+      if (!Object.hasOwn(before, key)) return before
+      const next = { ...before }
+      delete next[key]
+      return next
+    })
+  }, [selected])
 
   const stopped = status === 'stopped' || status === 'timeout'
   const isCodeRunning = status === 'running' && !isInvoke(runId)
@@ -181,6 +230,8 @@ export function useApiRequests(
     select,
     draft,
     edit,
+    isEdited,
+    reset,
     send,
     canSend,
     sending,

@@ -10,7 +10,18 @@ export type RequestDraft = {
 }
 
 export type SentResponse =
-  | { kind: 'response'; path: string; status: number; body: unknown; durationMs: number | null; /** Where a handler crashed, for a 500. */ file?: string; line?: number }
+  | {
+      kind: 'response'
+      path: string
+      status: number
+      body: unknown
+      durationMs: number | null
+      /** Where a handler crashed, for a 500. */
+      file?: string
+      line?: number
+      /** Lines printed by the route handler or its dependencies during this request. */
+      logs?: string[]
+    }
   | { kind: 'failed'; message: string }
 
 export function routeKey(route: DiscoveredRoute): string {
@@ -56,6 +67,7 @@ export function responseFromEvents(events: readonly ResultEvent[], durationMs: n
   } catch {
     // Keep the raw text.
   }
+  const logs = events.flatMap((event) => (event.kind === 'print' || event.kind === 'warning' ? [event.text] : []))
   return {
     kind: 'response',
     path: http.path,
@@ -64,7 +76,32 @@ export function responseFromEvents(events: readonly ResultEvent[], durationMs: n
     durationMs,
     ...(http.file ? { file: http.file } : {}),
     ...(http.line ? { line: http.line } : {}),
+    ...(logs.length ? { logs } : {}),
   }
+}
+
+function shellQuote(value: string): string {
+  return `'${value.replaceAll("'", "'\\''")}'`
+}
+
+/** A copy-pasteable curl command for running this exact request against a real local uvicorn server. */
+export function formatCurl(route: DiscoveredRoute, draft: RequestDraft, baseUrl = 'http://127.0.0.1:8000'): string {
+  const request = buildRequest(route, draft)
+  const path = request.path.startsWith('/') ? request.path : `/${request.path}`
+  const search = request.query ? new URLSearchParams(request.query).toString() : ''
+  const url = `${baseUrl.replace(/\/+$/, '')}${path}${search ? `?${search}` : ''}`
+  const parts = ['curl']
+  if (request.method !== 'GET') parts.push('-X', request.method)
+  parts.push(shellQuote(url))
+  for (const [name, value] of Object.entries(request.headers ?? {})) {
+    parts.push('-H', shellQuote(`${name}: ${value}`))
+  }
+  if (request.body !== undefined) {
+    const hasContentType = Object.keys(request.headers ?? {}).some((name) => name.toLowerCase() === 'content-type')
+    if (!hasContentType) parts.push('-H', shellQuote('Content-Type: application/json'))
+    parts.push('-d', shellQuote(JSON.stringify(request.body)))
+  }
+  return parts.join(' ')
 }
 
 /** One thing a 422 response says is wrong with the request. `field` is the parameter; `name` goes on to the item inside it. */

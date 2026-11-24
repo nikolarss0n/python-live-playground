@@ -18,13 +18,14 @@ let setRoutes: (routes: DiscoveredRoute[]) => void = () => {}
 let setStale: (stale: boolean) => void = () => {}
 let setAutoRun: (autoRun: boolean) => void = () => {}
 
-function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend, initialAutoRun = true }: {
+function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend, initialAutoRun = true, active = false }: {
   invoke: (request: InvokeRequest) => Promise<void>
   start?: Snapshot
   onShowLine?: (line: number, file?: string) => void
   onShowResults?: () => void
   runBeforeSend?: () => Promise<void>
   initialAutoRun?: boolean
+  active?: boolean
 }) {
   const [snapshot, set] = useState(start)
   const [routes, setR] = useState(ROUTES)
@@ -34,7 +35,7 @@ function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend
   setRoutes = setR
   setStale = setS
   setAutoRun = setA
-  const api = useApiRequests(routes, snapshot, invoke, { stale, autoRun, runBeforeSend })
+  const api = useApiRequests(routes, snapshot, invoke, { stale, autoRun, active, runBeforeSend })
   return <ApiRequests api={api} stopped={snapshot.status === 'stopped' || snapshot.status === 'timeout'} onShowLine={onShowLine} onShowResults={onShowResults} />
 }
 
@@ -227,5 +228,33 @@ describe('ApiRequests', () => {
 
     act(() => setSnapshot({ status: 'ready', runId: null, events: [], durationMs: null }))
     expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('Not sent yet.')
+  })
+
+  it('auto-refreshes an already-sent GET route on code re-run when active, shows handler prints, and resets edited drafts', async () => {
+    const invoke = vi.fn(async () => {})
+    render(<Harness invoke={invoke} active />)
+    const limit = screen.getByLabelText('limit')
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
+    await userEvent.clear(limit)
+    await userEvent.type(limit, '5')
+    expect(screen.getByRole('button', { name: 'Reset' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    expect(invoke).toHaveBeenCalledTimes(1)
+    act(() => setSnapshot({
+      status: 'success', runId: 'invoke-1', durationMs: 3,
+      events: [{ kind: 'print', text: 'audit: GET /items/1' }, { kind: 'http', method: 'GET', path: '/items/1', status: 200, body: '{"ok":true}', simulated: true }],
+    }))
+    expect(screen.getByLabelText('Handler output')).toHaveTextContent('audit: GET /items/1')
+
+    // Code re-runs while viewing this GET route -> automatically re-invokes with the edited draft.
+    act(() => setSnapshot({ status: 'success', runId: 'run-2', events: [], durationMs: 4 }))
+    expect(invoke).toHaveBeenCalledTimes(2)
+    expect(invoke).toHaveBeenLastCalledWith({ method: 'GET', path: '/items/1', query: { limit: '5' } })
+
+    // Reset snaps the edited draft back to the prepared defaults.
+    await userEvent.click(screen.getByRole('button', { name: 'Reset' }))
+    expect(limit).toHaveValue('10')
+    expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
   })
 })

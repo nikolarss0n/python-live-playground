@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildRequest, preparedDraft, refusals, responseFromEvents, routeKey, sameField } from './apiRequests'
+import { buildRequest, formatCurl, preparedDraft, refusals, responseFromEvents, routeKey, sameField } from './apiRequests'
 import type { DiscoveredRoute } from './execution/protocol'
 
 const CREATE: DiscoveredRoute = {
@@ -28,12 +28,23 @@ describe('prepared API requests', () => {
 
   it('reads the response a Send produced', () => {
     const http = { kind: 'http' as const, method: 'POST', path: '/items/1', status: 201, body: '{"name":"string"}', simulated: true }
-    expect(responseFromEvents([{ kind: 'print', text: 'hi' }, http], 3)).toEqual({ kind: 'response', path: '/items/1', status: 201, body: { name: 'string' }, durationMs: 3 })
+    expect(responseFromEvents([{ kind: 'print', text: 'hi' }, http], 3)).toEqual({
+      kind: 'response', path: '/items/1', status: 201, body: { name: 'string' }, durationMs: 3, logs: ['hi'],
+    })
     expect(responseFromEvents([http, { kind: 'error', message: 'SimFastAPIError: no Request object', friendly: '', traceback: '' }], 1))
       .toEqual({ kind: 'failed', message: 'SimFastAPIError: no Request object' })
     expect(responseFromEvents([{ kind: 'print', text: 'hi' }], 1)).toBeNull()
     expect(responseFromEvents([{ ...http, status: 500, line: 12 }], 2)).toMatchObject({ status: 500, line: 12 })
     expect(responseFromEvents([{ ...http, status: 500, file: 'routes/books.py', line: 9 }], 2)).toMatchObject({ status: 500, file: 'routes/books.py', line: 9 })
+  })
+
+  it('formats a prepared request as a curl command', () => {
+    expect(formatCurl(CREATE, preparedDraft(CREATE))).toBe(
+      `curl -X POST 'http://127.0.0.1:8000/items/1?limit=10' -H 'x-token: string' -H 'Content-Type: application/json' -d '{"name":"string"}'`,
+    )
+    expect(formatCurl({ method: 'GET', path: '/hello' }, preparedDraft({ method: 'GET', path: '/hello' }))).toBe(
+      `curl 'http://127.0.0.1:8000/hello'`,
+    )
   })
 
   it('reads which fields a 422 refused, and nothing from any other response', () => {

@@ -62,6 +62,8 @@ function enrichEvents(
 export type RunnerSnapshot = {
   status: ExecutionStatus
   events: ResultEvent[]
+  /** Events emitted solely by the latest simulated-FastAPI invoke (excluding startup prints). */
+  invokeEvents?: ResultEvent[]
   durationMs: number | null
   runId: string | null
   error: string | null
@@ -455,6 +457,7 @@ export class PythonRunner {
         this.setSnapshot({
           status,
           events: [...this.lastRunEvents, ...events],
+          invokeEvents: events,
           durationMs: msg.durationMs,
           runId: msg.id,
           error: hasError ? errorEvent.message : null,
