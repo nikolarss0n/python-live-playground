@@ -5,7 +5,7 @@
  */
 
 import { SECTIONS, isSection, type Section } from './curriculum/sections'
-import { readPreference, writePreference } from './useLearningSession'
+import { readPreference, writePreference } from './preferences'
 
 export const LEARNING_SWITCHES_KEY = 'plp-learning-sections'
 

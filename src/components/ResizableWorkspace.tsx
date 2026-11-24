@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode, type RefObject } from 'react'
-import { readPreference, writePreference } from '../useLearningSession'
+import { readPreference, writePreference } from '../preferences'
 import { useWideLayout } from '../useWideLayout'
 
 function usePosition(key: string, fallback: number) {

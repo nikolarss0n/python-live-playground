@@ -1,7 +1,7 @@
-import { describe, expect, it, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from './App'
+import { renderApp } from './test/renderApp'
 
 vi.mock('./components/CodeEditor', () => ({
   CodeEditor: ({ value, onChange }: { value: string; onChange: (v: string) => void }) => (
@@ -36,7 +36,7 @@ describe('untouched starter with blanks', () => {
   })
 
   it('holds back the parse error until the first edit and offers a hint pill', async () => {
-    render(<App />)
+    await renderApp()
     const results = screen.getByRole('region', { name: /results/i })
     expect(results).not.toHaveTextContent('SyntaxError')
     expect(results).toHaveTextContent('Fill the 3 ??? blanks')
@@ -46,16 +46,16 @@ describe('untouched starter with blanks', () => {
     expect(results).toHaveTextContent('SyntaxError')
   })
 
-  it('shows errors right away on a starter without blanks', () => {
+  it('shows errors right away on a starter without blanks', async () => {
     window.history.replaceState(null, '', '/?lesson=errors')
-    render(<App />)
+    await renderApp()
     expect(screen.getByRole('region', { name: /results/i })).toHaveTextContent('SyntaxError')
     expect(screen.queryByRole('button', { name: /show a hint/i })).not.toBeInTheDocument()
   })
 
   it('toggles the full solution without touching the code', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const source = screen.getByRole('textbox', { name: 'Python source' }) as HTMLTextAreaElement
     const before = source.value
     await user.click(screen.getByRole('button', { name: 'Solution' }))

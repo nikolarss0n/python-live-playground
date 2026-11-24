@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from './App'
+import { renderApp } from './test/renderApp'
 import { LEARNING_STORAGE_KEY } from './learningStorage'
 import { encodeSnapshot } from './shareSnapshot'
 
@@ -38,7 +38,7 @@ describe('opening a shared link', () => {
 
   it('waits for Run instead of executing the shared code', async () => {
     openLink()
-    render(<App />)
+    await renderApp()
     expect(latest.autoRun).toBe(false)
     expect(runNow).not.toHaveBeenCalled()
     await userEvent.click(screen.getByRole('button', { name: 'Run it' }))
@@ -48,19 +48,19 @@ describe('opening a shared link', () => {
     expect(latest.untrustedCode).toBeNull()
   })
 
-  it('still waits after a reload, when the link is gone from the address', () => {
+  it('still waits after a reload, when the link is gone from the address', async () => {
     openLink()
-    const { unmount } = render(<App />)
+    const { unmount } = await renderApp()
     unmount()
     expect(window.location.hash).toBe('')
-    render(<App />)
+    await renderApp()
     expect(latest.autoRun).toBe(false)
     expect(screen.getByRole('button', { name: 'Run it' })).toBeInTheDocument()
   })
 
   it('keeps waiting for Run after the learner edits the shared code', async () => {
     openLink()
-    render(<App />)
+    await renderApp()
     await userEvent.type(screen.getByLabelText('Python source'), ' ')
     expect(latest.autoRun).toBe(false)
     expect(latest.untrustedCode).toBe('print("from a link") ')
@@ -77,15 +77,15 @@ describe('opening a shared link', () => {
       lessons: { printing: { code: 'print("my work")', predictDone: true, backups } },
     }))
     openLink()
-    render(<App />)
+    await renderApp()
     expect(screen.getByLabelText('Python source')).toHaveValue('print("my work")')
     expect(screen.getByText(/link not opened/i)).toBeInTheDocument()
     await userEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByText(/link not opened/i)).not.toBeInTheDocument()
   })
 
-  it('leaves ordinary lessons on automatic runs', () => {
-    render(<App />)
+  it('leaves ordinary lessons on automatic runs', async () => {
+    await renderApp()
     expect(latest.autoRun).toBe(true)
     expect(screen.queryByRole('button', { name: 'Run it' })).not.toBeInTheDocument()
   })

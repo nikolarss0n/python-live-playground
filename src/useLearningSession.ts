@@ -26,21 +26,8 @@ import { downloadText } from './downloadText'
 import { isServiceExerciseId } from './serviceExercise'
 import { previousServiceExercise, serviceStarterCode } from './curriculum/serviceLessons'
 
-export function readPreference(key: string): string | null {
-  try {
-    return window.localStorage.getItem(key)
-  } catch {
-    return null
-  }
-}
-
-export function writePreference(key: string, value: string): void {
-  try {
-    window.localStorage.setItem(key, value)
-  } catch {
-    // Learning persistence reports unavailable storage in the footer.
-  }
-}
+import { readPreference, writePreference } from './preferences'
+export { readPreference, writePreference }
 
 function lessonLocked(id: string, state: LearningState): boolean {
   if (!isServiceExerciseId(id) || state.lessons[id]) return false
@@ -68,7 +55,7 @@ function selectLesson(state: LearningState, requestedId: string): LearningState 
   })
 }
 
-export function initialSession(state: LearningState): LearningState {
+export function initialSession(state: LearningState, preferredSection?: Section | null): LearningState {
   const shared = readSnapshotFromLocation()
   const sharedId = shared ? resolveLessonId(shared.lessonId) : null
   if (shared && sharedId) {
@@ -82,6 +69,9 @@ export function initialSession(state: LearningState): LearningState {
   const queryParam = new URLSearchParams(window.location.search).get('lesson')
   const queryId = queryParam ? resolveLessonId(queryParam) : null
   if (queryId) return selectLesson(state, queryId)
+  if (preferredSection) {
+    return selectLesson(state, state.lastLessonByTrack[preferredSection] ?? firstLessonId(preferredSection))
+  }
   if (state.activeLessonId) return selectLesson(state, state.activeLessonId)
   const preference = readPreference('plp-section')
   const track = preference && isSection(preference) ? preference : DEFAULT_SECTION
@@ -98,10 +88,10 @@ export function sharedLinkSkipped(state: LearningState): boolean {
   return shared !== null && id !== null && state.lessons[id]?.code !== shared.code
 }
 
-export function useLearningSession() {
+export function useLearningSession(preferredSection?: Section | null) {
   const [initial] = useState(() => {
     const load = loadLearningState()
-    const state = initialSession(load.state)
+    const state = initialSession(load.state, preferredSection)
     return { load, state, skippedLink: sharedLinkSkipped(state) }
   })
   const [state, setState] = useState(initial.state)

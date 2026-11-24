@@ -1,7 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { render, screen, waitFor } from '@testing-library/react'
+import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import App from './App'
+import { renderApp } from './test/renderApp'
 import { turnOnAllSections } from './test/learningSections'
 
 vi.mock('./components/CodeEditor', () => ({
@@ -54,8 +54,8 @@ describe('App beginner flow', () => {
     vi.clearAllMocks()
   })
 
-  it('renders the playground chrome and default example output', () => {
-    render(<App />)
+  it('renders the playground chrome and default example output', async () => {
+    await renderApp()
     expect(
       screen.getByRole('heading', { name: /python live/i }),
     ).toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('App beginner flow', () => {
 
   it('loads another lesson from the menu and shows its goal and tasks', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const goal = screen.getByRole('region', { name: /lesson goal/i })
     expect(goal).toHaveTextContent(/Make Python show two messages/i)
     await user.click(screen.getByRole('button', { name: /show lesson/i }))
@@ -122,7 +122,7 @@ describe('App beginner flow', () => {
 
   it('moves between lessons with Prev and Next', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const select = screen.getByLabelText(/choose a lesson/i)
     expect(select).toHaveValue('printing')
 
@@ -145,13 +145,13 @@ describe('App beginner flow', () => {
     expect(select).toHaveValue('printing')
   })
 
-  it('does not show the predict prompt', () => {
-    render(<App />)
+  it('does not show the predict prompt', async () => {
+    await renderApp()
     expect(screen.queryByRole('region', { name: /predict the output/i })).toBeNull()
   })
 
   it('shows post-run goal checks in Results for the default printing lesson', async () => {
-    render(<App />)
+    await renderApp()
     const results = screen.getByRole('region', { name: /results/i })
     const checks = screen.getByRole('region', { name: /goal checks/i })
     expect(results.contains(checks)).toBe(true)
@@ -161,7 +161,7 @@ describe('App beginner flow', () => {
 
   it('exposes settings and chapter context on the first lesson', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     expect(
       screen.getByRole('button', { name: /open settings/i }),
     ).toBeInTheDocument()
@@ -177,7 +177,7 @@ describe('App beginner flow', () => {
 
   it('continues Learn Python into the deeper lessons and switches to Interview prep', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const section = screen.getByLabelText(/choose learning track/i)
     expect(section).toHaveValue('python')
     await user.selectOptions(screen.getByLabelText(/choose a lesson/i), 'mid-enumerate-zip')
@@ -192,7 +192,7 @@ describe('App beginner flow', () => {
 
   it('switches to Machine learning & LLMs and shows a pipeline strip', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const difficulty = screen.getByLabelText(/choose learning track/i)
     await user.selectOptions(difficulty, 'ml')
     expect(difficulty).toHaveValue('ml')
@@ -206,7 +206,7 @@ describe('App beginner flow', () => {
 
   it('opens the expanded Python and AI study-book topics', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
 
     const difficulty = screen.getByLabelText(/choose learning track/i)
     const lesson = screen.getByLabelText(/choose a lesson/i)
@@ -230,7 +230,7 @@ describe('App beginner flow', () => {
 
   it('shows Run with model on AI lessons that support it', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     await user.selectOptions(screen.getByLabelText(/choose learning track/i), 'ml')
     // Advanced model controls stay out of sight with the lesson details.
     expect(
@@ -259,7 +259,7 @@ describe('App beginner flow', () => {
 
   it('remembers the lesson detail preference across app visits', async () => {
     const user = userEvent.setup()
-    const { unmount } = render(<App />)
+    const { unmount } = await renderApp()
 
     await user.click(screen.getByRole('button', { name: /show lesson/i }))
     expect(
@@ -268,7 +268,7 @@ describe('App beginner flow', () => {
     expect(window.localStorage.getItem('plp-lesson-details-open')).toBe('1')
 
     unmount()
-    render(<App />)
+    await renderApp()
     expect(
       screen.getByRole('button', { name: /hide lesson/i }),
     ).toHaveAttribute('aria-expanded', 'true')
@@ -279,7 +279,7 @@ describe('App beginner flow', () => {
 
   it('switches to Build AI services and loads the request lesson', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const difficulty = screen.getByLabelText(/choose learning track/i)
     await user.selectOptions(difficulty, 'build')
     expect(difficulty).toHaveValue('build')
@@ -298,14 +298,14 @@ describe('App beginner flow', () => {
 
   it('toggles theme', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     const toggle = screen.getByRole('button', { name: /switch to dark theme/i })
     await user.click(toggle)
     expect(document.documentElement.dataset.theme).toBe('dark')
   })
 
-  it('orders header groups: lesson, navigation, then utilities, with a hidden page heading', () => {
-    render(<App />)
+  it('orders header groups: lesson, navigation, then utilities, with a hidden page heading', async () => {
+    await renderApp()
     const header = document.querySelector('header.toolbar')
     expect(header).toBeTruthy()
 

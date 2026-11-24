@@ -36,7 +36,7 @@ describe('learning switches', () => {
     await userEvent.click(screen.getByRole('switch', { name: 'Interview prep' }))
     expect(screen.getByRole('switch', { name: 'Interview prep' })).toHaveAttribute('aria-checked', 'true')
     expect(readEnabledSections()).toEqual(new Set(['interview']))
-    const menu = screen.getByRole('combobox', { name: 'Choose learning track' })
+    const menu = await screen.findByRole('combobox', { name: 'Choose learning track' })
     expect(menu).toHaveValue('interview')
     expect([...menu.querySelectorAll('option')].map((option) => option.textContent)).toEqual(['Interview prep'])
 
@@ -50,7 +50,7 @@ describe('learning switches', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Open settings' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Playground' }))
     await userEvent.click(screen.getByRole('switch', { name: 'Learn Python' }))
-    expect(screen.getByRole('combobox', { name: 'Choose learning track' })).toHaveValue('playground')
+    expect(await screen.findByRole('combobox', { name: 'Choose learning track' })).toHaveValue('playground')
     await userEvent.click(screen.getByRole('switch', { name: 'Playground' }))
     expect(screen.getByRole('combobox', { name: 'Choose learning track' })).toHaveValue('python')
   })

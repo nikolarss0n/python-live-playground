@@ -1,7 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
+import { renderApp } from './test/renderApp'
 import { turnOnAllSections } from './test/learningSections'
 import { EXERCISE_CHECKS, type ExerciseId } from './serviceExercise'
 import { loadLearningState, isLessonVerified, LEARNING_DAMAGED_KEY, LEARNING_STORAGE_KEY } from './learningStorage'
@@ -54,20 +55,20 @@ describe('saved service learning flow', () => {
 
   it('restarts a legacy lesson safely and restores its saved draft after reload', async () => {
     const user = userEvent.setup()
-    const original = render(<App />)
+    const original = await renderApp()
     edit('print("Keep this work")')
     await user.click(screen.getByRole('button', { name: 'Show lesson', exact: false }))
     await user.click(screen.getByRole('button', { name: 'Restart exercise', exact: true }))
     expect(source()).not.toBe('print("Keep this work")')
     original.unmount()
-    render(<App />)
+    await renderApp()
     await user.click(screen.getByRole('button', { name: 'Restore previous draft', exact: true }))
     expect(source()).toBe('print("Keep this work")')
   })
 
   it('refuses to restart when the backup cannot be persisted', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     edit('print("Unsaved backup must not replace this")')
     await user.click(screen.getByRole('button', { name: 'Show lesson', exact: false }))
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Quota') })
@@ -78,7 +79,7 @@ describe('saved service learning flow', () => {
 
   it('keeps separate drafts, resumes the last lesson, and restores after reload', async () => {
     const user = userEvent.setup()
-    const first = render(<App />)
+    const first = await renderApp()
     edit('print("My saved draft")')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'variables')
     edit('name = "My own name"')
@@ -89,7 +90,7 @@ describe('saved service learning flow', () => {
     expect(screen.getByLabelText('Choose a lesson')).toHaveValue('variables')
     expect(screen.getByLabelText('Python source')).toHaveValue('name = "My own name"')
     first.unmount()
-    render(<App />)
+    await renderApp()
     expect(screen.getByLabelText('Choose a lesson')).toHaveValue('variables')
     expect(screen.getByLabelText('Python source')).toHaveValue('name = "My own name"')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'printing')
@@ -98,7 +99,7 @@ describe('saved service learning flow', () => {
 
   it('unlocks connected exercises only from fresh checks and carries the learner code', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     await user.selectOptions(screen.getByLabelText('Choose learning track'), 'build')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'service-validation')
     expect(screen.getByRole('button', { name: /next lesson/i })).toBeDisabled()
@@ -132,7 +133,7 @@ describe('saved service learning flow', () => {
 
   it('persists completion across reload and removes it when verified code changes', async () => {
     const user = userEvent.setup()
-    const first = render(<App />)
+    const first = await renderApp()
     await user.selectOptions(screen.getByLabelText('Choose learning track'), 'build')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'service-validation')
     execution.source = '# Verified source'
@@ -140,7 +141,7 @@ describe('saved service learning flow', () => {
     edit(execution.source)
     first.unmount()
     execution.source = ''
-    render(<App />)
+    await renderApp()
     expect(screen.getByLabelText('Python source')).toHaveValue('# Verified source')
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('1/3 exercises complete')
     edit('# Changed source')
@@ -149,15 +150,15 @@ describe('saved service learning flow', () => {
     expect(screen.getByRole('button', { name: /next lesson/i })).toBeDisabled()
   })
 
-  it('redirects a fresh deep link to the first prerequisite', () => {
+  it('redirects a fresh deep link to the first prerequisite', async () => {
     window.history.replaceState(null, '', '/?lesson=service-tests')
-    render(<App />)
+    await renderApp()
     expect(screen.getByLabelText('Choose a lesson')).toHaveValue('service-validation')
   })
 
   it.each(['error', 'timeout', 'stopped'] as const)('clears a previous success after a same-code %s', async (status) => {
     const user = userEvent.setup()
-    const app = render(<App />)
+    const app = await renderApp()
     await user.selectOptions(screen.getByLabelText('Choose learning track'), 'build')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'service-validation')
     execution.source = '# Previously verified code'
@@ -170,24 +171,24 @@ describe('saved service learning flow', () => {
     expect(screen.getByRole('button', { name: /next lesson/i })).toBeDisabled()
   })
 
-  it('keeps editing usable and reports unavailable storage honestly', () => {
+  it('keeps editing usable and reports unavailable storage honestly', async () => {
     vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('Storage denied') })
-    render(<App />)
+    await renderApp()
     edit('print("Still editable")')
     expect(screen.getByLabelText('Python source')).toHaveValue('print("Still editable")')
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved: browser storage is unavailable')
   })
 
-  it('still opens when the browser denies localStorage access', () => {
+  it('still opens when the browser denies localStorage access', async () => {
     vi.spyOn(window, 'localStorage', 'get').mockImplementation(() => { throw new Error('Storage denied') })
-    render(<App />)
+    await renderApp()
     expect(screen.getByRole('textbox', { name: 'Python source' })).toBeInTheDocument()
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved')
   })
 
-  it('keeps a copy of unreadable saved progress before saving over it', () => {
+  it('keeps a copy of unreadable saved progress before saving over it', async () => {
     window.localStorage.setItem(LEARNING_STORAGE_KEY, '{broken')
-    render(<App />)
+    await renderApp()
     expect(window.localStorage.getItem(LEARNING_DAMAGED_KEY)).toBe('{broken')
     expect(screen.getByText(/A copy was kept on this device/)).toBeInTheDocument()
     edit('print("New start")')
@@ -206,7 +207,7 @@ describe('saved service learning flow', () => {
     const createObjectURL = vi.fn(() => 'blob:saved-progress')
     vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }))
     const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
-    render(<App />)
+    await renderApp()
     edit('print("Not yet")')
     expect(window.localStorage.getItem(LEARNING_STORAGE_KEY)).toBe('{broken')
     expect(screen.getByRole('status', { name: 'Learning progress' })).toHaveTextContent('Not saved yet')
@@ -221,7 +222,7 @@ describe('saved service learning flow', () => {
 
   it('offers the Python GenAI path, saves its progress, and keeps the real lab in lesson details', async () => {
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     await user.selectOptions(screen.getByLabelText('Choose learning track'), 'build')
     await user.selectOptions(screen.getByLabelText('Choose a lesson'), 'genai-typed')
     expect(screen.getByLabelText('Choose a lesson')).toHaveValue('genai-typed')

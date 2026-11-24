@@ -1,7 +1,7 @@
-import { act, render, screen } from '@testing-library/react'
+import { act, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import App from './App'
+import { renderApp } from './test/renderApp'
 import { turnOnAllSections } from './test/learningSections'
 import type { askLessonCoach } from './lessonCoach'
 import { defaultSettings, SETTINGS_KEY } from './settings'
@@ -53,7 +53,7 @@ describe('refresher AI isolation', () => {
     const reply = pendingReply()
     coach.ask.mockReturnValue(reply.promise)
     const user = userEvent.setup()
-    render(<App />)
+    await renderApp()
     await user.type(screen.getByRole('textbox', { name: 'Ask about this lesson' }), 'Explain a loop{Enter}')
     expect(coach.ask).toHaveBeenCalledOnce()
     await user.selectOptions(screen.getByLabelText('Choose learning track'), 'interview')

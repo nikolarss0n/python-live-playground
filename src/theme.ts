@@ -1,4 +1,4 @@
-import { readPreference } from './useLearningSession'
+import { readPreference } from './preferences'
 
 export type ThemeMode = 'light' | 'dark'
 

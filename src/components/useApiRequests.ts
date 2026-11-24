@@ -97,17 +97,19 @@ export function useApiRequests(
     hasResponse: Boolean(selected && responses[routeKey(selected)]),
   }
 
+  const routesKey = JSON.stringify(routes)
   useEffect(() => {
     if (routes.length > 0) {
-      setLastRoutes(routes)
+      setLastRoutes((prev) => (JSON.stringify(prev) === routesKey ? prev : routes))
       return
     }
     if (status === 'success' && !isInvoke(runId)) {
-      setLastRoutes([])
+      setLastRoutes((prev) => (prev.length === 0 ? prev : []))
     } else if (status === 'stopped' || status === 'timeout' || (status === 'ready' && runId === null)) {
-      setLastRoutes([])
+      setLastRoutes((prev) => (prev.length === 0 ? prev : []))
     }
-  }, [routes, status, runId])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routesKey, status, runId])
 
   useEffect(() => {
     if (status === 'running' || status === 'booting') return
@@ -116,7 +118,7 @@ export function useApiRequests(
       queuedSend.current = null
       setQueuedSending(false)
       setCodeError(false)
-      setResponses({})
+      setResponses((prev) => (Object.keys(prev).length === 0 ? prev : {}))
       return
     }
     if (!runId) return

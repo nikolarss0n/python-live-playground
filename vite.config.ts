@@ -23,6 +23,21 @@ export default defineConfig(({ mode }) => ({
   worker: {
     format: 'es',
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes('/node_modules/@codemirror/') || id.includes('/node_modules/@lezer/')) {
+            return 'codemirror'
+          }
+          if (id.includes('/node_modules/react/') || id.includes('/node_modules/react-dom/')) {
+            return 'react-vendor'
+          }
+          return undefined
+        },
+      },
+    },
+  },
   optimizeDeps: {
     exclude: ['pyodide'],
   },
