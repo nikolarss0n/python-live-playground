@@ -85,6 +85,7 @@ export function ProjectPlayground({ workspace, onExit }: {
   const apiStale = Boolean(snapshot.executedProject && !sameProjectSource(snapshot.executedProject, { entry, files, folders: project.folders }))
   const api = useApiRequests(snapshot.routes, snapshot, invoke, {
     stale: apiStale,
+    autoRun,
     runBeforeSend: () => runNow(),
   })
   const hasRoutes = api.routes.length > 0

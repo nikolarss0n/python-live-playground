@@ -7,6 +7,8 @@ type Snapshot = { status: ExecutionStatus; runId: string | null; events: ResultE
 export type ApiRequestOptions = {
   /** True when the editor/project source has changed since the last completed code run. */
   stale?: boolean
+  /** True when code edits automatically re-run (default). False in manual-run mode. */
+  autoRun?: boolean
   /** Re-runs the latest code/project before sending when stale. */
   runBeforeSend?: () => Promise<void>
 }
@@ -20,10 +22,10 @@ export type ApiRequests = {
   send: () => void
   /** False while Python is busy, stopped, or the code failed to start without newer edits to run. */
   canSend: boolean
-  /** True when Send will re-run edited code first before invoking the route. */
-  canRunAndSend: boolean
   sending: boolean
-  /** True when the current responses/routes belong to an older version of the code. */
+  /** True while Auto-run is syncing code edits or a Send request is in flight (drives calm hairline animation). */
+  syncing: boolean
+  /** True only in manual mode when current responses belong to an older version of the code. */
   stale: boolean
   /** True when the last completed code run failed (syntax/startup error), blocking sends until fixed. */
   codeError: boolean
@@ -50,7 +52,7 @@ export function useApiRequests(
   invoke: (request: InvokeRequest) => Promise<void>,
   options: ApiRequestOptions = {},
 ): ApiRequests {
-  const { stale = false, runBeforeSend } = options
+  const { stale = false, autoRun = true, runBeforeSend } = options
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [drafts, setDrafts] = useState<Record<string, { basis: string; draft: RequestDraft }>>({})
   const [responses, setResponses] = useState<Record<string, SentResponse>>({})
@@ -136,11 +138,15 @@ export function useApiRequests(
   }, [selected, basis, draft])
 
   const stopped = status === 'stopped' || status === 'timeout'
+  const isCodeRunning = status === 'running' && !isInvoke(runId)
+  const sending = (status === 'running' && isInvoke(runId)) || queuedSending
   const busy = status === 'running' || status === 'booting' || queuedSending
   const canRunAndSend = Boolean(stale && runBeforeSend && !stopped && !busy && selected !== null)
   const canSend = selected !== null && !stopped && !busy && (
     canRunAndSend || (!stale && !codeError && (status === 'success' || (status === 'error' && isInvoke(runId))))
   )
+  const manualStale = stale && !autoRun
+  const syncing = !stopped && (sending || (autoRun && (stale || isCodeRunning)))
 
   const send = useCallback(() => {
     if (!selected || !canSend) return
@@ -165,8 +171,8 @@ export function useApiRequests(
 
   const key = selected ? routeKey(selected) : ''
   const refused = useMemo(
-    () => (!stale && sentDrafts[key] === JSON.stringify(draft) ? refusals(responses[key]) : []),
-    [stale, sentDrafts, responses, key, draft],
+    () => (!manualStale && sentDrafts[key] === JSON.stringify(draft) ? refusals(responses[key]) : []),
+    [manualStale, sentDrafts, responses, key, draft],
   )
 
   return {
@@ -177,9 +183,9 @@ export function useApiRequests(
     edit,
     send,
     canSend,
-    canRunAndSend,
-    sending: (status === 'running' && isInvoke(runId)) || queuedSending,
-    stale,
+    sending,
+    syncing,
+    stale: manualStale,
     codeError: codeError && !stale,
     responses,
     refused,

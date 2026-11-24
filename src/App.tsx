@@ -281,6 +281,7 @@ function Scratchpad({ onOpenProject, onOpenDiskFolder, takeOpenedFile, openedFro
   const apiStale = snapshot.executedCode !== null && snapshot.executedCode !== code
   const api = useApiRequests(freePlay ? snapshot.routes : NO_ROUTES, snapshot, invoke, {
     stale: apiStale,
+    autoRun: learning.untrustedCode === null,
     runBeforeSend: () => runNow(),
   })
   const apiRoutes = api.routes.length > 0

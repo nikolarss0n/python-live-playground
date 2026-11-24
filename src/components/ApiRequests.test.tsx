@@ -16,21 +16,25 @@ const RAN: Snapshot = { status: 'success', runId: 'run-1', events: [], durationM
 let setSnapshot: (snapshot: Snapshot) => void = () => {}
 let setRoutes: (routes: DiscoveredRoute[]) => void = () => {}
 let setStale: (stale: boolean) => void = () => {}
+let setAutoRun: (autoRun: boolean) => void = () => {}
 
-function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend }: {
+function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend, initialAutoRun = true }: {
   invoke: (request: InvokeRequest) => Promise<void>
   start?: Snapshot
   onShowLine?: (line: number, file?: string) => void
   onShowResults?: () => void
   runBeforeSend?: () => Promise<void>
+  initialAutoRun?: boolean
 }) {
   const [snapshot, set] = useState(start)
   const [routes, setR] = useState(ROUTES)
   const [stale, setS] = useState(false)
+  const [autoRun, setA] = useState(initialAutoRun)
   setSnapshot = set
   setRoutes = setR
   setStale = setS
-  const api = useApiRequests(routes, snapshot, invoke, { stale, runBeforeSend })
+  setAutoRun = setA
+  const api = useApiRequests(routes, snapshot, invoke, { stale, autoRun, runBeforeSend })
   return <ApiRequests api={api} stopped={snapshot.status === 'stopped' || snapshot.status === 'timeout'} onShowLine={onShowLine} onShowResults={onShowResults} />
 }
 
@@ -165,7 +169,7 @@ describe('ApiRequests', () => {
     expect(onShowLine).toHaveBeenCalledWith(9, 'routes/items.py')
   })
 
-  it('marks responses outdated when code changes and re-runs before invoking on Run & Send', async () => {
+  it('uses a calm syncing state in auto-run without blinking Send, and marks outdated only in manual mode', async () => {
     const invoke = vi.fn(async () => {})
     const runBeforeSend = vi.fn(async () => {})
     render(<Harness invoke={invoke} runBeforeSend={runBeforeSend} />)
@@ -173,10 +177,18 @@ describe('ApiRequests', () => {
     answer('invoke-1', 200, '{"ok":true}')
     expect(invoke).toHaveBeenCalledTimes(1)
 
+    // In auto-run mode: button stays 'Send', no 'outdated' flash, form enters calm syncing animation.
     act(() => setStale(true))
+    const form = screen.getByRole('form', { name: /Request to/ })
+    expect(form).toHaveAttribute('data-syncing', 'true')
+    expect(screen.getByRole('status', { name: 'Response' })).not.toHaveTextContent('outdated')
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled()
+
+    // In manual mode: steady 'outdated' indicator, button still stays 'Send', and clicking re-runs before invoking.
+    act(() => setAutoRun(false))
+    expect(form).not.toHaveAttribute('data-syncing')
     expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('outdated')
-    const button = screen.getByRole('button', { name: 'Run & Send' })
-    await userEvent.click(button)
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
     expect(runBeforeSend).toHaveBeenCalledOnce()
     expect(invoke).toHaveBeenCalledTimes(1)
 

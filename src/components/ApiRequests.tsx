@@ -102,9 +102,7 @@ export function ApiRequests({ api, stopped, onShowLine, onShowResults }: {
     : api.codeError
       ? 'Your code has an error. Fix it in Results before sending.'
       : api.stale
-        ? (api.canRunAndSend
-          ? 'Code changed — press Run & Send to run your edits and send.'
-          : 'Code changed — run your code before sending.')
+        ? 'Code changed — Send will run your edits first.'
         : 'Pick a route from your file. Its request is ready to send.'
   return (
     <>
@@ -133,11 +131,11 @@ export function ApiRequests({ api, stopped, onShowLine, onShowResults }: {
           )
         })}
       </ul>
-      <form className="api-call api-request" aria-label={`Request to ${selectedKey}`} onSubmit={onSubmit}>
+      <form className="api-call api-request" data-syncing={api.syncing ? 'true' : undefined} aria-label={`Request to ${selectedKey}`} onSubmit={onSubmit}>
         <div className="api-call-head">
           <span className="api-method">{selected.method}</span>
           <input className={`api-path${pathRefused ? ' is-refused' : ''}`} aria-label="Request path" aria-invalid={pathRefused ? true : undefined} value={draft.path} spellCheck={false} autoCapitalize="off" autoComplete="off" onChange={(event) => change({ path: event.target.value })} />
-          <button type="submit" className="fullstack-button is-primary" disabled={!api.canSend}>{api.sending ? 'Sending' : api.canRunAndSend ? 'Run & Send' : 'Send'}</button>
+          <button type="submit" className="fullstack-button is-primary" disabled={!api.canSend}>Send</button>
         </div>
         {hasFields ? (
           <div className="api-request-fields">
