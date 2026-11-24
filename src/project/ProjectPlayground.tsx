@@ -179,7 +179,9 @@ export function ProjectPlayground({ workspace, onExit }: {
     postHostEvent({ type: 'dirty', dirty: workspace.isDiskBacked && workspace.dirtyPaths.size > 0 })
   }, [workspace.isDiskBacked, workspace.dirtyPaths.size])
   const saveLabel = saveError ?? (workspace.isDiskBacked
-    ? (workspace.dirtyPaths.size ? 'Unsaved disk edits (⌘S to save)' : 'Synced with disk')
+    ? (workspace.diskConflicts.size
+      ? 'Changed on disk — click Refresh to load'
+      : workspace.dirtyPaths.size ? 'Unsaved disk edits (⌘S to save)' : 'Synced with disk')
     : (workspace.dirtyPaths.size ? 'Saving project on this device' : 'Project saved on this device'))
   return <div className="app-shell project-shell">
     <header className="toolbar project-toolbar">
@@ -287,7 +289,7 @@ export function ProjectPlayground({ workspace, onExit }: {
     </ResizableWorkspace>
     <footer className="app-footer">
       <span role="status" className="footer-status">
-        <span className={`footer-dot is-${saveError ? 'error' : workspace.dirtyPaths.size ? 'saving' : 'saved'}`} />{saveLabel}
+        <span className={`footer-dot is-${saveError || workspace.diskConflicts.size ? 'error' : workspace.dirtyPaths.size ? 'saving' : 'saved'}`} />{saveLabel}
       </span>
       <span className="footer-hint">{autoRun ? entry + ' runs after edits' : 'Manual run'} · ⌘/Ctrl+Enter to run · Esc to stop</span>
     </footer>

@@ -223,10 +223,12 @@ describe('local project workspace', () => {
     expect(result.current.project.files['pkg/b.py']).toBe('y = 3\n')
     expect(result.current.project.files['main.py']).toBe('from pkg.a import x\nprint("local", x)\n')
     expect(result.current.dirtyPaths.has('main.py')).toBe(true)
+    expect(result.current.diskConflicts.has('main.py')).toBe(true)
 
-    // Saving clears dirty state; forced refresh overwrites from disk.
+    // Saving clears dirty state and conflict; forced refresh overwrites from disk.
     act(() => result.current.markDiskSaved({ 'main.py': 'from pkg.a import x\nprint("local", x)\n' }))
     expect(result.current.dirtyPaths.size).toBe(0)
+    expect(result.current.diskConflicts.size).toBe(0)
     act(() => result.current.editFile('main.py', 'discard me'))
     act(() => {
       result.current.syncDiskFolder({
@@ -236,6 +238,19 @@ describe('local project workspace', () => {
     })
     expect(result.current.project.files['main.py']).toBe('from pkg.a import x\nprint("fresh")\n')
     expect(result.current.dirtyPaths.size).toBe(0)
+
+    // Explorer createFolder / rename / delete post diskMutation events when running inside the Mac host.
+    const postMessage = vi.fn()
+    ;(window as unknown as { webkit: unknown }).webkit = { messageHandlers: { playgroundHost: { postMessage } } }
+    act(() => {
+      expect(result.current.createFolder('reports')).toBeNull()
+      expect(result.current.renameFile('pkg/a.py', 'reports/a.py')).toBeNull()
+      expect(result.current.deleteFile('reports/a.py')).toBeNull()
+    })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'diskMutation', op: 'createFolder', path: 'reports' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'diskMutation', op: 'rename', path: 'pkg/a.py', newPath: 'reports/a.py' })
+    expect(postMessage).toHaveBeenCalledWith({ type: 'diskMutation', op: 'delete', path: 'reports/a.py' })
+    delete (window as unknown as { webkit?: unknown }).webkit
   })
 
   it('protects a change saved by another tab while local edits are pending', () => {

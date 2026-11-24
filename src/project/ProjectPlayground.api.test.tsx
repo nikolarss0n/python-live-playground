@@ -36,6 +36,7 @@ function makeWorkspace(openFile = vi.fn()): ProjectWorkspace {
   return {
     enabled: true,
     isDiskBacked: false,
+    diskConflicts: new Set(),
     setEnabled: vi.fn(),
     project: { name: 'Bookshop', entry: 'main.py', activePath: 'main.py', openPaths: ['main.py'], folders: [], files },
     projectNames: ['Bookshop'],

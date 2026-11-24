@@ -364,6 +364,29 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    func applyDiskMutation(op: String, path: String, newPath: String?) {
+        guard let folderURL else { return }
+        do {
+            switch op {
+            case "createFolder":
+                try DiskFolder.createFolder(path, in: folderURL)
+            case "rename":
+                if let newPath { try DiskFolder.rename(from: path, to: newPath, in: folderURL) }
+            case "delete":
+                try DiskFolder.delete(path, in: folderURL)
+            default:
+                return
+            }
+            if let refreshed = try? DiskFolder.read(at: folderURL) {
+                let foldersChanged = refreshed.folders != lastDiskProject?.folders
+                lastDiskProject = refreshed
+                if foldersChanged { armFolderWatch(folderURL) }
+            }
+        } catch {
+            showProblem("Could not update “\(path)” on disk.", error.localizedDescription)
+        }
+    }
+
     @objc func saveDocumentAs(_ sender: Any?) {
         Task {
             if let document = await currentDocument() { showSavePanel(for: document) }
@@ -450,6 +473,8 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
             controller?.pageDirtyChanged(edited)
         case .refreshDisk:
             controller?.reloadFromDisk(nil)
+        case let .diskMutation(op, path, newPath):
+            controller?.applyDiskMutation(op: op, path: path, newPath: newPath)
         }
     }
 }

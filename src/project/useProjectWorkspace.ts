@@ -1,15 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { DiskFolderPayload } from '../host/macHost'
+import { postHostEvent, type DiskFolderPayload } from '../host/macHost'
 import {
   closeProjectTab, deleteProjectFolder, deleteProjectFile, openProjectFile, parseWorkspace, projectNameError,
   PROJECT_STORAGE_KEY, renameProjectFolder, renameProjectFile, setProjectEntry, starterProject, type Project, type WorkspaceSnapshot,
 } from './model'
-import { projectFilesError, projectFolders, isProjectPath } from './paths'
+import { projectFilesError, projectFolders, isProjectPath, parentFolder } from './paths'
 
 type DiskSession = {
   project: Project
   /** Last snapshot known to be on disk; differs from `project.files` only for unsaved local edits. */
   diskFiles: Record<string, string>
+  /** Paths edited locally that also changed externally on disk since the last sync. */
+  conflicts: string[]
 }
 
 function projectFromDiskFolder(folder: DiskFolderPayload): Project {
@@ -154,11 +156,13 @@ export function useProjectWorkspace() {
     const folders = projectFolders(current.files, [...current.folders, path])
     const error = projectFilesError(current.files, folders)
     if (error) return error
-    return changeProject({ ...current, folders })
+    const result = changeProject({ ...current, folders })
+    if (result === null && diskRef.current) postHostEvent({ type: 'diskMutation', op: 'createFolder', path })
+    return result
   }
 
   const openDiskFolder = useCallback((folder: DiskFolderPayload) => {
-    const next: DiskSession = { project: projectFromDiskFolder(folder), diskFiles: { ...folder.files } }
+    const next: DiskSession = { project: projectFromDiskFolder(folder), diskFiles: { ...folder.files }, conflicts: [] }
     diskRef.current = next
     setDiskSession(next)
     setSaveError(null)
@@ -171,10 +175,16 @@ export function useProjectWorkspace() {
       return
     }
     const nextFiles: Record<string, string> = { ...folder.files }
+    const conflicts = new Set<string>(force ? [] : existing.conflicts)
     if (!force) {
       for (const [path, content] of Object.entries(existing.project.files)) {
         // Keep unsaved local edits or locally created files instead of silently clobbering them.
-        if (existing.diskFiles[path] !== content) nextFiles[path] = content
+        if (existing.diskFiles[path] !== content) {
+          nextFiles[path] = content
+          if (folder.files[path] !== existing.diskFiles[path]) conflicts.add(path)
+        } else {
+          conflicts.delete(path)
+        }
       }
     }
     const nextFolders = projectFolders(nextFiles, folder.folders)
@@ -187,6 +197,7 @@ export function useProjectWorkspace() {
     const next: DiskSession = {
       project: { name: folder.name, entry, folders: nextFolders, files: nextFiles, activePath, openPaths },
       diskFiles: { ...folder.files },
+      conflicts: [...conflicts],
     }
     diskRef.current = next
     setDiskSession(next)
@@ -195,7 +206,12 @@ export function useProjectWorkspace() {
   const markDiskSaved = useCallback((savedFiles: Record<string, string>) => {
     const existing = diskRef.current
     if (!existing) return
-    const next: DiskSession = { ...existing, diskFiles: { ...existing.diskFiles, ...savedFiles } }
+    const savedKeys = new Set(Object.keys(savedFiles))
+    const next: DiskSession = {
+      ...existing,
+      diskFiles: { ...existing.diskFiles, ...savedFiles },
+      conflicts: existing.conflicts.filter((path) => !savedKeys.has(path)),
+    }
     diskRef.current = next
     setDiskSession(next)
   }, [])
@@ -254,7 +270,34 @@ export function useProjectWorkspace() {
     flush()
   }
 
+  function syncDiskBaselineAfterRename(oldPath: string, newPath: string, isFolder: boolean) {
+    const existing = diskRef.current
+    if (!existing) return
+    const nextDiskFiles: Record<string, string> = {}
+    const prefix = `${oldPath}/`
+    for (const [path, content] of Object.entries(existing.diskFiles)) {
+      if (!isFolder && path === oldPath) nextDiskFiles[newPath] = content
+      else if (isFolder && path.startsWith(prefix)) nextDiskFiles[`${newPath}/${path.slice(prefix.length)}`] = content
+      else nextDiskFiles[path] = content
+    }
+    const next = { ...existing, diskFiles: nextDiskFiles }
+    diskRef.current = next
+    setDiskSession(next)
+  }
+
+  function syncDiskBaselineAfterDelete(targetPath: string, isFolder: boolean) {
+    const existing = diskRef.current
+    if (!existing) return
+    const prefix = `${targetPath}/`
+    const matches = (path: string) => (isFolder ? path.startsWith(prefix) : path === targetPath)
+    const nextDiskFiles = Object.fromEntries(Object.entries(existing.diskFiles).filter(([path]) => !matches(path)))
+    const next = { ...existing, diskFiles: nextDiskFiles, conflicts: existing.conflicts.filter((path) => !matches(path)) }
+    diskRef.current = next
+    setDiskSession(next)
+  }
+
   const isDiskBacked = diskSession !== null
+  const diskConflicts: ReadonlySet<string> = new Set(diskSession?.conflicts ?? [])
   const project = diskSession?.project ?? snapshot.project
   const { enabled } = snapshot
   const projectNames = [snapshot.project, ...snapshot.otherProjects].map((item) => item.name).sort((a, b) => a.localeCompare(b))
@@ -264,12 +307,43 @@ export function useProjectWorkspace() {
   const dirtyPaths: ReadonlySet<string> = new Set(dirtyEntries.map(([path]) => path))
   const dirtyFiles: Record<string, string> = Object.fromEntries(dirtyEntries)
   return {
-    project, enabled, isDiskBacked, setEnabled, createFile, createFolder, editFile, dirtyPaths, dirtyFiles, saveError, projectNames,
+    project, enabled, isDiskBacked, diskConflicts, setEnabled, createFile, createFolder, editFile, dirtyPaths, dirtyFiles, saveError, projectNames,
     createProject, switchProject, resetStarter, openDiskFolder, syncDiskFolder, markDiskSaved, closeDiskFolder, saveNow: flush,
-    renameFolder: (path: string, name: string) => changeProject(renameProjectFolder(activeProject(), path, name)),
-    deleteFolder: (path: string) => changeProject(deleteProjectFolder(activeProject(), path)),
-    renameFile: (path: string, newPath: string) => changeProject(renameProjectFile(activeProject(), path, newPath)),
-    deleteFile: (path: string) => changeProject(deleteProjectFile(activeProject(), path)),
+    renameFolder: (path: string, name: string) => {
+      const error = changeProject(renameProjectFolder(activeProject(), path, name))
+      if (error === null && diskRef.current) {
+        const parent = parentFolder(path)
+        const newPath = parent ? `${parent}/${name.trim()}` : name.trim()
+        syncDiskBaselineAfterRename(path, newPath, true)
+        postHostEvent({ type: 'diskMutation', op: 'rename', path, newPath })
+      }
+      return error
+    },
+    deleteFolder: (path: string) => {
+      const error = changeProject(deleteProjectFolder(activeProject(), path))
+      if (error === null && diskRef.current) {
+        syncDiskBaselineAfterDelete(path, true)
+        postHostEvent({ type: 'diskMutation', op: 'delete', path })
+      }
+      return error
+    },
+    renameFile: (path: string, newPath: string) => {
+      const error = changeProject(renameProjectFile(activeProject(), path, newPath))
+      if (error === null && diskRef.current && path !== newPath.trim()) {
+        const target = newPath.trim()
+        syncDiskBaselineAfterRename(path, target, false)
+        postHostEvent({ type: 'diskMutation', op: 'rename', path, newPath: target })
+      }
+      return error
+    },
+    deleteFile: (path: string) => {
+      const error = changeProject(deleteProjectFile(activeProject(), path))
+      if (error === null && diskRef.current) {
+        syncDiskBaselineAfterDelete(path, false)
+        postHostEvent({ type: 'diskMutation', op: 'delete', path })
+      }
+      return error
+    },
     setEntry: (path: string) => changeProject(setProjectEntry(activeProject(), path)),
     openFile: (path: string) => { changeProject(openProjectFile(activeProject(), path)) },
     closeFile: (path: string) => { changeProject(closeProjectTab(activeProject(), path)) },

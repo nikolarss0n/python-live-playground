@@ -43,6 +43,7 @@ public enum HostEvent: Equatable, Sendable {
     case theme(dark: Bool)
     case dirty(Bool)
     case refreshDisk
+    case diskMutation(op: String, path: String, newPath: String?)
 
     /// Reads a message the page posted; anything unexpected is ignored.
     public init?(message body: Any) {
@@ -59,6 +60,18 @@ public enum HostEvent: Equatable, Sendable {
             self = .dirty(dirty)
         case "refreshDisk":
             self = .refreshDisk
+        case "diskMutation":
+            guard let op = body["op"] as? String, let path = body["path"] as? String,
+                  DiskFolder.isSafeRelativePath(path) else { return nil }
+            switch op {
+            case "createFolder", "delete":
+                self = .diskMutation(op: op, path: path, newPath: nil)
+            case "rename":
+                guard let newPath = body["newPath"] as? String, DiskFolder.isSafeRelativePath(newPath) else { return nil }
+                self = .diskMutation(op: op, path: path, newPath: newPath)
+            default:
+                return nil
+            }
         default:
             return nil
         }

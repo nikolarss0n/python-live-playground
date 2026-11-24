@@ -72,6 +72,9 @@ import Testing
         #expect(HostEvent(message: ["type": "dirty", "dirty": false]) == .dirty(false))
         #expect(HostEvent(message: ["type": "dirty", "dirty": "yes"]) == nil)
         #expect(HostEvent(message: ["type": "refreshDisk"]) == .refreshDisk)
+        #expect(HostEvent(message: ["type": "diskMutation", "op": "createFolder", "path": "pkg/sub"]) == .diskMutation(op: "createFolder", path: "pkg/sub", newPath: nil))
+        #expect(HostEvent(message: ["type": "diskMutation", "op": "rename", "path": "a.py", "newPath": "b.py"]) == .diskMutation(op: "rename", path: "a.py", newPath: "b.py"))
+        #expect(HostEvent(message: ["type": "diskMutation", "op": "delete", "path": "../escape.py"]) == nil)
         #expect(HostEvent(message: ["type": "eval"]) == nil)
         #expect(HostEvent(message: "ready") == nil)
     }
@@ -207,6 +210,17 @@ import Testing
         #expect(saved == "x = 42\n")
         #expect(throws: DiskFolder.FolderError.unsafePath) {
             try DiskFolder.write(files: ["../outside.py": "bad"], to: root)
+        }
+
+        try DiskFolder.createFolder("reports/weekly", in: root)
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: "reports/weekly").path))
+        try DiskFolder.rename(from: "sub/mod.py", to: "reports/mod.py", in: root)
+        #expect(FileManager.default.fileExists(atPath: root.appending(path: "reports/mod.py").path))
+        #expect(!FileManager.default.fileExists(atPath: root.appending(path: "sub/mod.py").path))
+        try DiskFolder.delete("reports/mod.py", in: root)
+        #expect(!FileManager.default.fileExists(atPath: root.appending(path: "reports/mod.py").path))
+        #expect(throws: DiskFolder.FolderError.unsafePath) {
+            try DiskFolder.delete("../outside.py", in: root)
         }
     }
 }

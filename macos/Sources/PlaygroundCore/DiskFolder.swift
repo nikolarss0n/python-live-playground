@@ -111,21 +111,50 @@ public enum DiskFolder {
         return DiskProject(name: name, entry: entry, folders: folders.sorted(), files: files)
     }
 
+    private static func safeTarget(for relative: String, in rootURL: URL) throws(FolderError) -> URL {
+        guard isSafeRelativePath(relative) else { throw .unsafePath }
+        let root = rootURL.standardizedFileURL
+        let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
+        let target = root.appending(path: relative).standardizedFileURL
+        guard target.path.hasPrefix(rootPrefix) else { throw .unsafePath }
+        if let values = try? target.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
+            throw .unsafePath
+        }
+        return target
+    }
+
     /// Writes modified relative files back inside `rootURL`, refusing paths that escape the folder.
     public static func write(files: [String: String], to rootURL: URL) throws {
         let manager = FileManager.default
-        let root = rootURL.standardizedFileURL
-        let rootPrefix = root.path.hasSuffix("/") ? root.path : root.path + "/"
         for (relative, content) in files {
-            guard isSafeRelativePath(relative) else { throw FolderError.unsafePath }
-            let target = root.appending(path: relative).standardizedFileURL
-            guard target.path.hasPrefix(rootPrefix) else { throw FolderError.unsafePath }
+            let target = try safeTarget(for: relative, in: rootURL)
             let parent = target.deletingLastPathComponent()
             try manager.createDirectory(at: parent, withIntermediateDirectories: true)
-            if let values = try? target.resourceValues(forKeys: [.isSymbolicLinkKey]), values.isSymbolicLink == true {
-                throw FolderError.unsafePath
-            }
             try Data(content.utf8).write(to: target, options: .atomic)
         }
+    }
+
+    /// Creates a relative folder inside `rootURL`.
+    public static func createFolder(_ relative: String, in rootURL: URL) throws {
+        let target = try safeTarget(for: relative, in: rootURL)
+        try FileManager.default.createDirectory(at: target, withIntermediateDirectories: true)
+    }
+
+    /// Renames or moves a file or folder inside `rootURL` when the source exists on disk.
+    public static func rename(from oldRelative: String, to newRelative: String, in rootURL: URL) throws {
+        let source = try safeTarget(for: oldRelative, in: rootURL)
+        let destination = try safeTarget(for: newRelative, in: rootURL)
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: source.path) else { return }
+        try manager.createDirectory(at: destination.deletingLastPathComponent(), withIntermediateDirectories: true)
+        try manager.moveItem(at: source, to: destination)
+    }
+
+    /// Deletes a file or folder inside `rootURL` when it exists on disk.
+    public static func delete(_ relative: String, in rootURL: URL) throws {
+        let target = try safeTarget(for: relative, in: rootURL)
+        let manager = FileManager.default
+        guard manager.fileExists(atPath: target.path) else { return }
+        try manager.removeItem(at: target)
     }
 }

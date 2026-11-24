@@ -31,6 +31,8 @@ export type HostEvent =
   | { type: 'theme'; theme: 'light' | 'dark' }
   | { type: 'dirty'; dirty: boolean }
   | { type: 'refreshDisk' }
+  | { type: 'diskMutation'; op: 'createFolder' | 'delete'; path: string }
+  | { type: 'diskMutation'; op: 'rename'; path: string; newPath: string }
 
 type ProjectDocument = { name: string; saved: boolean; dirtyFiles?: Record<string, string> }
 export type HostReply = { ok: true; code?: string; projectDocument?: ProjectDocument } | { ok: false; error: string }
