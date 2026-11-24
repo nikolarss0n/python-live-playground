@@ -15,14 +15,23 @@ type Snapshot = { status: ExecutionStatus; runId: string | null; events: ResultE
 const RAN: Snapshot = { status: 'success', runId: 'run-1', events: [], durationMs: 4 }
 let setSnapshot: (snapshot: Snapshot) => void = () => {}
 let setRoutes: (routes: DiscoveredRoute[]) => void = () => {}
+let setStale: (stale: boolean) => void = () => {}
 
-function Harness({ invoke, start = RAN, onShowLine }: { invoke: (request: InvokeRequest) => Promise<void>; start?: Snapshot; onShowLine?: (line: number) => void }) {
+function Harness({ invoke, start = RAN, onShowLine, onShowResults, runBeforeSend }: {
+  invoke: (request: InvokeRequest) => Promise<void>
+  start?: Snapshot
+  onShowLine?: (line: number, file?: string) => void
+  onShowResults?: () => void
+  runBeforeSend?: () => Promise<void>
+}) {
   const [snapshot, set] = useState(start)
   const [routes, setR] = useState(ROUTES)
+  const [stale, setS] = useState(false)
   setSnapshot = set
   setRoutes = setR
-  const api = useApiRequests(routes, snapshot, invoke)
-  return <ApiRequests api={api} stopped={snapshot.status === 'stopped' || snapshot.status === 'timeout'} onShowLine={onShowLine} />
+  setStale = setS
+  const api = useApiRequests(routes, snapshot, invoke, { stale, runBeforeSend })
+  return <ApiRequests api={api} stopped={snapshot.status === 'stopped' || snapshot.status === 'timeout'} onShowLine={onShowLine} onShowResults={onShowResults} />
 }
 
 const answer = (id: string, status: number, body: string) => act(() => setSnapshot({
@@ -154,5 +163,57 @@ describe('ApiRequests', () => {
     }))
     await userEvent.click(screen.getByRole('button', { name: 'Crashed in routes/items.py on line 9' }))
     expect(onShowLine).toHaveBeenCalledWith(9, 'routes/items.py')
+  })
+
+  it('marks responses outdated when code changes and re-runs before invoking on Run & Send', async () => {
+    const invoke = vi.fn(async () => {})
+    const runBeforeSend = vi.fn(async () => {})
+    render(<Harness invoke={invoke} runBeforeSend={runBeforeSend} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    answer('invoke-1', 200, '{"ok":true}')
+    expect(invoke).toHaveBeenCalledTimes(1)
+
+    act(() => setStale(true))
+    expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('outdated')
+    const button = screen.getByRole('button', { name: 'Run & Send' })
+    await userEvent.click(button)
+    expect(runBeforeSend).toHaveBeenCalledOnce()
+    expect(invoke).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      setStale(false)
+      setSnapshot({ status: 'success', runId: 'run-2', events: [], durationMs: 3 })
+    })
+    expect(invoke).toHaveBeenCalledTimes(2)
+  })
+
+  it('keeps routes visible during a mid-edit syntax error, disables Send, and links to Results', async () => {
+    const invoke = vi.fn(async () => {})
+    const onShowResults = vi.fn()
+    render(<Harness invoke={invoke} onShowResults={onShowResults} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    answer('invoke-1', 200, '{"ok":true}')
+
+    // Code breaks mid-edit: routes drop to [] and status becomes error, yet the API tab stays visible.
+    act(() => {
+      setRoutes([])
+      setSnapshot({ status: 'error', runId: 'run-2', events: [{ kind: 'error', message: 'SyntaxError', friendly: '', traceback: '' }], durationMs: 2 })
+    })
+    expect(screen.getByRole('list', { name: 'Routes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled()
+    expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('Not sent yet.')
+    await userEvent.click(screen.getByRole('button', { name: 'Show Results' }))
+    expect(onShowResults).toHaveBeenCalledOnce()
+  })
+
+  it('clears old 200 responses when the worker resets after Stop while idle', async () => {
+    const invoke = vi.fn(async () => {})
+    render(<Harness invoke={invoke} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    answer('invoke-1', 200, '{"ok":true}')
+    expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('200')
+
+    act(() => setSnapshot({ status: 'ready', runId: null, events: [], durationMs: null }))
+    expect(screen.getByRole('status', { name: 'Response' })).toHaveTextContent('Not sent yet.')
   })
 })

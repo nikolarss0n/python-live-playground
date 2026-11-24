@@ -47,6 +47,22 @@ function NewProjectDialog({ workspace, onClose }: { workspace: ProjectWorkspace;
   </div>, document.body)
 }
 
+function sameProjectSource(
+  executed: { entry: string; folders?: readonly string[]; files: Readonly<Record<string, string>> } | undefined,
+  current: { entry: string; folders: readonly string[]; files: Readonly<Record<string, string>> },
+): boolean {
+  if (!executed || executed.entry !== current.entry) return false
+  const aKeys = Object.keys(executed.files)
+  const bKeys = Object.keys(current.files)
+  if (aKeys.length !== bKeys.length) return false
+  for (const key of bKeys) {
+    if (!Object.hasOwn(executed.files, key) || executed.files[key] !== current.files[key]) return false
+  }
+  const aFolders = executed.folders ?? []
+  if (aFolders.length !== current.folders.length) return false
+  return current.folders.every((folder, index) => aFolders[index] === folder)
+}
+
 export function ProjectPlayground({ workspace, onExit }: {
   workspace: ProjectWorkspace
   onExit: (openedFile?: string) => void
@@ -66,7 +82,11 @@ export function ProjectPlayground({ workspace, onExit }: {
     autoRun,
     checkOptions: { project: { entry, files, folders: project.folders }, ...(showInputs ? { stdin } : {}) },
   })
-  const api = useApiRequests(snapshot.routes, snapshot, invoke)
+  const apiStale = Boolean(snapshot.executedProject && !sameProjectSource(snapshot.executedProject, { entry, files, folders: project.folders }))
+  const api = useApiRequests(snapshot.routes, snapshot, invoke, {
+    stale: apiStale,
+    runBeforeSend: () => runNow(),
+  })
   const hasRoutes = api.routes.length > 0
   const activeTab = hasRoutes ? resultsTab : 'results'
   const onTabKeyDown = (event: ReactKeyboardEvent<HTMLDivElement>) => {
@@ -252,6 +272,7 @@ export function ProjectPlayground({ workspace, onExit }: {
               api={api}
               stopped={snapshot.status === 'timeout' || snapshot.status === 'stopped'}
               onShowLine={(line, file) => openSource(file ?? entry, line)}
+              onShowResults={() => setResultsTab('results')}
             />
           </section>
         ) : null}

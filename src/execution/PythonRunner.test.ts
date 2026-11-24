@@ -264,12 +264,14 @@ describe('PythonRunner', () => {
     const runner = new PythonRunner(1000)
     await runner.start()
     const first = MockWorker.instances[0]
-    await runner.run('print(1)')
+    await runner.run('from fastapi import FastAPI\napp = FastAPI()')
     // wait for success
     await new Promise((r) => setTimeout(r, 10))
+    expect(runner.getSnapshot().routes).toHaveLength(1)
     runner.stop()
     expect(first?.terminated).toBe(true)
     expect(MockWorker.instances.length).toBeGreaterThan(1)
+    expect(runner.getSnapshot().routes).toEqual([])
     runner.dispose()
   })
 

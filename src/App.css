@@ -3738,6 +3738,16 @@
   padding: 0.5rem 0.75rem;
 }
 
+.api-status.is-stale,
+.api-response-head.is-stale,
+.api-call-body.is-stale {
+  opacity: 0.55;
+}
+
+.fullstack-toolbar-note.is-error {
+  color: var(--danger);
+}
+
 @media (max-width: 480px) {
   .api-route-name {
     display: none;

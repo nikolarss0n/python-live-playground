@@ -292,7 +292,7 @@ export class PythonRunner {
     this.activeContextKey = undefined
     this.terminateWorker()
     this.spawnWorker()
-    if (wasRunning) this.lastRunEvents = []
+    this.lastRunEvents = []
     this.setSnapshot({
       status: wasRunning ? 'stopped' : this.ready ? 'ready' : 'booting',
       events: wasRunning
@@ -308,7 +308,7 @@ export class PythonRunner {
       error: null,
       executedCode: wasRunning ? this.lastCode : this.snapshot.executedCode,
       executedProject: wasRunning ? this.lastProject : this.snapshot.executedProject,
-      routes: wasRunning ? [] : this.snapshot.routes,
+      routes: [],
       exerciseId: wasRunning ? exerciseId : undefined,
       contextKey: wasRunning ? contextKey : undefined,
       checks: [],

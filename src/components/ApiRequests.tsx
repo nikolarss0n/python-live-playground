@@ -49,17 +49,18 @@ function Fields({ label, fields, values, onChange, refused }: FieldsProps) {
   )
 }
 
-function Response({ response, onShowLine }: { response: SentResponse | undefined; onShowLine?: (line: number, file?: string) => void }) {
+function Response({ response, stale, onShowLine }: { response: SentResponse | undefined; stale: boolean; onShowLine?: (line: number, file?: string) => void }) {
   if (!response) return <p className="fullstack-empty api-response-empty">Not sent yet.</p>
   if (response.kind === 'failed') return <p className="api-request-error">{response.message}</p>
   const empty = response.status === 204 || response.body === null
   return (
     <>
-      <div className="api-response-head">
+      <div className={`api-response-head${stale ? ' is-stale' : ''}`}>
         <span className={`api-status ${statusTone(response.status)}`}>{response.status}</span>
         <span className="api-response-note">
           {statusLabel(response.status)}
           {response.durationMs === null ? '' : ` · ${response.durationMs} ms`}
+          {stale ? ' · outdated' : ''}
         </span>
         {response.line && onShowLine ? (
           <button type="button" className="linkish api-response-line" onClick={() => onShowLine(response.line!, response.file)}>
@@ -69,14 +70,19 @@ function Response({ response, onShowLine }: { response: SentResponse | undefined
       </div>
       {empty ? <p className="fullstack-empty api-response-empty">No content.</p> : (
         // A refused request opens fully: the reason sits a few levels inside the 422 detail.
-        <div className="api-call-body"><CollectionTree key={response.status >= 400 ? 'open' : 'root'} node={jsonToNode(response.body)} tone="expr" openDepth={response.status >= 400 ? 4 : 1} /></div>
+        <div className={`api-call-body${stale ? ' is-stale' : ''}`}><CollectionTree key={response.status >= 400 ? 'open' : 'root'} node={jsonToNode(response.body)} tone="expr" openDepth={response.status >= 400 ? 4 : 1} /></div>
       )}
     </>
   )
 }
 
 /** The API tab for a file that defines routes: every route listed, and the picked one's request ready to send. */
-export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsState; stopped: boolean; onShowLine?: (line: number, file?: string) => void }) {
+export function ApiRequests({ api, stopped, onShowLine, onShowResults }: {
+  api: ApiRequestsState
+  stopped: boolean
+  onShowLine?: (line: number, file?: string) => void
+  onShowResults?: () => void
+}) {
   const { routes, selected, draft } = api
   const bodyId = useId()
   if (!selected) return null
@@ -91,12 +97,24 @@ export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsStat
   const pathRefused = refusedIn('path').length > 0
   const bodyRefused = refusedIn('body').length > 0
   const hasFields = Boolean(selected.query?.length || selected.headers?.length || takesBody)
+  const toolbarNote = stopped
+    ? 'Your app stopped. Run the code to start it again.'
+    : api.codeError
+      ? 'Your code has an error. Fix it in Results before sending.'
+      : api.stale
+        ? (api.canRunAndSend
+          ? 'Code changed — press Run & Send to run your edits and send.'
+          : 'Code changed — run your code before sending.')
+        : 'Pick a route from your file. Its request is ready to send.'
   return (
     <>
       <div className="fullstack-toolbar">
-        <span className="fullstack-toolbar-note">
-          {stopped ? 'Your app stopped. Run the code to start it again.' : 'Pick a route from your file. Its request is ready to send.'}
+        <span className={`fullstack-toolbar-note${api.codeError ? ' is-error' : ''}`}>
+          {toolbarNote}
         </span>
+        {api.codeError && onShowResults ? (
+          <button type="button" className="linkish" onClick={onShowResults}>Show Results</button>
+        ) : null}
       </div>
       <ul className="api-routes" aria-label="Routes">
         {routes.map((route) => {
@@ -108,8 +126,8 @@ export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsStat
                 <span className="api-method">{route.method}</span>
                 <span className="api-route-path">{route.path}</span>
                 {route.name ? <span className="api-route-name">{route.name}</span> : null}
-                {response?.kind === 'response' ? <span className={`api-status ${statusTone(response.status)}`}>{response.status}</span> : null}
-                {response?.kind === 'failed' ? <span className="api-status is-error">failed</span> : null}
+                {response?.kind === 'response' ? <span className={`api-status ${statusTone(response.status)}${api.stale ? ' is-stale' : ''}`}>{response.status}</span> : null}
+                {response?.kind === 'failed' ? <span className={`api-status is-error${api.stale ? ' is-stale' : ''}`}>failed</span> : null}
               </button>
             </li>
           )
@@ -119,7 +137,7 @@ export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsStat
         <div className="api-call-head">
           <span className="api-method">{selected.method}</span>
           <input className={`api-path${pathRefused ? ' is-refused' : ''}`} aria-label="Request path" aria-invalid={pathRefused ? true : undefined} value={draft.path} spellCheck={false} autoCapitalize="off" autoComplete="off" onChange={(event) => change({ path: event.target.value })} />
-          <button type="submit" className="fullstack-button is-primary" disabled={!api.canSend}>{api.sending ? 'Sending' : 'Send'}</button>
+          <button type="submit" className="fullstack-button is-primary" disabled={!api.canSend}>{api.sending ? 'Sending' : api.canRunAndSend ? 'Run & Send' : 'Send'}</button>
         </div>
         {hasFields ? (
           <div className="api-request-fields">
@@ -153,7 +171,7 @@ export function ApiRequests({ api, stopped, onShowLine }: { api: ApiRequestsStat
           </ul>
         ) : null}
         <div className="api-response" role="status" aria-label="Response">
-          <Response response={api.responses[selectedKey]} onShowLine={onShowLine} />
+          <Response response={api.responses[selectedKey]} stale={api.stale} onShowLine={onShowLine} />
         </div>
       </form>
     </>

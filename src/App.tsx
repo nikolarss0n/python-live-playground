@@ -278,7 +278,11 @@ function Scratchpad({ onOpenProject, onOpenDiskFolder, takeOpenedFile, openedFro
     [quietStart, runSnapshot],
   )
   // A playground file that defines routes gets them listed in the API tab, each with its request prepared.
-  const api = useApiRequests(freePlay ? snapshot.routes : NO_ROUTES, snapshot, invoke)
+  const apiStale = snapshot.executedCode !== null && snapshot.executedCode !== code
+  const api = useApiRequests(freePlay ? snapshot.routes : NO_ROUTES, snapshot, invoke, {
+    stale: apiStale,
+    runBeforeSend: () => runNow(),
+  })
   const apiRoutes = api.routes.length > 0
   // View charts what was sent from the API tab first, then the lesson's own requests.
   const viewResults = useMemo(() => {
@@ -880,7 +884,7 @@ function Scratchpad({ onOpenProject, onOpenDiskFolder, takeOpenedFile, openedFro
             view={lessonFullstack?.view}
             datasets={chosenDatasets}
             onDatasetsChange={chooseDatasets}
-            api={apiRoutes ? <ApiRequests api={api} stopped={snapshot.status === 'timeout' || snapshot.status === 'stopped'} onShowLine={(line) => revealSourceLine(editorView, line)} /> : undefined}
+            api={apiRoutes ? <ApiRequests api={api} stopped={snapshot.status === 'timeout' || snapshot.status === 'stopped'} onShowLine={(line) => revealSourceLine(editorView, line)} onShowResults={() => { setFsTab('results'); onGeometryChange() }} /> : undefined}
             viewResults={viewResults}
           /> : null}
           <div className="results-tab-body" hidden={activeFsTab !== 'results'}>
