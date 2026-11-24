@@ -17,15 +17,33 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     private(set) var pageReady = false
     private var readyWaiters: [CheckedContinuation<Void, Never>] = []
     private var reduceTransparencyObserver: NSObjectProtocol?
+    private let diskWatcher = DiskWatcher()
+    private var lastDiskCode: String?
+    private var lastDiskProject: DiskProject?
 
     /// The file Save writes to. Access to a file chosen in an earlier launch lasts while it is the current file.
     private(set) var fileURL: URL? {
         didSet {
             if oldValue != fileURL { oldValue?.stopAccessingSecurityScopedResource() }
-            window?.title = fileURL?.lastPathComponent ?? MainMenu.appName
-            window?.representedURL = fileURL
-            if fileURL == nil { window?.isDocumentEdited = false }
+            if fileURL != nil { folderURL = nil }
+            updateWindowDocumentHeader()
         }
+    }
+
+    /// A local project folder opened with File › Open Folder…. Live disk edits sync into Projects mode.
+    private(set) var folderURL: URL? {
+        didSet {
+            if oldValue != folderURL { oldValue?.stopAccessingSecurityScopedResource() }
+            if folderURL != nil { fileURL = nil }
+            updateWindowDocumentHeader()
+        }
+    }
+
+    private func updateWindowDocumentHeader() {
+        let active = folderURL ?? fileURL
+        window?.title = active?.lastPathComponent ?? MainMenu.appName
+        window?.representedURL = active
+        if active == nil { window?.isDocumentEdited = false }
     }
 
     static let transparencyKey = "backgroundTransparency"
@@ -150,7 +168,11 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     }
 
     func pageDirtyChanged(_ dirty: Bool) {
-        window?.isDocumentEdited = fileURL != nil && dirty
+        window?.isDocumentEdited = (fileURL != nil || folderURL != nil) && dirty
+    }
+
+    func windowDidBecomeKey(_ notification: Notification) {
+        checkDiskChanges(force: false)
     }
 
     func waitUntilPageReady() async {
@@ -189,6 +211,22 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    @objc func openFolderDialog(_ sender: Any?) {
+        guard let window else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.beginSheetModal(for: window) { [weak self] response in
+            guard response == .OK, let url = panel.url else { return }
+            MainActor.assumeIsolated { self?.openFolder(url) }
+        }
+    }
+
+    @objc func reloadFromDisk(_ sender: Any?) {
+        checkDiskChanges(force: true)
+    }
+
     func open(_ url: URL) {
         let scoped = url.startAccessingSecurityScopedResource()
         do {
@@ -196,12 +234,16 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
             Task {
                 await waitUntilPageReady()
                 guard (try? await send(.openFile(name: url.lastPathComponent, code: code)))?.ok == true else {
+                    if scoped { url.stopAccessingSecurityScopedResource() }
                     showProblem("Could not open “\(url.lastPathComponent)”.", "The playground did not accept the file.")
                     return
                 }
+                lastDiskCode = code
+                lastDiskProject = nil
                 fileURL = url
                 window?.isDocumentEdited = false
                 recent.add(url)
+                armFileWatch(url)
             }
         } catch {
             if scoped { url.stopAccessingSecurityScopedResource() }
@@ -214,16 +256,111 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         }
     }
 
+    func openFolder(_ url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        do {
+            let project = try DiskFolder.read(at: url)
+            Task {
+                await waitUntilPageReady()
+                guard (try? await send(.openFolder(name: project.name, entry: project.entry, folders: project.folders, files: project.files)))?.ok == true else {
+                    if scoped { url.stopAccessingSecurityScopedResource() }
+                    showProblem("Could not open “\(url.lastPathComponent)”.", "The playground did not accept the folder.")
+                    return
+                }
+                lastDiskProject = project
+                lastDiskCode = nil
+                folderURL = url
+                window?.isDocumentEdited = false
+                recent.add(url)
+                armFolderWatch(url)
+            }
+        } catch {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+            let reason = switch error {
+            case .notAFolder: "The chosen item is not a folder."
+            case .noPythonFiles: "The folder has no Python (.py) files."
+            case .tooManyFiles: "The folder has more than \(DiskFolder.maxFiles) text files."
+            case .tooLarge: "The folder's text files exceed 1 million characters."
+            case .unsafePath: "The folder contains an unsupported file path."
+            }
+            showProblem("Could not open “\(url.lastPathComponent)”.", reason)
+        }
+    }
+
+    private func armFileWatch(_ url: URL) {
+        diskWatcher.watchFile(url) { [weak self] in
+            self?.checkDiskChanges(force: false)
+        }
+    }
+
+    private func armFolderWatch(_ url: URL) {
+        diskWatcher.watchFolder(url) { [weak self] in
+            self?.checkDiskChanges(force: false)
+        }
+    }
+
+    /// Re-reads the currently open file or folder from disk and updates the playground when disk contents changed.
+    /// With `force == false`, unsaved local edits are preserved rather than silently overwritten.
+    func checkDiskChanges(force: Bool) {
+        if let folderURL {
+            guard let project = try? DiskFolder.read(at: folderURL) else { return }
+            if !force && project == lastDiskProject { return }
+            let foldersChanged = project.folders != lastDiskProject?.folders
+            lastDiskProject = project
+            if foldersChanged { armFolderWatch(folderURL) }
+            Task {
+                _ = try? await send(.syncFolder(
+                    name: project.name, entry: project.entry, folders: project.folders, files: project.files, force: force
+                ))
+                if force { window?.isDocumentEdited = false }
+            }
+            return
+        }
+        if let fileURL {
+            guard let data = try? Data(contentsOf: fileURL),
+                  let code = try? PythonFile.text(from: data) else { return }
+            if !force && code == lastDiskCode { return }
+            if !force && window?.isDocumentEdited == true { return }
+            lastDiskCode = code
+            Task {
+                _ = try? await send(.openFile(name: fileURL.lastPathComponent, code: code))
+                window?.isDocumentEdited = false
+            }
+        }
+    }
+
     @objc func saveDocument(_ sender: Any?) {
         Task {
             guard let document = await currentDocument() else { return }
             if let project = document.projectDocument {
-                if !project.saved { showProblem("Project could not be saved.", "See the project status in the playground.") }
+                if let folderURL, let dirtyFiles = project.dirtyFiles {
+                    writeFolder(dirtyFiles, to: folderURL)
+                } else if !project.saved {
+                    showProblem("Project could not be saved.", "See the project status in the playground.")
+                }
             } else if let fileURL {
                 _ = write(document, to: fileURL)
             } else {
                 showSavePanel(for: document)
             }
+        }
+    }
+
+    @discardableResult
+    func writeFolder(_ files: [String: String], to url: URL) -> Bool {
+        guard !files.isEmpty else {
+            window?.isDocumentEdited = false
+            return true
+        }
+        do {
+            try DiskFolder.write(files: files, to: url)
+            if let refreshed = try? DiskFolder.read(at: url) { lastDiskProject = refreshed }
+            window?.isDocumentEdited = false
+            send(.markFolderSaved(files: files))
+            return true
+        } catch {
+            showProblem("Could not save to “\(url.lastPathComponent)”.", error.localizedDescription)
+            return false
         }
     }
 
@@ -264,6 +401,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     private func write(_ document: HostReply, to url: URL) -> Bool {
         guard let code = document.code else { return false }
         do {
+            if document.projectDocument == nil { lastDiskCode = code }
             try Data(code.utf8).write(to: url, options: .atomic)
             recent.add(url)
             if document.projectDocument == nil {
@@ -310,6 +448,8 @@ final class PageBridge: NSObject, WKScriptMessageHandler {
             controller?.pageThemeChanged(dark: dark)
         case let .dirty(edited):
             controller?.pageDirtyChanged(edited)
+        case .refreshDisk:
+            controller?.reloadFromDisk(nil)
         }
     }
 }

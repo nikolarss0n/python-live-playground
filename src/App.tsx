@@ -73,7 +73,7 @@ import { ProjectPlayground } from './project/ProjectPlayground'
 import { useProjectWorkspace } from './project/useProjectWorkspace'
 
 import { applyTheme, preferredTheme, type ThemeMode } from './theme'
-import { installMacHost, postHostEvent, type HostActions } from './host/macHost'
+import { installMacHost, postHostEvent, type DiskFolderPayload, type HostActions } from './host/macHost'
 import { PLAYGROUND_LESSON_ID } from './curriculum/playgroundLessons'
 import { linkedLessonId, menuSections, readEnabledSections, writeEnabledSections } from './learningSwitches'
 
@@ -120,20 +120,31 @@ export default function App() {
     workspace.setEnabled(true)
     setMode('project')
   }
+  const openDiskFolder = (folder: DiskFolderPayload) => {
+    returnUrl.current = window.location.href
+    const url = new URL(window.location.href)
+    url.searchParams.delete('lesson')
+    if (url.hash.startsWith('#plp=')) url.hash = ''
+    window.history.replaceState(null, '', url)
+    workspace.openDiskFolder(folder)
+    setMode('project')
+  }
   const openScratchpad = (file?: string) => {
     pendingFile.current = file ?? null
     if (returnUrl.current) window.history.replaceState(null, '', returnUrl.current)
+    workspace.closeDiskFolder()
     workspace.setEnabled(false)
     setMode('scratchpad')
   }
 
   return mode === 'project'
-    ? <ProjectPlayground key={workspace.project.name} workspace={workspace} onExit={openScratchpad} />
-    : <Scratchpad onOpenProject={openProject} takeOpenedFile={takeOpenedFile} openedFromLink={openedFromLink} />
+    ? <ProjectPlayground key={(workspace.isDiskBacked ? 'disk:' : 'local:') + workspace.project.name} workspace={workspace} onExit={openScratchpad} />
+    : <Scratchpad onOpenProject={openProject} onOpenDiskFolder={openDiskFolder} takeOpenedFile={takeOpenedFile} openedFromLink={openedFromLink} />
 }
 
-function Scratchpad({ onOpenProject, takeOpenedFile, openedFromLink }: {
+function Scratchpad({ onOpenProject, onOpenDiskFolder, takeOpenedFile, openedFromLink }: {
   onOpenProject: () => void
+  onOpenDiskFolder: (folder: DiskFolderPayload) => void
   takeOpenedFile: () => string | null
   openedFromLink: boolean
 }) {
@@ -604,6 +615,7 @@ function Scratchpad({ onOpenProject, takeOpenedFile, openedFromLink }: {
     getCode: () => editorView?.state.doc.toString() ?? code,
     openFile: (_name, fileCode) => openNativeFile(fileCode),
     markSaved: (savedCode) => setSavedNativeCode(savedCode),
+    openFolder: (folder) => onOpenDiskFolder(folder),
   }
   useEffect(() => installMacHost(() => hostActions.current!), [])
 

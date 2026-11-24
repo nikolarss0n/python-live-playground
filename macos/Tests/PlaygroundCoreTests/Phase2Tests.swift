@@ -71,6 +71,7 @@ import Testing
         #expect(HostEvent(message: ["type": "dirty", "dirty": true]) == .dirty(true))
         #expect(HostEvent(message: ["type": "dirty", "dirty": false]) == .dirty(false))
         #expect(HostEvent(message: ["type": "dirty", "dirty": "yes"]) == nil)
+        #expect(HostEvent(message: ["type": "refreshDisk"]) == .refreshDisk)
         #expect(HostEvent(message: ["type": "eval"]) == nil)
         #expect(HostEvent(message: "ready") == nil)
     }
@@ -81,6 +82,8 @@ import Testing
         let reply = HostReply(["ok": true, "code": "x,y", "projectDocument": ["name": "data.csv", "saved": true]])
         #expect(reply?.projectDocument?.name == "data.csv")
         #expect(reply?.projectDocument?.saved == true)
+        let diskReply = HostReply(["ok": true, "code": "x", "projectDocument": ["name": "main.py", "saved": false, "dirtyFiles": ["main.py": "print(2)"]]])
+        #expect(diskReply?.projectDocument?.dirtyFiles == ["main.py": "print(2)"])
         #expect(HostReply(["ok": true, "projectDocument": ["name": "missing-save-status"]]) == nil)
         #expect(HostReply(nil) == nil)
     }
@@ -98,7 +101,13 @@ import Testing
         let source = URL(filePath: #filePath).deletingLastPathComponent()
             .appending(path: "../../../src/host/macHost.ts").standardizedFileURL
         let typescript = try String(contentsOf: source, encoding: .utf8)
-        let commands: [HostCommand] = [.run, .stop, .getCode, .openFile(name: "a.py", code: ""), .markSaved(code: ""), .setGlass(tint: 0)]
+        let commands: [HostCommand] = [
+            .run, .stop, .getCode, .openFile(name: "a.py", code: ""), .markSaved(code: ""),
+            .openFolder(name: "app", entry: "main.py", folders: [], files: ["main.py": ""]),
+            .syncFolder(name: "app", entry: "main.py", folders: [], files: ["main.py": ""], force: false),
+            .markFolderSaved(files: ["main.py": ""]),
+            .setGlass(tint: 0),
+        ]
         for command in commands {
             let name = try #require(command.payload["type"] as? String)
             #expect(typescript.contains("type: '\(name)'"), "macHost.ts has no '\(name)' command")
@@ -164,5 +173,40 @@ import Testing
         ], for: request)
         #expect(answers.answers["location"] == nil)
         #expect(answers.answers["mistake"]?.confidence == 1)
+    }
+}
+
+@Suite struct DiskFolderTests {
+    @Test func readsPythonFolderSkippingDotfilesCachesAndBinaries() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "disk-folder-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root.appending(path: "pkg"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appending(path: ".git"), withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: root.appending(path: "__pycache__"), withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try Data("from pkg.hi import msg\nprint(msg)\n".utf8).write(to: root.appending(path: "main.py"))
+        try Data("msg = 'hello'\n".utf8).write(to: root.appending(path: "pkg/hi.py"))
+        try Data("SECRET=1\n".utf8).write(to: root.appending(path: ".env.local"))
+        try Data("ref: main\n".utf8).write(to: root.appending(path: ".git/HEAD"))
+        try Data("cached".utf8).write(to: root.appending(path: "__pycache__/hi.pyc"))
+        try Data([0x89, 0x50, 0x4E, 0x47, 0x00, 0x01]).write(to: root.appending(path: "icon.png"))
+
+        let project = try DiskFolder.read(at: root)
+        #expect(project.entry == "main.py")
+        #expect(project.folders == ["pkg"])
+        #expect(project.files.keys.sorted() == ["main.py", "pkg/hi.py"])
+    }
+
+    @Test func writesModifiedFilesAndRefusesEscapePaths() throws {
+        let root = FileManager.default.temporaryDirectory.appending(path: "disk-write-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        try DiskFolder.write(files: ["sub/mod.py": "x = 42\n"], to: root)
+        let saved = try String(contentsOf: root.appending(path: "sub/mod.py"), encoding: .utf8)
+        #expect(saved == "x = 42\n")
+        #expect(throws: DiskFolder.FolderError.unsafePath) {
+            try DiskFolder.write(files: ["../outside.py": "bad"], to: root)
+        }
     }
 }

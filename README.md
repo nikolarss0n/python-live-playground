@@ -90,10 +90,10 @@ open macos/Package.swift   # edit the Swift code in Xcode
 ```
 
 - **Menus:**
-  - File: Open… (⌘O), Open Recent, Save (⌘S) and Save As… (⇧⌘S). An opened `.py` file lands in Playground, and `.py` files can also be opened from Finder.
+  - File: Open… (⌘O), Open Folder… (⇧⌘O), Open Recent, Reload from Disk (⇧⌘R), Save (⌘S) and Save As… (⇧⌘S). An opened `.py` file lands in Playground and watches disk changes automatically when there are no unsaved local edits; an opened folder runs in multi-file Projects mode with live disk sync, a **Refresh** button, and ⌘S writing modified files back to disk.
   - Edit: the standard menu.
   - Run: Run (⌘↩) and Stop (⌘.).
-  - View: Background Transparency.
+  - View: Reload (⌘R) and Background Transparency.
 - **Frosted window:** this follows int-ai-m's recipe. The window blurs the desktop behind it. The View › Background Transparency slider thins the page colour first and then fades the blur. Text and code keep full colour, and macOS's Reduce Transparency turns the effect off.
 - **Bridge:** the page and the shell talk through a typed protocol in `src/host/macHost.ts` and `macos/Sources/PlaygroundCore/HostProtocol.swift`. A Swift test checks that both sides agree.
 - **Serving and security:**

@@ -35,10 +35,12 @@ function makeWorkspace(openFile = vi.fn()): ProjectWorkspace {
   }
   return {
     enabled: true,
+    isDiskBacked: false,
     setEnabled: vi.fn(),
     project: { name: 'Bookshop', entry: 'main.py', activePath: 'main.py', openPaths: ['main.py'], folders: [], files },
     projectNames: ['Bookshop'],
     dirtyPaths: new Set(),
+    dirtyFiles: {},
     saveError: null,
     saveNow: vi.fn(() => true),
     openFile,
@@ -54,6 +56,10 @@ function makeWorkspace(openFile = vi.fn()): ProjectWorkspace {
     createProject: vi.fn(() => null),
     switchProject: vi.fn(),
     resetStarter: vi.fn(),
+    openDiskFolder: vi.fn(),
+    syncDiskFolder: vi.fn(),
+    markDiskSaved: vi.fn(),
+    closeDiskFolder: vi.fn(),
   }
 }
 

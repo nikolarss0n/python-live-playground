@@ -1,7 +1,10 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { handleHostCommand, installMacHost, isMacHost, MAX_OPEN_FILE_CHARS, parseHostCommand, postHostEvent } from './macHost'
 
-const actions = () => ({ run: vi.fn(), stop: vi.fn(), getCode: vi.fn(() => 'print(1)'), openFile: vi.fn(), markSaved: vi.fn() })
+const actions = () => ({
+  run: vi.fn(), stop: vi.fn(), getCode: vi.fn(() => 'print(1)'), openFile: vi.fn(), markSaved: vi.fn(),
+  openFolder: vi.fn(), syncFolder: vi.fn(), markFolderSaved: vi.fn(),
+})
 
 afterEach(() => {
   delete (window as unknown as { webkit?: unknown }).webkit
@@ -19,6 +22,13 @@ describe('mac host commands', () => {
     expect(parseHostCommand({ type: 'markSaved', code: 'x = 1' })).toEqual({ type: 'markSaved', code: 'x = 1' })
     expect(parseHostCommand({ type: 'markSaved', code: 1 })).toBeNull()
     expect(parseHostCommand({ type: 'markSaved', code: 'x'.repeat(MAX_OPEN_FILE_CHARS + 1) })).toBeNull()
+    expect(parseHostCommand({ type: 'openFolder', name: 'app', entry: 'main.py', folders: ['pkg'], files: { 'main.py': 'x=1' } }))
+      .toEqual({ type: 'openFolder', name: 'app', entry: 'main.py', folders: ['pkg'], files: { 'main.py': 'x=1' } })
+    expect(parseHostCommand({ type: 'openFolder', name: 'app', entry: 'missing.py', folders: [], files: { 'main.py': 'x=1' } })).toBeNull()
+    expect(parseHostCommand({ type: 'syncFolder', name: 'app', entry: 'main.py', folders: [], files: { 'main.py': 'x=2' }, force: false }))
+      .toEqual({ type: 'syncFolder', name: 'app', entry: 'main.py', folders: [], files: { 'main.py': 'x=2' }, force: false })
+    expect(parseHostCommand({ type: 'syncFolder', name: 'app', entry: 'main.py', folders: [], files: { '../bad.py': 'x' }, force: true })).toBeNull()
+    expect(parseHostCommand({ type: 'markFolderSaved', files: { 'main.py': 'x=2' } })).toEqual({ type: 'markFolderSaved', files: { 'main.py': 'x=2' } })
     expect(parseHostCommand({ type: 'setGlass', tint: 3 })).toEqual({ type: 'setGlass', tint: 1 })
     expect(parseHostCommand({ type: 'setGlass', tint: Number.NaN })).toBeNull()
     expect(parseHostCommand({ type: 'eval', code: 'alert(1)' })).toBeNull()

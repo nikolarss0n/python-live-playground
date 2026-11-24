@@ -197,6 +197,47 @@ describe('local project workspace', () => {
     expect(result.current.project.files['mail_tools/mask.py']).toContain('APIRouter')
   })
 
+  it('syncs disk-backed folders live while preserving unsaved local edits until forced or saved', () => {
+    const { result } = renderHook(useProjectWorkspace)
+    act(() => {
+      result.current.openDiskFolder({
+        name: 'my-api', entry: 'main.py', folders: ['pkg'],
+        files: { 'main.py': 'from pkg.a import x\nprint(x)\n', 'pkg/a.py': 'x = 1\n' },
+      })
+    })
+    expect(result.current.isDiskBacked).toBe(true)
+    expect(result.current.dirtyPaths.size).toBe(0)
+
+    act(() => result.current.editFile('main.py', 'from pkg.a import x\nprint("local", x)\n'))
+    expect(result.current.dirtyPaths.has('main.py')).toBe(true)
+    expect(result.current.dirtyFiles).toEqual({ 'main.py': 'from pkg.a import x\nprint("local", x)\n' })
+
+    // External disk change updates clean pkg/a.py and adds pkg/b.py, while keeping unsaved local edit in main.py.
+    act(() => {
+      result.current.syncDiskFolder({
+        name: 'my-api', entry: 'main.py', folders: ['pkg'],
+        files: { 'main.py': 'from pkg.a import x\nprint("disk", x)\n', 'pkg/a.py': 'x = 2\n', 'pkg/b.py': 'y = 3\n' },
+      }, false)
+    })
+    expect(result.current.project.files['pkg/a.py']).toBe('x = 2\n')
+    expect(result.current.project.files['pkg/b.py']).toBe('y = 3\n')
+    expect(result.current.project.files['main.py']).toBe('from pkg.a import x\nprint("local", x)\n')
+    expect(result.current.dirtyPaths.has('main.py')).toBe(true)
+
+    // Saving clears dirty state; forced refresh overwrites from disk.
+    act(() => result.current.markDiskSaved({ 'main.py': 'from pkg.a import x\nprint("local", x)\n' }))
+    expect(result.current.dirtyPaths.size).toBe(0)
+    act(() => result.current.editFile('main.py', 'discard me'))
+    act(() => {
+      result.current.syncDiskFolder({
+        name: 'my-api', entry: 'main.py', folders: ['pkg'],
+        files: { 'main.py': 'from pkg.a import x\nprint("fresh")\n', 'pkg/a.py': 'x = 2\n' },
+      }, true)
+    })
+    expect(result.current.project.files['main.py']).toBe('from pkg.a import x\nprint("fresh")\n')
+    expect(result.current.dirtyPaths.size).toBe(0)
+  })
+
   it('protects a change saved by another tab while local edits are pending', () => {
     const { result } = renderHook(useProjectWorkspace)
     act(() => { result.current.setEnabled(true); result.current.editFile('main.py', 'mine') })

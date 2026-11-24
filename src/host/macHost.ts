@@ -4,7 +4,16 @@
  * WebKit message handler. In a normal browser neither side exists and nothing here runs.
  */
 
+import { projectFilesError } from '../project/paths'
+
 export const HOST_PROTOCOL_VERSION = 1
+
+export type DiskFolderPayload = {
+  name: string
+  entry: string
+  folders: string[]
+  files: Record<string, string>
+}
 
 export type HostCommand =
   | { type: 'run' }
@@ -12,14 +21,18 @@ export type HostCommand =
   | { type: 'getCode' }
   | { type: 'openFile'; name: string; code: string }
   | { type: 'markSaved'; code: string }
+  | ({ type: 'openFolder' } & DiskFolderPayload)
+  | ({ type: 'syncFolder'; force: boolean } & DiskFolderPayload)
+  | { type: 'markFolderSaved'; files: Record<string, string> }
   | { type: 'setGlass'; tint: number }
 
 export type HostEvent =
   | { type: 'ready'; version: number }
   | { type: 'theme'; theme: 'light' | 'dark' }
   | { type: 'dirty'; dirty: boolean }
+  | { type: 'refreshDisk' }
 
-type ProjectDocument = { name: string; saved: boolean }
+type ProjectDocument = { name: string; saved: boolean; dirtyFiles?: Record<string, string> }
 export type HostReply = { ok: true; code?: string; projectDocument?: ProjectDocument } | { ok: false; error: string }
 
 export type HostActions = {
@@ -29,6 +42,9 @@ export type HostActions = {
   getCode: () => string
   openFile: (name: string, code: string) => void
   markSaved?: (code: string) => void
+  openFolder?: (folder: DiskFolderPayload) => void
+  syncFolder?: (folder: DiskFolderPayload, force: boolean) => void
+  markFolderSaved?: (files: Record<string, string>) => void
 }
 
 /** The largest file the app will open, matching the share-link guard. */
@@ -52,6 +68,25 @@ export function postHostEvent(event: HostEvent, win: Window = window): void {
   handler(win as HostWindow)?.postMessage(event)
 }
 
+function readTextMap(value: unknown): Record<string, string> | null {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
+  const out: Record<string, string> = {}
+  for (const [key, text] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof text !== 'string') return null
+    out[key] = text
+  }
+  return out
+}
+
+function readDiskFolder(command: Record<string, unknown>): DiskFolderPayload | null {
+  if (typeof command.name !== 'string' || !command.name.trim() || typeof command.entry !== 'string') return null
+  if (!Array.isArray(command.folders) || !command.folders.every((folder): folder is string => typeof folder === 'string')) return null
+  const files = readTextMap(command.files)
+  if (!files || !Object.hasOwn(files, command.entry) || !command.entry.endsWith('.py')) return null
+  if (projectFilesError(files, command.folders)) return null
+  return { name: command.name.trim().slice(0, 80), entry: command.entry, folders: [...command.folders], files }
+}
+
 /** Rebuilds a command field by field; anything unexpected is refused rather than trusted. */
 export function parseHostCommand(value: unknown): HostCommand | null {
   if (typeof value !== 'object' || value === null) return null
@@ -68,6 +103,19 @@ export function parseHostCommand(value: unknown): HostCommand | null {
     case 'markSaved':
       if (typeof command.code !== 'string' || command.code.length > MAX_OPEN_FILE_CHARS) return null
       return { type: 'markSaved', code: command.code }
+    case 'openFolder': {
+      const folder = readDiskFolder(command)
+      return folder ? { type: 'openFolder', ...folder } : null
+    }
+    case 'syncFolder': {
+      const folder = readDiskFolder(command)
+      return folder && typeof command.force === 'boolean' ? { type: 'syncFolder', ...folder, force: command.force } : null
+    }
+    case 'markFolderSaved': {
+      const files = readTextMap(command.files)
+      if (!files || projectFilesError(files)) return null
+      return { type: 'markFolderSaved', files }
+    }
     case 'setGlass':
       if (typeof command.tint !== 'number' || !Number.isFinite(command.tint)) return null
       return { type: 'setGlass', tint: Math.min(1, Math.max(0, command.tint)) }
@@ -94,6 +142,9 @@ export function handleHostCommand(value: unknown, actions: HostActions): HostRep
     }
     case 'openFile': actions.openFile(command.name, command.code); return { ok: true }
     case 'markSaved': actions.markSaved?.(command.code); return { ok: true }
+    case 'openFolder': actions.openFolder?.({ name: command.name, entry: command.entry, folders: command.folders, files: command.files }); return { ok: true }
+    case 'syncFolder': actions.syncFolder?.({ name: command.name, entry: command.entry, folders: command.folders, files: command.files }, command.force); return { ok: true }
+    case 'markFolderSaved': actions.markFolderSaved?.(command.files); return { ok: true }
     case 'setGlass': applyGlassTint(command.tint); return { ok: true }
   }
 }

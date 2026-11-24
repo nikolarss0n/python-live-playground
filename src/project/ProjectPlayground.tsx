@@ -137,36 +137,57 @@ export function ProjectPlayground({ workspace, onExit }: {
   actions.current = {
     run: () => void runNow(), stop,
     getCode: () => view.current?.state.doc.toString() ?? files[activePath],
-    projectDocument: () => ({ name: activePath.split('/').at(-1) ?? activePath, saved: workspace.saveNow() }),
+    projectDocument: () => {
+      const name = activePath.split('/').at(-1) ?? activePath
+      if (workspace.isDiskBacked) {
+        const currentText = view.current?.state.doc.toString() ?? files[activePath]
+        const dirtyFiles = { ...workspace.dirtyFiles }
+        if (currentText !== files[activePath]) dirtyFiles[activePath] = currentText
+        return { name, saved: Object.keys(dirtyFiles).length === 0, dirtyFiles }
+      }
+      return { name, saved: workspace.saveNow() }
+    },
     openFile: (_name, source) => onExit(source),
+    openFolder: (folder) => workspace.openDiskFolder(folder),
+    syncFolder: (folder, force) => workspace.syncDiskFolder(folder, force),
+    markFolderSaved: (saved) => workspace.markDiskSaved(saved),
   }
+  useEffect(() => installMacHost(() => actions.current!), [])
   useEffect(() => {
-    postHostEvent({ type: 'dirty', dirty: false })
-    return installMacHost(() => actions.current!)
-  }, [])
-  const saveLabel = saveError ?? (workspace.dirtyPaths.size ? 'Saving project on this device' : 'Project saved on this device')
+    postHostEvent({ type: 'dirty', dirty: workspace.isDiskBacked && workspace.dirtyPaths.size > 0 })
+  }, [workspace.isDiskBacked, workspace.dirtyPaths.size])
+  const saveLabel = saveError ?? (workspace.isDiskBacked
+    ? (workspace.dirtyPaths.size ? 'Unsaved disk edits (⌘S to save)' : 'Synced with disk')
+    : (workspace.dirtyPaths.size ? 'Saving project on this device' : 'Project saved on this device'))
   return <div className="app-shell project-shell">
     <header className="toolbar project-toolbar">
       <h1 className="sr-only">Python projects</h1>
       <div className="project-picker">
         <ToolbarIcon name="folder" />
-        <select aria-label="Project" value={'project/' + project.name} onChange={event => {
+        <select aria-label="Project" value={(workspace.isDiskBacked ? 'disk/' : 'project/') + project.name} onChange={event => {
           const value = event.target.value
           if (value === 'patterns') setReviewOpen(true)
           else if (value === 'reset-starter') workspace.resetStarter()
           else if (value === 'new') setCreatingProject(true)
           else if (value === 'scratchpad') onExit()
-          else workspace.switchProject(value.slice('project/'.length))
+          else if (value.startsWith('project/')) workspace.switchProject(value.slice('project/'.length))
         }}>
+          {workspace.isDiskBacked && <option value={'disk/' + project.name}>{project.name} (disk)</option>}
           {workspace.projectNames.map(name => <option key={name} value={'project/' + name}>{name}</option>)}
           <option value="patterns">Review design patterns…</option>
-          {project.name === 'mail-tools' && <option value="reset-starter">Reset mail-tools to starter</option>}
+          {!workspace.isDiskBacked && project.name === 'mail-tools' && <option value="reset-starter">Reset mail-tools to starter</option>}
           <option value="new">New project…</option>
           <option value="scratchpad">Back to scratchpad</option>
         </select>
       </div>
       <ProjectFileBar workspace={workspace} counts={counts} />
       <div className="toolbar-utilities">
+        {workspace.isDiskBacked && (
+          <button type="button" className="btn btn-ghost project-run" title="Reload files from disk (⇧⌘R)"
+            aria-label="Refresh from disk" onClick={() => postHostEvent({ type: 'refreshDisk' })}>
+            Refresh
+          </button>
+        )}
         {(!autoRun || (isRunning && slowRun)) &&
           <button type="button" className="btn btn-ghost project-run" disabled={isBooting}
             onClick={() => isRunning ? stop() : void runNow()}>{isRunning ? 'Stop' : 'Run'}</button>}

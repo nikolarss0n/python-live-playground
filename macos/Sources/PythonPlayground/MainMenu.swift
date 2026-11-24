@@ -25,7 +25,10 @@ enum MainMenu {
         recentItem.submenu = recentMenu
         main.addItem(submenu("File", [
             item("Open…", #selector(PlaygroundWindowController.openDocument(_:)), "o"),
+            item("Open Folder…", #selector(PlaygroundWindowController.openFolderDialog(_:)), "o", [.command, .shift]),
             recentItem,
+            .separator(),
+            item("Reload from Disk", #selector(PlaygroundWindowController.reloadFromDisk(_:)), "r", [.command, .shift]),
             .separator(),
             item("Close", #selector(NSWindow.performClose(_:)), "w"),
             item("Save", #selector(PlaygroundWindowController.saveDocument(_:)), "s"),

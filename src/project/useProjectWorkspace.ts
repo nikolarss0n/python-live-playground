@@ -1,9 +1,28 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { DiskFolderPayload } from '../host/macHost'
 import {
   closeProjectTab, deleteProjectFolder, deleteProjectFile, openProjectFile, parseWorkspace, projectNameError,
   PROJECT_STORAGE_KEY, renameProjectFolder, renameProjectFile, setProjectEntry, starterProject, type Project, type WorkspaceSnapshot,
 } from './model'
 import { projectFilesError, projectFolders, isProjectPath } from './paths'
+
+type DiskSession = {
+  project: Project
+  /** Last snapshot known to be on disk; differs from `project.files` only for unsaved local edits. */
+  diskFiles: Record<string, string>
+}
+
+function projectFromDiskFolder(folder: DiskFolderPayload): Project {
+  const files = { ...folder.files }
+  return {
+    name: folder.name,
+    entry: folder.entry,
+    folders: projectFolders(files, folder.folders),
+    files,
+    activePath: folder.entry,
+    openPaths: [folder.entry],
+  }
+}
 
 function loadWorkspace() {
   let raw: string | null = null
@@ -24,9 +43,11 @@ export function useProjectWorkspace() {
   const [initial] = useState(loadWorkspace)
   const [snapshot, setSnapshot] = useState(initial.snapshot)
   const [savedSnapshot, setSavedSnapshot] = useState(snapshot)
+  const [diskSession, setDiskSession] = useState<DiskSession | null>(null)
   const [saveError, setSaveError] = useState<string | null>(null)
   const latest = useRef(snapshot)
   const saved = useRef(snapshot)
+  const diskRef = useRef<DiskSession | null>(null)
   const raw = useRef(initial.raw)
   const damaged = useRef(initial.damaged)
   const timer = useRef<number | undefined>(undefined)
@@ -92,20 +113,32 @@ export function useProjectWorkspace() {
     }
   }, [flush])
 
+  function activeProject(): Project {
+    return diskRef.current?.project ?? latest.current.project
+  }
+
   function changeProject(project: Project | string): string | null {
     if (typeof project === 'string') return project
+    if (diskRef.current) {
+      if (project !== diskRef.current.project) {
+        const next = { ...diskRef.current, project }
+        diskRef.current = next
+        setDiskSession(next)
+      }
+      return null
+    }
     if (project !== latest.current.project) update({ ...latest.current, project })
     return null
   }
 
   function editFile(path: string, content: string) {
-    const current = latest.current.project
+    const current = activeProject()
     if (!Object.hasOwn(current.files, path) || current.files[path] === content) return
     changeProject({ ...current, files: { ...current.files, [path]: content } })
   }
 
   function createFile(path: string): string | null {
-    const current = latest.current.project
+    const current = activeProject()
     if (Object.hasOwn(current.files, path)) return 'A file already exists at this path.'
     const files = { ...current.files, [path]: '' }
     const error = projectFilesError(files, current.folders)
@@ -115,7 +148,7 @@ export function useProjectWorkspace() {
   }
 
   function createFolder(path: string): string | null {
-    const current = latest.current.project
+    const current = activeProject()
     if (!isProjectPath(path)) return 'Enter a relative folder name without empty or parent segments.'
     if (current.folders.includes(path)) return 'A folder already exists at this path.'
     const folders = projectFolders(current.files, [...current.folders, path])
@@ -123,6 +156,54 @@ export function useProjectWorkspace() {
     if (error) return error
     return changeProject({ ...current, folders })
   }
+
+  const openDiskFolder = useCallback((folder: DiskFolderPayload) => {
+    const next: DiskSession = { project: projectFromDiskFolder(folder), diskFiles: { ...folder.files } }
+    diskRef.current = next
+    setDiskSession(next)
+    setSaveError(null)
+  }, [])
+
+  const syncDiskFolder = useCallback((folder: DiskFolderPayload, force: boolean) => {
+    const existing = diskRef.current
+    if (!existing) {
+      openDiskFolder(folder)
+      return
+    }
+    const nextFiles: Record<string, string> = { ...folder.files }
+    if (!force) {
+      for (const [path, content] of Object.entries(existing.project.files)) {
+        // Keep unsaved local edits or locally created files instead of silently clobbering them.
+        if (existing.diskFiles[path] !== content) nextFiles[path] = content
+      }
+    }
+    const nextFolders = projectFolders(nextFiles, folder.folders)
+    const entry = Object.hasOwn(nextFiles, existing.project.entry) && existing.project.entry.endsWith('.py')
+      ? existing.project.entry
+      : folder.entry
+    const openPaths = existing.project.openPaths.filter((path) => Object.hasOwn(nextFiles, path))
+    if (!openPaths.length) openPaths.push(entry)
+    const activePath = openPaths.includes(existing.project.activePath) ? existing.project.activePath : openPaths[0]
+    const next: DiskSession = {
+      project: { name: folder.name, entry, folders: nextFolders, files: nextFiles, activePath, openPaths },
+      diskFiles: { ...folder.files },
+    }
+    diskRef.current = next
+    setDiskSession(next)
+  }, [openDiskFolder])
+
+  const markDiskSaved = useCallback((savedFiles: Record<string, string>) => {
+    const existing = diskRef.current
+    if (!existing) return
+    const next: DiskSession = { ...existing, diskFiles: { ...existing.diskFiles, ...savedFiles } }
+    diskRef.current = next
+    setDiskSession(next)
+  }, [])
+
+  const closeDiskFolder = useCallback(() => {
+    diskRef.current = null
+    setDiskSession(null)
+  }, [])
 
   function setEnabled(enabled: boolean) {
     if (enabled !== latest.current.enabled) {
@@ -139,6 +220,7 @@ export function useProjectWorkspace() {
     if (error) return error
     const entry = 'main.py'
     const project = { name, entry, folders: [], activePath: entry, openPaths: [entry], files: { [entry]: 'print("Hello, Python!")\n' } }
+    closeDiskFolder()
     update({ enabled: true, project, otherProjects })
     flush()
     return null
@@ -146,6 +228,18 @@ export function useProjectWorkspace() {
 
   function switchProject(name: string) {
     const current = latest.current
+    if (diskRef.current) {
+      if (current.project.name === name) {
+        closeDiskFolder()
+        return
+      }
+      const found = current.otherProjects.find((item) => item.name === name)
+      if (!found) return
+      closeDiskFolder()
+      update({ enabled: true, project: found, otherProjects: [current.project, ...current.otherProjects.filter((item) => item !== found)] })
+      flush()
+      return
+    }
     const project = current.otherProjects.find((item) => item.name === name)
     if (!project) return
     update({ enabled: true, project, otherProjects: [current.project, ...current.otherProjects.filter((item) => item !== project)] })
@@ -153,26 +247,32 @@ export function useProjectWorkspace() {
   }
 
   function resetStarter() {
+    if (diskRef.current) return
     const current = latest.current
     if (current.project.name !== 'mail-tools') return
     update({ ...current, project: starterProject() })
     flush()
   }
 
-  const { project, enabled } = snapshot
-  const projectNames = [project, ...snapshot.otherProjects].map((item) => item.name).sort((a, b) => a.localeCompare(b))
+  const isDiskBacked = diskSession !== null
+  const project = diskSession?.project ?? snapshot.project
+  const { enabled } = snapshot
+  const projectNames = [snapshot.project, ...snapshot.otherProjects].map((item) => item.name).sort((a, b) => a.localeCompare(b))
   const savedProject = savedSnapshot.project.name === project.name ? savedSnapshot.project : savedSnapshot.otherProjects.find((item) => item.name === project.name)
-  const savedFiles = savedProject?.files ?? {}
-  const dirtyPaths: ReadonlySet<string> = new Set(Object.keys(project.files).filter((path) => project.files[path] !== savedFiles[path]))
+  const baselineFiles = diskSession ? diskSession.diskFiles : (savedProject?.files ?? {})
+  const dirtyEntries = Object.entries(project.files).filter(([path, content]) => content !== baselineFiles[path])
+  const dirtyPaths: ReadonlySet<string> = new Set(dirtyEntries.map(([path]) => path))
+  const dirtyFiles: Record<string, string> = Object.fromEntries(dirtyEntries)
   return {
-    project, enabled, setEnabled, createFile, createFolder, editFile, dirtyPaths, saveError, projectNames, createProject, switchProject, resetStarter, saveNow: flush,
-    renameFolder: (path: string, name: string) => changeProject(renameProjectFolder(latest.current.project, path, name)),
-    deleteFolder: (path: string) => changeProject(deleteProjectFolder(latest.current.project, path)),
-    renameFile: (path: string, newPath: string) => changeProject(renameProjectFile(latest.current.project, path, newPath)),
-    deleteFile: (path: string) => changeProject(deleteProjectFile(latest.current.project, path)),
-    setEntry: (path: string) => changeProject(setProjectEntry(latest.current.project, path)),
-    openFile: (path: string) => { changeProject(openProjectFile(latest.current.project, path)) },
-    closeFile: (path: string) => { changeProject(closeProjectTab(latest.current.project, path)) },
+    project, enabled, isDiskBacked, setEnabled, createFile, createFolder, editFile, dirtyPaths, dirtyFiles, saveError, projectNames,
+    createProject, switchProject, resetStarter, openDiskFolder, syncDiskFolder, markDiskSaved, closeDiskFolder, saveNow: flush,
+    renameFolder: (path: string, name: string) => changeProject(renameProjectFolder(activeProject(), path, name)),
+    deleteFolder: (path: string) => changeProject(deleteProjectFolder(activeProject(), path)),
+    renameFile: (path: string, newPath: string) => changeProject(renameProjectFile(activeProject(), path, newPath)),
+    deleteFile: (path: string) => changeProject(deleteProjectFile(activeProject(), path)),
+    setEntry: (path: string) => changeProject(setProjectEntry(activeProject(), path)),
+    openFile: (path: string) => { changeProject(openProjectFile(activeProject(), path)) },
+    closeFile: (path: string) => { changeProject(closeProjectTab(activeProject(), path)) },
   }
 }
 

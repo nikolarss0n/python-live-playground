@@ -18,17 +18,26 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             Task { await SelfTest(controller: controller).runAndExit() }
         } else {
             controller.loadApp()
-            pendingOpen.forEach(controller.open)
+            pendingOpen.forEach { open(url: $0, with: controller) }
             pendingOpen = []
         }
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
 
-    /// A `.py` file opened from Finder or dropped on the Dock icon.
+    /// A `.py` file or folder opened from Finder or dropped on the Dock icon.
     func application(_ application: NSApplication, open urls: [URL]) {
         guard let controller else { pendingOpen += urls; return }
-        urls.forEach(controller.open)
+        urls.forEach { open(url: $0, with: controller) }
+    }
+
+    private func open(url: URL, with controller: PlaygroundWindowController) {
+        var isDir: ObjCBool = false
+        if FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir), isDir.boolValue {
+            controller.openFolder(url)
+        } else {
+            controller.open(url)
+        }
     }
 
     // MARK: Open Recent
@@ -51,8 +60,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func openRecent(_ sender: NSMenuItem) {
-        guard let url = sender.representedObject as? URL else { return }
-        controller?.open(url)
+        guard let url = sender.representedObject as? URL, let controller else { return }
+        open(url: url, with: controller)
     }
 
     @objc private func clearRecent(_ sender: NSMenuItem) {

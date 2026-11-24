@@ -15,6 +15,9 @@ public enum HostCommand: Equatable, Sendable {
     case getCode
     case openFile(name: String, code: String)
     case markSaved(code: String)
+    case openFolder(name: String, entry: String, folders: [String], files: [String: String])
+    case syncFolder(name: String, entry: String, folders: [String], files: [String: String], force: Bool)
+    case markFolderSaved(files: [String: String])
     case setGlass(tint: Double)
 
     /// The value passed to `window.playgroundHost.handle(command)`.
@@ -25,6 +28,11 @@ public enum HostCommand: Equatable, Sendable {
         case .getCode: ["type": "getCode"]
         case let .openFile(name, code): ["type": "openFile", "name": name, "code": code]
         case let .markSaved(code): ["type": "markSaved", "code": code]
+        case let .openFolder(name, entry, folders, files):
+            ["type": "openFolder", "name": name, "entry": entry, "folders": folders, "files": files]
+        case let .syncFolder(name, entry, folders, files, force):
+            ["type": "syncFolder", "name": name, "entry": entry, "folders": folders, "files": files, "force": force]
+        case let .markFolderSaved(files): ["type": "markFolderSaved", "files": files]
         case let .setGlass(tint): ["type": "setGlass", "tint": tint]
         }
     }
@@ -34,6 +42,7 @@ public enum HostEvent: Equatable, Sendable {
     case ready(version: Int)
     case theme(dark: Bool)
     case dirty(Bool)
+    case refreshDisk
 
     /// Reads a message the page posted; anything unexpected is ignored.
     public init?(message body: Any) {
@@ -48,6 +57,8 @@ public enum HostEvent: Equatable, Sendable {
         case "dirty":
             guard let dirty = body["dirty"] as? Bool else { return nil }
             self = .dirty(dirty)
+        case "refreshDisk":
+            self = .refreshDisk
         default:
             return nil
         }
@@ -61,6 +72,7 @@ public struct HostReply: Equatable, Sendable {
     public struct ProjectDocument: Equatable, Sendable {
         public let name: String
         public let saved: Bool
+        public let dirtyFiles: [String: String]?
     }
     public let projectDocument: ProjectDocument?
 
@@ -71,7 +83,14 @@ public struct HostReply: Equatable, Sendable {
         if let metadata = value["projectDocument"] {
             guard let project = metadata as? [String: Any], let name = project["name"] as? String,
                   let saved = project["saved"] as? Bool else { return nil }
-            projectDocument = ProjectDocument(name: name, saved: saved)
+            let dirtyFiles: [String: String]?
+            if let raw = project["dirtyFiles"] {
+                guard let map = raw as? [String: String] else { return nil }
+                dirtyFiles = map
+            } else {
+                dirtyFiles = nil
+            }
+            projectDocument = ProjectDocument(name: name, saved: saved, dirtyFiles: dirtyFiles)
         } else {
             projectDocument = nil
         }

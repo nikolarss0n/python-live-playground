@@ -230,6 +230,32 @@ struct SelfTest {
         controller.open(opened)
         _ = try await js("await __selfTest.until(() => __selfTest.editor().includes('saved from the app'), 5000, 'native Open from project mode')")
         report["projectRunAndSave"] = true
+
+        // External edit to an opened .py file auto-updates the editor when there are no unsaved local edits.
+        try Data("print(\"updated externally on disk\")\n".utf8).write(to: opened, options: .atomic)
+        _ = try await js("await __selfTest.until(() => __selfTest.results().includes('updated externally on disk'), 10000, 'live single-file disk sync')")
+        report["singleFileDiskSync"] = true
+
+        // File › Open Folder… watches a multi-file disk folder, auto-syncs external edits, and saves local edits back.
+        let diskFolder = folder.appending(path: "live-app")
+        try FileManager.default.createDirectory(at: diskFolder.appending(path: "pkg"), withIntermediateDirectories: true)
+        try Data("from pkg.msg import text\nprint(text)\n".utf8).write(to: diskFolder.appending(path: "main.py"))
+        try Data("text = \"folder v1\"\n".utf8).write(to: diskFolder.appending(path: "pkg/msg.py"))
+        controller.openFolder(diskFolder)
+        _ = try await js("await __selfTest.until(() => __selfTest.results().includes('folder v1'), 20000, 'disk folder initial run')")
+        try Data("text = \"folder v2 from disk\"\n".utf8).write(to: diskFolder.appending(path: "pkg/msg.py"), options: .atomic)
+        _ = try await js("await __selfTest.until(() => __selfTest.results().includes('folder v2 from disk'), 15000, 'live folder disk sync')")
+        _ = try await js("__selfTest.setCode('from pkg.msg import text\\nprint(\"saved:\", text)\\n')")
+        try await within(seconds: 5, "disk folder dirty dot") {
+            while controller.window?.isDocumentEdited != true { try await Task.sleep(for: .milliseconds(50)) }
+        }
+        controller.saveDocument(nil)
+        try await within(seconds: 5, "disk folder save to clear dirty dot") {
+            while controller.window?.isDocumentEdited != false { try await Task.sleep(for: .milliseconds(50)) }
+        }
+        let savedMain = try String(contentsOf: diskFolder.appending(path: "main.py"), encoding: .utf8)
+        guard savedMain.contains("saved:") else { throw Failure("Disk folder Save did not write main.py: \(savedMain)") }
+        report["folderDiskSyncAndSave"] = true
     }
 
     private func js(_ body: String) async throws -> Any? {
