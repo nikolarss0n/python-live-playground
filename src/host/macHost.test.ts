@@ -3,7 +3,7 @@ import { handleHostCommand, installMacHost, isMacHost, MAX_OPEN_FILE_CHARS, pars
 
 const actions = () => ({
   run: vi.fn(), stop: vi.fn(), getCode: vi.fn(() => 'print(1)'), openFile: vi.fn(), markSaved: vi.fn(),
-  openFolder: vi.fn(), syncFolder: vi.fn(), markFolderSaved: vi.fn(),
+  onFileConflict: vi.fn(), openFolder: vi.fn(), syncFolder: vi.fn(), markFolderSaved: vi.fn(),
 })
 
 afterEach(() => {
@@ -31,6 +31,11 @@ describe('mac host commands', () => {
     expect(parseHostCommand({ type: 'markFolderSaved', files: { 'main.py': 'x=2' } })).toEqual({ type: 'markFolderSaved', files: { 'main.py': 'x=2' } })
     expect(parseHostCommand({ type: 'setGlass', tint: 3 })).toEqual({ type: 'setGlass', tint: 1 })
     expect(parseHostCommand({ type: 'setGlass', tint: Number.NaN })).toBeNull()
+    expect(parseHostCommand({ type: 'zoom', direction: 'in' })).toEqual({ type: 'zoom', direction: 'in' })
+    expect(parseHostCommand({ type: 'zoom', direction: 'bigger' })).toBeNull()
+    expect(parseHostCommand({ type: 'find' })).toEqual({ type: 'find' })
+    expect(parseHostCommand({ type: 'fileConflict', name: 'app.py' })).toEqual({ type: 'fileConflict', name: 'app.py' })
+    expect(parseHostCommand({ type: 'fileConflict', name: '' })).toBeNull()
     expect(parseHostCommand({ type: 'eval', code: 'alert(1)' })).toBeNull()
     expect(parseHostCommand('run')).toBeNull()
   })
@@ -42,10 +47,12 @@ describe('mac host commands', () => {
     expect(handleHostCommand({ type: 'getCode' }, a)).toEqual({ ok: true, code: 'print(1)' })
     handleHostCommand({ type: 'openFile', name: 'grade.py', code: 'print(2)' }, a)
     handleHostCommand({ type: 'markSaved', code: 'print(2)' }, a)
+    handleHostCommand({ type: 'fileConflict', name: 'grade.py' }, a)
     expect(a.run).toHaveBeenCalledOnce()
     expect(a.stop).toHaveBeenCalledOnce()
     expect(a.openFile).toHaveBeenCalledWith('grade.py', 'print(2)')
     expect(a.markSaved).toHaveBeenCalledWith('print(2)')
+    expect(a.onFileConflict).toHaveBeenCalledWith('grade.py')
     expect(handleHostCommand({ type: 'nope' }, a)).toEqual({ ok: false, error: 'Unknown command' })
   })
 

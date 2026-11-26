@@ -49,10 +49,36 @@ function Fields({ label, fields, values, onChange, refused }: FieldsProps) {
   )
 }
 
+function formatResponseBodyForCopy(body: unknown): string {
+  if (typeof body === 'string') {
+    try {
+      return JSON.stringify(JSON.parse(body), null, 2)
+    } catch {
+      return body
+    }
+  }
+  return JSON.stringify(body, null, 2)
+}
+
 function Response({ response, stale, onShowLine }: { response: SentResponse | undefined; stale: boolean; onShowLine?: (line: number, file?: string) => void }) {
+  const [copiedBody, setCopiedBody] = useState(false)
+  useEffect(() => {
+    setCopiedBody(false)
+  }, [response])
+  useEffect(() => {
+    if (!copiedBody) return
+    const timer = window.setTimeout(() => setCopiedBody(false), 1500)
+    return () => window.clearTimeout(timer)
+  }, [copiedBody])
+
   if (!response) return <p className="fullstack-empty api-response-empty">Not sent yet.</p>
   if (response.kind === 'failed') return <p className="api-request-error">{response.message}</p>
   const empty = response.status === 204 || response.body === null
+  const onCopyBody = () => {
+    if (response.body === null) return
+    void navigator.clipboard?.writeText(formatResponseBodyForCopy(response.body))
+    setCopiedBody(true)
+  }
   return (
     <>
       <div className={`api-response-head${stale ? ' is-stale' : ''}`}>
@@ -62,11 +88,18 @@ function Response({ response, stale, onShowLine }: { response: SentResponse | un
           {response.durationMs === null ? '' : ` · ${response.durationMs} ms`}
           {stale ? ' · outdated' : ''}
         </span>
-        {response.line && onShowLine ? (
-          <button type="button" className="linkish api-response-line" onClick={() => onShowLine(response.line!, response.file)}>
-            {response.file ? `Crashed in ${response.file} on line ${response.line}` : `Crashed on line ${response.line}`}
-          </button>
-        ) : null}
+        <span className="api-response-actions">
+          {response.line && onShowLine ? (
+            <button type="button" className="linkish api-response-line" onClick={() => onShowLine(response.line!, response.file)}>
+              {response.file ? `Crashed in ${response.file} on line ${response.line}` : `Crashed on line ${response.line}`}
+            </button>
+          ) : null}
+          {!empty ? (
+            <button type="button" className="linkish api-response-copy" onClick={onCopyBody} aria-label="Copy response">
+              {copiedBody ? 'Copied' : 'Copy'}
+            </button>
+          ) : null}
+        </span>
       </div>
       {empty ? <p className="fullstack-empty api-response-empty">No content.</p> : (
         // A refused request opens fully: the reason sits a few levels inside the 422 detail.

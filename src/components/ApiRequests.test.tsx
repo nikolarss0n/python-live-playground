@@ -257,4 +257,17 @@ describe('ApiRequests', () => {
     expect(limit).toHaveValue('10')
     expect(screen.queryByRole('button', { name: 'Reset' })).toBeNull()
   })
+
+  it('copies pretty-printed JSON response body with one click', async () => {
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    render(<Harness invoke={vi.fn(async () => {})} />)
+
+    await userEvent.click(screen.getByRole('button', { name: 'Send' }))
+    answer('invoke-copy', 200, '{"ok":true,"count":2}')
+
+    await userEvent.click(screen.getByRole('button', { name: 'Copy response' }))
+    expect(writeText).toHaveBeenCalledWith('{\n  "ok": true,\n  "count": 2\n}')
+    expect(screen.getByRole('button', { name: 'Copy response' })).toHaveTextContent('Copied')
+  })
 })

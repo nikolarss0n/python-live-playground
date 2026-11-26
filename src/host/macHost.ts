@@ -4,6 +4,7 @@
  * WebKit message handler. In a normal browser neither side exists and nothing here runs.
  */
 
+import { adjustEditorFontSize, requestEditorFind, type ZoomDirection } from '../editorFontSize'
 import { projectFilesError } from '../project/paths'
 
 export const HOST_PROTOCOL_VERSION = 1
@@ -25,6 +26,9 @@ export type HostCommand =
   | ({ type: 'syncFolder'; force: boolean } & DiskFolderPayload)
   | { type: 'markFolderSaved'; files: Record<string, string> }
   | { type: 'setGlass'; tint: number }
+  | { type: 'zoom'; direction: ZoomDirection }
+  | { type: 'find' }
+  | { type: 'fileConflict'; name: string }
 
 export type HostEvent =
   | { type: 'ready'; version: number }
@@ -44,6 +48,7 @@ export type HostActions = {
   getCode: () => string
   openFile: (name: string, code: string) => void
   markSaved?: (code: string) => void
+  onFileConflict?: (name: string) => void
   openFolder?: (folder: DiskFolderPayload) => void
   syncFolder?: (folder: DiskFolderPayload, force: boolean) => void
   markFolderSaved?: (files: Record<string, string>) => void
@@ -121,6 +126,14 @@ export function parseHostCommand(value: unknown): HostCommand | null {
     case 'setGlass':
       if (typeof command.tint !== 'number' || !Number.isFinite(command.tint)) return null
       return { type: 'setGlass', tint: Math.min(1, Math.max(0, command.tint)) }
+    case 'zoom':
+      if (command.direction !== 'in' && command.direction !== 'out' && command.direction !== 'reset') return null
+      return { type: 'zoom', direction: command.direction }
+    case 'find':
+      return { type: 'find' }
+    case 'fileConflict':
+      if (typeof command.name !== 'string' || !command.name.trim()) return null
+      return { type: 'fileConflict', name: command.name.slice(0, 255) }
     default:
       return null
   }
@@ -144,10 +157,13 @@ export function handleHostCommand(value: unknown, actions: HostActions): HostRep
     }
     case 'openFile': actions.openFile(command.name, command.code); return { ok: true }
     case 'markSaved': actions.markSaved?.(command.code); return { ok: true }
+    case 'fileConflict': actions.onFileConflict?.(command.name); return { ok: true }
     case 'openFolder': actions.openFolder?.({ name: command.name, entry: command.entry, folders: command.folders, files: command.files }); return { ok: true }
     case 'syncFolder': actions.syncFolder?.({ name: command.name, entry: command.entry, folders: command.folders, files: command.files }, command.force); return { ok: true }
     case 'markFolderSaved': actions.markFolderSaved?.(command.files); return { ok: true }
     case 'setGlass': applyGlassTint(command.tint); return { ok: true }
+    case 'zoom': adjustEditorFontSize(command.direction); return { ok: true }
+    case 'find': requestEditorFind(); return { ok: true }
   }
 }
 

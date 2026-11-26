@@ -16,6 +16,8 @@ export function ShortcutsModal({ open, onClose, hint }: ShortcutsModalProps) {
         <h2 className="help-title">Shortcuts</h2>
         <ul className="help-list">
           <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>Enter</kbd> Run now</li>
+          <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd> Find in code</li>
+          <li><kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>+</kbd>/<kbd>-</kbd>/<kbd>0</kbd> Zoom text</li>
           <li><kbd>Esc</kbd> Stop / close this help</li>
           <li><kbd>?</kbd> Toggle shortcuts</li>
           <li>{EDITOR_EXIT_HINT}</li>

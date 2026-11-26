@@ -3,10 +3,12 @@ import { python, pythonLanguage } from '@codemirror/lang-python'
 import { EditorView, keymap } from '@codemirror/view'
 import { Prec } from '@codemirror/state'
 import { acceptCompletion } from '@codemirror/autocomplete'
+import { openSearchPanel } from '@codemirror/search'
 import { HighlightStyle, LanguageSupport, syntaxHighlighting } from '@codemirror/language'
 import { styleTags, tags as t } from '@lezer/highlight'
 import { useEffect, useId, useMemo, useRef } from 'react'
 import { EDITOR_EXIT_HINT } from './ShortcutsModal'
+import { EDITOR_FIND_EVENT, EDITOR_FONT_SIZE_EVENT } from '../editorFontSize'
 import {
   setVariablePathNames,
   variablePathColors,
@@ -86,7 +88,7 @@ function buildTheme(mode: ThemeMode) {
     {
       '&': {
         height: '100%',
-        fontSize: '14.5px',
+        fontSize: 'var(--editor-font-size, 14.5px)',
         backgroundColor: 'transparent',
       },
       '.cm-scroller': {
@@ -208,7 +210,23 @@ export function CodeEditor({
   )
 
   useEffect(() => {
-    return () => onViewReady?.(null)
+    const onFontSize = () => {
+      ref.current?.view?.requestMeasure()
+      onGeometryChangeRef.current?.()
+    }
+    const onFind = () => {
+      const view = ref.current?.view
+      if (!view) return
+      view.focus()
+      openSearchPanel(view)
+    }
+    window.addEventListener(EDITOR_FONT_SIZE_EVENT, onFontSize)
+    window.addEventListener(EDITOR_FIND_EVENT, onFind)
+    return () => {
+      window.removeEventListener(EDITOR_FONT_SIZE_EVENT, onFontSize)
+      window.removeEventListener(EDITOR_FIND_EVENT, onFind)
+      onViewReady?.(null)
+    }
   }, [onViewReady])
 
   // Result-panel hover drives path chips.
@@ -235,7 +253,7 @@ export function CodeEditor({
           bracketMatching: true,
           closeBrackets: true,
           autocompletion: true,
-          searchKeymap: false,
+          searchKeymap: true,
         }}
         extensions={extensions}
         onChange={onChange}

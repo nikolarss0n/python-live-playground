@@ -548,10 +548,12 @@ export function LearningScratchpad({
   // The macOS app drives Run, Stop, Open and Save through this entry point (src/host/macHost.ts).
   const hostActions = useRef<HostActions | null>(null)
   const [savedNativeCode, setSavedNativeCode] = useState<string | null>(null)
+  const [fileDiskConflict, setFileDiskConflict] = useState(false)
   const openNativeFile = useCallback((fileCode: string) => {
     select(PLAYGROUND_LESSON_ID)
     updateLessonCode(fileCode)
     setSavedNativeCode(fileCode)
+    setFileDiskConflict(false)
   }, [select, updateLessonCode])
   useEffect(() => {
     const fileCode = takeOpenedFile()
@@ -569,7 +571,11 @@ export function LearningScratchpad({
     // The editor holds the newest keystrokes; the code state catches up a moment later.
     getCode: () => editorView?.state.doc.toString() ?? code,
     openFile: (_name, fileCode) => openNativeFile(fileCode),
-    markSaved: (savedCode) => setSavedNativeCode(savedCode),
+    markSaved: (savedCode) => {
+      setSavedNativeCode(savedCode)
+      setFileDiskConflict(false)
+    },
+    onFileConflict: () => setFileDiskConflict(true),
     openFolder: (folder) => onOpenDiskFolder(folder),
   }
   useEffect(() => installMacHost(() => hostActions.current!), [])
@@ -879,8 +885,15 @@ export function LearningScratchpad({
 
       <footer className="app-footer">
         <span role="status" aria-label="Learning progress" className="footer-status">
-          <span className={`footer-dot is-${saveStatus}`} aria-hidden="true" />
-          {saveStatus === 'saved'
+          <span className={`footer-dot is-${fileDiskConflict && lessonId === PLAYGROUND_LESSON_ID ? 'too-large' : saveStatus}`} aria-hidden="true" />
+          {fileDiskConflict && lessonId === PLAYGROUND_LESSON_ID ? (
+            <>
+              Changed on disk —{' '}
+              <button type="button" className="linkish footer-conflict-btn" onClick={() => postHostEvent({ type: 'refreshDisk' })}>
+                Reload from Disk
+              </button>
+            </>
+          ) : saveStatus === 'saved'
             ? 'Code and progress saved on this device'
             : saveStatus === 'saving'
               ? 'Saving on this device'

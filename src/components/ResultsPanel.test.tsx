@@ -1,5 +1,6 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 import { getLesson } from '../examples'
 import { enrichResultEvents, taskEvidenceLine } from '../taskEvidence'
 import { ResultsPanel } from './ResultsPanel'
@@ -61,5 +62,19 @@ describe('ResultsPanel task evidence', () => {
     expect(tip).toBeTruthy()
     expect(tip?.textContent).toMatch(/replace \?\?\?/i)
     expect(tip?.textContent).toMatch(/second print|quoted/i)
+  })
+
+  it('copies formatted results output in one click', async () => {
+    const writeText = vi.fn(async () => {})
+    Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true })
+    const events = [
+      { kind: 'print' as const, text: 'hello', line: 1 },
+      { kind: 'expr' as const, value: '42', line: 2 },
+    ]
+
+    render(<ResultsPanel events={events} status="success" durationMs={4} />)
+    await userEvent.click(screen.getByRole('button', { name: 'Copy results' }))
+    expect(writeText).toHaveBeenCalledWith('hello\n42')
+    expect(screen.getByRole('button', { name: 'Copy results' })).toHaveTextContent('Copied')
   })
 })

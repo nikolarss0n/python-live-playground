@@ -1786,7 +1786,7 @@
   align-items: start;
   padding: 0.12rem 0.15rem 0.12rem 0;
   font-family: var(--font-mono);
-  font-size: 14.5px;
+  font-size: var(--editor-font-size, 14.5px);
   line-height: 1.65;
 }
 
@@ -1927,7 +1927,7 @@
   overflow: auto;
   padding: 0.15rem 1rem 2rem 0.35rem;
   font-family: var(--font-mono);
-  font-size: 14.5px;
+  font-size: var(--editor-font-size, 14.5px);
   line-height: 1.65;
 }
 
@@ -3729,9 +3729,95 @@
   font: 600 0.74rem var(--font-mono);
 }
 
-.api-response-line {
+.api-response-actions {
   margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
+.api-response-line,
+.api-response-copy {
   font-size: 0.74rem;
+}
+
+.results-copy-btn,
+.footer-conflict-btn {
+  font-size: 0.72rem;
+}
+
+/* Calm CodeMirror Find / Replace panel matching the editor theme */
+.cm-editor .cm-panels {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.cm-editor .cm-panels-bottom {
+  border-top: 1px solid var(--border);
+}
+
+.cm-editor .cm-search {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem 0.45rem;
+  padding: 0.45rem 0.65rem;
+  font-family: var(--font-sans);
+  font-size: 0.78rem;
+}
+
+.cm-editor .cm-search input.cm-textfield {
+  background: var(--bg);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.22rem 0.45rem;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.cm-editor .cm-search input.cm-textfield:focus {
+  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  border-color: var(--accent);
+}
+
+.cm-editor .cm-search button.cm-button {
+  background: transparent;
+  background-image: none;
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.74rem;
+  cursor: pointer;
+}
+
+.cm-editor .cm-search button.cm-button:hover {
+  background: var(--hover);
+}
+
+.cm-editor .cm-search label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.cm-editor .cm-search button[name='close'] {
+  color: var(--muted);
+  font-size: 1rem;
+  cursor: pointer;
+}
+
+.cm-editor .cm-searchMatch {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+  border-radius: 2px;
+}
+
+.cm-editor .cm-searchMatch.cm-searchMatch-selected {
+  background: color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 .api-response-empty {

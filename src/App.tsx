@@ -6,6 +6,7 @@ import { linkedLessonId, readEnabledSections, writeEnabledSections } from './lea
 import { useProjectWorkspace } from './project/useProjectWorkspace'
 import { loadSettings, type AppSettings } from './settings'
 import { applyTheme, preferredTheme, type ThemeMode } from './theme'
+import { adjustEditorFontSize, requestEditorFind } from './editorFontSize'
 import { writePreference } from './preferences'
 import { postHostEvent, type DiskFolderPayload } from './host/macHost'
 import './App.css'
@@ -43,6 +44,29 @@ export default function App() {
     writePreference('plp-theme', theme)
     postHostEvent({ type: 'theme', theme })
   }, [theme])
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
+      if (document.querySelector('[role="dialog"][aria-modal="true"]')) return
+      if (event.key === '=' || event.key === '+') {
+        event.preventDefault()
+        adjustEditorFontSize('in')
+      } else if (event.key === '-') {
+        event.preventDefault()
+        adjustEditorFontSize('out')
+      } else if (event.key === '0') {
+        event.preventDefault()
+        adjustEditorFontSize('reset')
+      } else if (event.key.toLowerCase() === 'f' && !event.shiftKey) {
+        if ((event.target as HTMLElement | null)?.closest?.('.cm-editor')) return
+        event.preventDefault()
+        requestEditorFind()
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
 
   const toggleTheme = useCallback(() => {
     setTheme((t) => (t === 'dark' ? 'light' : 'dark'))

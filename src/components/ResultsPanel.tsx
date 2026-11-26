@@ -78,6 +78,24 @@ function eventContent(event: ResultEvent): string {
   }
 }
 
+function formatResultsForCopy(events: readonly ResultEvent[]): string {
+  return events
+    .map((event) => {
+      switch (event.kind) {
+        case 'print':
+        case 'warning':
+          return event.text
+        case 'expr':
+          return event.value
+        case 'error':
+          return event.traceback?.trim() ? event.traceback : event.message
+        case 'http':
+          return `${event.method} ${event.path} -> ${event.status}\n${event.body}`
+      }
+    })
+    .join('\n')
+}
+
 /** Keys from content and occurrence, not position, so rows that did not change keep their DOM across re-runs. */
 function stableRowKeys(events: readonly ResultEvent[]): string[] {
   const seen = new Map<string, number>()
@@ -626,6 +644,21 @@ export function ResultsPanel({
   }, [alignMode, editorView, events, geometryKey])
 
   const hasPrevious = (previousEvents?.length ?? 0) > 0
+  const [copiedResults, setCopiedResults] = useState(false)
+  useEffect(() => {
+    setCopiedResults(false)
+  }, [events])
+  useEffect(() => {
+    if (!copiedResults) return
+    const timer = window.setTimeout(() => setCopiedResults(false), 1500)
+    return () => window.clearTimeout(timer)
+  }, [copiedResults])
+  const onCopyResults = () => {
+    const text = formatResultsForCopy(events)
+    if (!text) return
+    void navigator.clipboard?.writeText(text)
+    setCopiedResults(true)
+  }
   const rowKeys = useMemo(() => stableRowKeys(events), [events])
   const source = useMemo(() => sourceBlocks(sourceCode ?? ''), [sourceCode])
   const fileBlocks = useMemo(() => {
@@ -672,6 +705,17 @@ export function ResultsPanel({
           )}
           {showDuration && (
             <span className="status-meta">{durationMs} ms</span>
+          )}
+          {events.length > 0 && (
+            <button
+              type="button"
+              className="linkish results-copy-btn"
+              onClick={onCopyResults}
+              aria-label="Copy results"
+              title="Copy output"
+            >
+              {copiedResults ? 'Copied' : 'Copy'}
+            </button>
           )}
           {hasPrevious && onTogglePrevious && (
             <button
