@@ -43,6 +43,8 @@ enum MainMenu {
             item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"),
             item("Select All", #selector(NSText.selectAll(_:)), "a"),
+            .separator(),
+            item("Find…", #selector(PlaygroundWindowController.findInEditor(_:)), "f"),
         ]))
 
         main.addItem(submenu("Run", [
@@ -52,6 +54,10 @@ enum MainMenu {
 
         main.addItem(submenu("View", [
             item("Reload", #selector(PlaygroundWindowController.reloadPage(_:)), "r"),
+            .separator(),
+            item("Zoom In", #selector(PlaygroundWindowController.zoomIn(_:)), "="),
+            item("Zoom Out", #selector(PlaygroundWindowController.zoomOut(_:)), "-"),
+            item("Actual Size", #selector(PlaygroundWindowController.zoomReset(_:)), "0"),
             .separator(),
             transparencyItem(controller: controller),
             .separator(),

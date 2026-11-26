@@ -110,6 +110,9 @@ import Testing
             .syncFolder(name: "app", entry: "main.py", folders: [], files: ["main.py": ""], force: false),
             .markFolderSaved(files: ["main.py": ""]),
             .setGlass(tint: 0),
+            .zoom(direction: "in"),
+            .find,
+            .fileConflict(name: "a.py"),
         ]
         for command in commands {
             let name = try #require(command.payload["type"] as? String)

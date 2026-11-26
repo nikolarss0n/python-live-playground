@@ -8,7 +8,7 @@ import WebKit
 /// page, and the file commands.
 @MainActor
 final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
-    let webView: WKWebView
+    let webView: DropWebView
     let schemeHandler: AppSchemeHandler
     private let effect = NSVisualEffectView()
     private let recent: RecentFiles
@@ -20,6 +20,11 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     private let diskWatcher = DiskWatcher()
     private var lastDiskCode: String?
     private var lastDiskProject: DiskProject?
+    var bypassUnsavedPrompt = false
+
+    var needsUnsavedConfirmation: Bool {
+        !bypassUnsavedPrompt && (window?.isDocumentEdited ?? false)
+    }
 
     /// The file Save writes to. Access to a file chosen in an earlier launch lasts while it is the current file.
     private(set) var fileURL: URL? {
@@ -62,7 +67,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore
         configuration.setURLSchemeHandler(schemeHandler, forURLScheme: WebBundle.scheme)
-        webView = WKWebView(frame: .zero, configuration: configuration)
+        webView = DropWebView(frame: .zero, configuration: configuration)
         webView.isInspectable = true
         webView.setValue(false, forKey: "drawsBackground")
 
@@ -87,6 +92,7 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         navigation = NavigationPolicy()
         webView.navigationDelegate = navigation
         webView.uiDelegate = navigation
+        webView.onDropURL = { [weak self] url in self?.openDroppedURL(url) }
         Self.blockWebLoads(in: configuration.userContentController)
 
         layOut(in: window)
@@ -175,6 +181,71 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
         checkDiskChanges(force: false)
     }
 
+    func windowShouldClose(_ sender: NSWindow) -> Bool {
+        guard needsUnsavedConfirmation else { return true }
+        confirmUnsavedChanges { [weak self, weak sender] shouldClose in
+            guard shouldClose, let self, let sender else { return }
+            self.bypassUnsavedPrompt = true
+            sender.close()
+        }
+        return false
+    }
+
+    /// Prompts to save unsaved disk changes before closing the window or quitting the app.
+    func confirmUnsavedChanges(completion: @escaping @MainActor (Bool) -> Void) {
+        guard needsUnsavedConfirmation, let window else {
+            completion(true)
+            return
+        }
+        let name = (folderURL ?? fileURL)?.lastPathComponent ?? MainMenu.appName
+        let alert = NSAlert()
+        alert.alertStyle = .warning
+        alert.messageText = "Do you want to save the changes made to “\(name)”?"
+        alert.informativeText = "Your changes will be lost if you don’t save them."
+        alert.addButton(withTitle: "Save")
+        alert.addButton(withTitle: "Cancel")
+        let discard = alert.addButton(withTitle: "Don’t Save")
+        discard.hasDestructiveAction = true
+        alert.beginSheetModal(for: window) { [weak self] response in
+            MainActor.assumeIsolated {
+                guard let self else { completion(false); return }
+                switch response {
+                case .alertFirstButtonReturn:
+                    Task {
+                        let saved = await self.saveActiveDiskTarget()
+                        completion(saved)
+                    }
+                case .alertThirdButtonReturn:
+                    self.bypassUnsavedPrompt = true
+                    completion(true)
+                default:
+                    completion(false)
+                }
+            }
+        }
+    }
+
+    private func saveActiveDiskTarget() async -> Bool {
+        guard let document = await currentDocument() else { return false }
+        if let project = document.projectDocument, let folderURL, let dirtyFiles = project.dirtyFiles {
+            return writeFolder(dirtyFiles, to: folderURL)
+        }
+        if let fileURL {
+            return write(document, to: fileURL)
+        }
+        return true
+    }
+
+    private func openDroppedURL(_ url: URL) {
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return }
+        if isDir.boolValue {
+            openFolder(url)
+        } else {
+            open(url)
+        }
+    }
+
     func waitUntilPageReady() async {
         if pageReady { return }
         await withCheckedContinuation { readyWaiters.append($0) }
@@ -199,6 +270,10 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
     @objc func runCode(_ sender: Any?) { send(.run) }
     @objc func stopCode(_ sender: Any?) { send(.stop) }
     @objc func reloadPage(_ sender: Any?) { loadApp(webView.url ?? WebBundle.origin) }
+    @objc func findInEditor(_ sender: Any?) { send(.find) }
+    @objc func zoomIn(_ sender: Any?) { send(.zoom(direction: "in")) }
+    @objc func zoomOut(_ sender: Any?) { send(.zoom(direction: "out")) }
+    @objc func zoomReset(_ sender: Any?) { send(.zoom(direction: "reset")) }
 
     @objc func openDocument(_ sender: Any?) {
         guard let window else { return }
@@ -320,7 +395,11 @@ final class PlaygroundWindowController: NSWindowController, NSWindowDelegate {
             guard let data = try? Data(contentsOf: fileURL),
                   let code = try? PythonFile.text(from: data) else { return }
             if !force && code == lastDiskCode { return }
-            if !force && window?.isDocumentEdited == true { return }
+            if !force && window?.isDocumentEdited == true {
+                lastDiskCode = code
+                send(.fileConflict(name: fileURL.lastPathComponent))
+                return
+            }
             lastDiskCode = code
             Task {
                 _ = try? await send(.openFile(name: fileURL.lastPathComponent, code: code))
@@ -543,5 +622,48 @@ final class NavigationPolicy: NSObject, WKNavigationDelegate, WKUIDelegate, WKDo
         let panel = NSSavePanel()
         panel.nameFieldStringValue = suggestedFilename
         return panel.runModal() == .OK ? panel.url : nil
+    }
+}
+
+/// WKWebView subclass that accepts `.py` files and folders dragged from Finder directly onto the window.
+@MainActor
+final class DropWebView: WKWebView {
+    var onDropURL: ((URL) -> Void)?
+
+    override init(frame: CGRect, configuration: WKWebViewConfiguration) {
+        super.init(frame: frame, configuration: configuration)
+        registerForDraggedTypes([.fileURL])
+    }
+
+    required init?(coder: NSCoder) { nil }
+
+    private static func droppedURL(from info: NSDraggingInfo) -> URL? {
+        guard let urls = info.draggingPasteboard.readObjects(forClasses: [NSURL.self], options: [.urlReadingFileURLsOnly: true]) as? [URL],
+              let url = urls.first else { return nil }
+        var isDir: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir) else { return nil }
+        if isDir.boolValue { return url }
+        let ext = url.pathExtension.lowercased()
+        return (ext == "py" || ext == "txt" || ext.isEmpty) ? url : nil
+    }
+
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation {
+        Self.droppedURL(from: sender) != nil ? .copy : super.draggingEntered(sender)
+    }
+
+    override func draggingUpdated(_ sender: NSDraggingInfo) -> NSDragOperation {
+        Self.droppedURL(from: sender) != nil ? .copy : super.draggingUpdated(sender)
+    }
+
+    override func prepareForDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        Self.droppedURL(from: sender) != nil || super.prepareForDragOperation(sender)
+    }
+
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        if let url = Self.droppedURL(from: sender) {
+            onDropURL?(url)
+            return true
+        }
+        return super.performDragOperation(sender)
     }
 }

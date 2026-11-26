@@ -19,6 +19,9 @@ public enum HostCommand: Equatable, Sendable {
     case syncFolder(name: String, entry: String, folders: [String], files: [String: String], force: Bool)
     case markFolderSaved(files: [String: String])
     case setGlass(tint: Double)
+    case zoom(direction: String)
+    case find
+    case fileConflict(name: String)
 
     /// The value passed to `window.playgroundHost.handle(command)`.
     public var payload: [String: any Sendable] {
@@ -34,6 +37,9 @@ public enum HostCommand: Equatable, Sendable {
             ["type": "syncFolder", "name": name, "entry": entry, "folders": folders, "files": files, "force": force]
         case let .markFolderSaved(files): ["type": "markFolderSaved", "files": files]
         case let .setGlass(tint): ["type": "setGlass", "tint": tint]
+        case let .zoom(direction): ["type": "zoom", "direction": direction]
+        case .find: ["type": "find"]
+        case let .fileConflict(name): ["type": "fileConflict", "name": name]
         }
     }
 }

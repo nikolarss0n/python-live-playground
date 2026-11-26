@@ -10,6 +10,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         let selfTest = CommandLine.arguments.contains("--self-test")
         let controller = PlaygroundWindowController(webRoot: Self.webRoot(), recent: recent, dataStore: selfTest ? .nonPersistent() : .default())
+        controller.bypassUnsavedPrompt = selfTest
         self.controller = controller
         NSApp.mainMenu = MainMenu.build(appDelegate: self, controller: controller)
         controller.showWindow(nil)
@@ -24,6 +25,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard let controller, controller.needsUnsavedConfirmation else { return .terminateNow }
+        controller.confirmUnsavedChanges { shouldTerminate in
+            sender.reply(toApplicationShouldTerminate: shouldTerminate)
+        }
+        return .terminateLater
+    }
 
     /// A `.py` file or folder opened from Finder or dropped on the Dock icon.
     func application(_ application: NSApplication, open urls: [URL]) {
